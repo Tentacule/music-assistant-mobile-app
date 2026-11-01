@@ -10,6 +10,9 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
+import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
 
 /**
  * The TV theme: dark, with more contrast than the phone theme for a screen seen from the couch,
@@ -25,11 +28,15 @@ import androidx.compose.ui.graphics.Color
 @Composable
 fun TvTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = TvColors) {
-        CompositionLocalProvider(
+        // The TV components (menu, player controls, settings buttons) read the TV Material theme.
+        TvMaterialTheme(colorScheme = TvFocusColors) {
+            CompositionLocalProvider(
             LocalIndication provides TvFocusIndication(border = FocusBorder, fill = TvColors.primary),
+            LocalDpadNavigation provides true,
             LocalRippleConfiguration provides RippleConfiguration(color = Color.White, rippleAlpha = TvRippleAlpha),
-            content = content,
-        )
+                content = content,
+            )
+        }
     }
 }
 
@@ -37,7 +44,7 @@ private val FocusBorder = Color.White
 
 private val TvRippleAlpha = RippleAlpha(
     draggedAlpha = 0.24f,
-    focusedAlpha = 0.38f,
+    focusedAlpha = 0.55f,
     hoveredAlpha = 0.16f,
     pressedAlpha = 0.32f,
 )
@@ -66,4 +73,26 @@ private val TvColors = darkColorScheme(
     surfaceContainerHighest = Color(0xFF272E36),
     outline = Color(0xFF8E98A3),
     outlineVariant = Color(0xFF3B444E),
+)
+
+/** The TV Material colors: same palette, with the light focus (inverse surface) of Android TV. */
+private val TvFocusColors = tvDarkColorScheme(
+    primary = TvColors.primary,
+    onPrimary = TvColors.onPrimary,
+    primaryContainer = TvColors.primaryContainer,
+    onPrimaryContainer = TvColors.onPrimaryContainer,
+    secondary = TvColors.secondary,
+    onSecondary = TvColors.onSecondary,
+    secondaryContainer = TvColors.secondaryContainer,
+    onSecondaryContainer = TvColors.onSecondaryContainer,
+    background = TvColors.background,
+    onBackground = TvColors.onBackground,
+    surface = TvColors.surface,
+    onSurface = TvColors.onSurface,
+    surfaceVariant = TvColors.surfaceVariant,
+    onSurfaceVariant = TvColors.onSurfaceVariant,
+    inverseSurface = Color(0xFFF3F5F8),
+    inverseOnSurface = Color(0xFF0A0D11),
+    border = TvColors.outline,
+    borderVariant = TvColors.outlineVariant,
 )

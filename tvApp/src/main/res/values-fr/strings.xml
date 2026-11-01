@@ -2,6 +2,7 @@
     <string name="tv_nav_home">Accueil</string>
     <string name="tv_nav_search">Recherche</string>
     <string name="tv_nav_now_playing">En lecture</string>
+    <string name="tv_nav_queue">File d’attente</string>
     <string name="tv_nav_player_controls">Contrôles du lecteur</string>
     <string name="tv_nav_settings">Paramètres</string>
     <string name="tv_nothing_playing">Aucune lecture</string>
@@ -11,6 +12,10 @@
     <string name="tv_pause">Pause</string>
     <string name="tv_previous">Précédent</string>
     <string name="tv_next">Suivant</string>
+    <string name="tv_shuffle">Lecture aléatoire</string>
+    <string name="tv_repeat">Répéter</string>
+    <string name="tv_smart_mix">Mix intelligent</string>
+    <string name="tv_dynamic_queue_locked">Cette file est un mix intelligent : le serveur gère son ordre, l’aléatoire et la répétition ne peuvent pas être changés. Lancez un album ou une playlist pour avoir une file normale.</string>
     <string name="tv_settings_title">Paramètres</string>
     <string name="tv_server">Serveur</string>
     <string name="tv_server_host">Adresse du serveur</string>

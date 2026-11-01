@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.components.resources)
     implementation(libs.material)
+    implementation(libs.androidx.tv.material)
     implementation(libs.material.icons.core)
     implementation(libs.material.icons.extended)
     implementation(libs.androidx.activity.compose)

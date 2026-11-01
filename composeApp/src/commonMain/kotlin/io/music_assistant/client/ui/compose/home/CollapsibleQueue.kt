@@ -5,6 +5,8 @@ package io.music_assistant.client.ui.compose.home
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +31,8 @@ import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.QueuePlayNext
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -44,12 +48,19 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -78,8 +89,10 @@ import io.music_assistant.client.ui.contentColorByLuminance
 import io.music_assistant.client.utils.conditional
 import io.music_assistant.client.utils.formatDuration
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import musicassistantclient.composeapp.generated.resources.Res
 import musicassistantclient.composeapp.generated.resources.action_add_to_playlist
+import musicassistantclient.composeapp.generated.resources.action_play_next
 import musicassistantclient.composeapp.generated.resources.action_start_endless_mix
 import musicassistantclient.composeapp.generated.resources.cd_toggle_queue
 import musicassistantclient.composeapp.generated.resources.common_delete
@@ -91,6 +104,7 @@ import musicassistantclient.composeapp.generated.resources.queue_error
 import musicassistantclient.composeapp.generated.resources.queue_label
 import musicassistantclient.composeapp.generated.resources.queue_label_with_position
 import musicassistantclient.composeapp.generated.resources.queue_loading
+import musicassistantclient.composeapp.generated.resources.queue_move
 import musicassistantclient.composeapp.generated.resources.queue_no_items
 import musicassistantclient.composeapp.generated.resources.queue_not_loaded
 import org.jetbrains.compose.resources.stringResource
@@ -201,6 +215,9 @@ fun Queue(
     onStartEndlessMix: ((AppMediaItem) -> Unit)? = null,
     onChapterClick: (Chapter) -> Unit = {},
     livePositionFlow: Flow<Double>? = null,
+    // Reordering from the item menu (move up, move down, play next), for a D-pad where the
+    // drag handle cannot be used (Android TV).
+    showMoveActions: Boolean = false,
 ) {
     Box(
         modifier = modifier,
@@ -278,6 +295,63 @@ fun Queue(
                     var dragEndIndex by remember { mutableStateOf<Int?>(null) }
                     var menuItemId by remember { mutableStateOf<String?>(null) }
                     val listState = rememberLazyListState()
+
+                    // D-pad move mode (Android TV, [showMoveActions]): Up/Down move the item in the
+                    // shown list only, OK sends the one move to the server, Back restores the order.
+                    var movingItemId by remember { mutableStateOf<String?>(null) }
+                    var moveOrigin by remember { mutableStateOf(-1) }
+                    // The release of the key that ended the mode, which must not reach the row
+                    // (OK would play it, Back would leave the page).
+                    var swallowKeyUp by remember { mutableStateOf<Key?>(null) }
+                    val moveScope = rememberCoroutineScope()
+                    // A queue update from the server resets the shown list, and with it the move.
+                    LaunchedEffect(items) { movingItemId = null }
+
+                    fun onMoveKey(event: KeyEvent, queueId: String): Boolean {
+                        if (event.type == KeyEventType.KeyUp && event.key == swallowKeyUp) {
+                            swallowKeyUp = null
+                            return true
+                        }
+                        val id = movingItemId ?: return false
+                        if (event.type != KeyEventType.KeyDown) return true
+                        val index = internalItems.indexOfFirst { it.id == id }
+                        fun shiftTo(target: Int) {
+                            internalItems = internalItems.toMutableList().apply { add(target, removeAt(index)) }
+                            moveScope.launch {
+                                val row = internalItems.buildDisplayRows(currentItemId)
+                                    .indexOfFirst { it is QueueDisplayRow.QueueItem && it.item.id == id }
+                                val visible = listState.layoutInfo.visibleItemsInfo
+                                val first = visible.firstOrNull()?.index ?: return@launch
+                                val last = visible.lastOrNull()?.index ?: return@launch
+                                if (row <= first || row >= last) {
+                                    listState.animateScrollToItem((row - MOVE_SCROLL_CONTEXT).coerceAtLeast(0))
+                                }
+                            }
+                        }
+                        when (event.key) {
+                            Key.DirectionUp -> if (index > currentItemIndex + 1) shiftTo(index - 1)
+
+                            Key.DirectionDown -> if (index in 0 until internalItems.lastIndex) shiftTo(index + 1)
+
+                            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                                if (index >= 0 && index != moveOrigin) {
+                                    queueAction(QueueAction.MoveItem(queueId, id, moveOrigin, index))
+                                }
+                                movingItemId = null
+                                swallowKeyUp = event.key
+                            }
+
+                            Key.Back, Key.Escape -> {
+                                internalItems = items
+                                movingItemId = null
+                                swallowKeyUp = event.key
+                            }
+
+                            // Left/Right and the rest stay on the item while it moves.
+                            else -> Unit
+                        }
+                        return true
+                    }
 
                     // Flattened rows: real queue items, plus chapter rows under the
                     // current audiobook. Structurally stable across playback ticks.
@@ -415,6 +489,23 @@ fun Queue(
                                                 },
                                             )
                                             .fillMaxWidth()
+                                            .onPreviewKeyEvent { onMoveKey(it, queueData.info.id) }
+                                            .then(
+                                                if (movingItemId == item.id) {
+                                                    Modifier
+                                                        .background(
+                                                            MaterialTheme.colorScheme.primaryContainer,
+                                                            RoundedCornerShape(8.dp),
+                                                        )
+                                                        .border(
+                                                            2.dp,
+                                                            MaterialTheme.colorScheme.primary,
+                                                            RoundedCornerShape(8.dp),
+                                                        )
+                                                } else {
+                                                    Modifier
+                                                },
+                                            )
                                             .clip(shape = RoundedCornerShape(8.dp))
                                             .conditional(
                                                 condition = isPlayed,  // Treat unplayable like played items
@@ -574,6 +665,36 @@ fun Queue(
                                                 },
                                             )
                                         }
+                                        if (showMoveActions && isPlayable && !isPlayed && !isCurrent) {
+                                            val from = queueRow.queueIndex
+                                            val nextSlot = currentItemIndex + 1
+                                            fun move(to: Int) {
+                                                // Shown at once, like a drag; the server's queue update follows.
+                                                internalItems = internalItems.toMutableList().apply { add(to, removeAt(from)) }
+                                                queueAction(QueueAction.MoveItem(queueData.info.id, item.id, from, to))
+                                            }
+                                            if (from > nextSlot) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(Res.string.action_play_next)) },
+                                                    leadingIcon = { Icon(Icons.Default.QueuePlayNext, contentDescription = null) },
+                                                    onClick = {
+                                                        move(nextSlot)
+                                                        menuItemId = null
+                                                    },
+                                                )
+                                            }
+                                            if (from > nextSlot || from < internalItems.lastIndex) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(Res.string.queue_move)) },
+                                                    leadingIcon = { Icon(Icons.Default.SwapVert, contentDescription = null) },
+                                                    onClick = {
+                                                        moveOrigin = from
+                                                        movingItemId = item.id
+                                                        menuItemId = null
+                                                    },
+                                                )
+                                            }
+                                        }
                                         DropdownMenuItem(
                                             text = { Text(stringResource(Res.string.common_delete)) },
                                             leadingIcon = {
@@ -650,3 +771,6 @@ private fun QueueChapterRow(
 object CollapsibleQueueSemantics {
     const val QUEUE_TAG: String = "CollapsibleQueue"
 }
+
+// Rows kept above the moving item when the list scrolls to follow it.
+private const val MOVE_SCROLL_CONTEXT = 2

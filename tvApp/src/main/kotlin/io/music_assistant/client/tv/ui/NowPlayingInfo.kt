@@ -5,6 +5,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import io.music_assistant.client.data.model.client.PlayerData
+import io.music_assistant.client.data.model.client.RepeatMode
 import io.music_assistant.client.ui.compose.home.HomeScreenViewModel
 import kotlinx.coroutines.flow.flowOf
 
@@ -17,6 +18,11 @@ data class NowPlayingInfo(
     val durationSec: Double?,
     val isPlaying: Boolean,
     val upNext: String?,
+    val shuffle: Boolean,
+    val repeatMode: RepeatMode,
+    // A dynamic queue (a smart mix the server manages) is always mixed; the server refuses
+    // shuffle and repeat changes on it, and mixes added tracks into it.
+    val isDynamic: Boolean,
 )
 
 fun PlayerData.nowPlayingInfo(): NowPlayingInfo? {
@@ -32,6 +38,9 @@ fun PlayerData.nowPlayingInfo(): NowPlayingInfo? {
         durationSec = media?.duration?.takeIf { it > 0 },
         isPlaying = player.isPlaying,
         upNext = nextIndex?.let { queueItems?.getOrNull(it) }?.track?.displayName,
+        shuffle = queueInfo?.shuffleEnabled == true,
+        repeatMode = queueInfo?.repeatMode ?: RepeatMode.OFF,
+        isDynamic = queueInfo?.isDynamicPlaylist == true,
     )
 }
 

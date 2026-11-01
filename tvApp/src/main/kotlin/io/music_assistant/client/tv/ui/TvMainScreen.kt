@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -30,6 +31,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,6 +41,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import co.touchlab.kermit.Logger
+import io.music_assistant.client.api.ErrorMessageBus
 import io.music_assistant.client.api.ServiceClient
 import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.data.model.client.ClickContext
@@ -48,6 +51,7 @@ import io.music_assistant.client.data.model.client.items.RecommendationFolder
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.TvUserActivity
+import io.music_assistant.client.ui.compose.common.ToastDuration
 import io.music_assistant.client.ui.compose.common.ToastHost
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
 import io.music_assistant.client.ui.compose.common.providers.providerIconFetcher
@@ -91,6 +95,7 @@ import org.jetbrains.compose.resources.stringResource as composeStringResource
 private sealed interface TvRoute : NavKey {
     data object Home : TvRoute
     data object Search : TvRoute
+    data object Queue : TvRoute
     data class Library(val mediaType: MediaType) : TvRoute
     data object AiRadio : TvRoute
     data class Browse(val path: String?, val title: String?, val id: Long = nextRouteId()) : TvRoute
@@ -142,8 +147,25 @@ fun TvMainScreen(openSettings: () -> Unit) {
         if (data.selectedPlayer?.playerId != local.playerId) homeScreenViewModel.selectPlayer(local.player)
     }
 
+    val dynamicLockedMessage = stringResource(R.string.tv_dynamic_queue_locked)
     val onPlayerAction: (PlayerAction) -> Unit = { action ->
-        localPlayer?.let { dataSource.playerAction(it, action) }
+        localPlayer?.let { player ->
+            val locked = action is PlayerAction.ToggleShuffle || action is PlayerAction.ToggleRepeatMode
+            // The server refuses these on a smart mix; say why instead of letting the toggle bounce back.
+            if (locked && player.queueInfo?.isDynamicPlaylist == true) {
+                toastState.showToast(dynamicLockedMessage, ToastDuration.LONG)
+            } else {
+                dataSource.playerAction(player, action)
+            }
+        }
+    }
+
+    // Server errors (a refused command...) as toasts over every screen, as on the phone.
+    val errorBus: ErrorMessageBus = koinInject()
+    LaunchedEffect(errorBus) {
+        errorBus.messages.collect { message ->
+            toastState.showToast(message.take(MAX_ERROR_LENGTH), ToastDuration.LONG)
+        }
     }
 
     var nowPlaying by rememberSaveable { mutableStateOf(false) }
@@ -161,7 +183,11 @@ fun TvMainScreen(openSettings: () -> Unit) {
     // Also bumped when the system, not the user, puts the focus in the menu (at start-up, or when
     // the focused element goes away).
     var focusContentRequest by remember { mutableIntStateOf(0) }
-    LaunchedEffect(currentRoute, nowPlaying, focusContentRequest) {
+    // Now playing leaves the focus where it was (it reads the keys through [nowPlayingKeys]), so
+    // closing it returns to the element that had the focus, in the page, the player bar or the menu.
+    val nowPlayingKeys = remember { NowPlayingKeys() }
+    val closeNowPlaying: () -> Unit = { nowPlaying = false }
+    LaunchedEffect(currentRoute, focusContentRequest) {
         if (nowPlaying) return@LaunchedEffect
         repeat(FOCUS_ATTEMPTS) {
             delay(FOCUS_RETRY_MS)
@@ -199,7 +225,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
 
     val nowPlayingInfo = localPlayer?.nowPlayingInfo()
     LaunchedEffect(userActivity) {
-        userActivity.nowPlayingToggles.collect { nowPlaying = !nowPlaying }
+        userActivity.nowPlayingToggles.collect { if (nowPlaying) closeNowPlaying() else nowPlaying = true }
     }
 
     val categories by libraryCategoriesViewModel.state.collectAsStateWithLifecycle()
@@ -209,7 +235,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
         add(
             TvRailItem(
                 key = "now_playing",
-                icon = Icons.AutoMirrored.Filled.QueueMusic,
+                icon = Icons.Default.MusicNote,
                 label = stringResource(R.string.tv_nav_now_playing),
                 group = 0,
                 artworkUrl = nowPlayingInfo?.imageUrl,
@@ -236,6 +262,19 @@ fun TvMainScreen(openSettings: () -> Unit) {
         )
         categories.categories.filter { it.enabled }.forEach { state ->
             val category = state.libraryCategory
+            // On the TV, the Tracks entry is the queue: a whole-library track list is of little use
+            // with a remote, the tracks that play are.
+            if (category == LibraryCategory.TRACKS) {
+                add(
+                    TvRailItem(
+                        key = "queue",
+                        icon = Icons.AutoMirrored.Filled.QueueMusic,
+                        label = stringResource(R.string.tv_nav_queue),
+                        group = 1,
+                    ) { goToRoot(TvRoute.Queue) },
+                )
+                return@forEach
+            }
             val route = when (category) {
                 LibraryCategory.BROWSE -> TvRoute.Browse(path = null, title = null)
                 LibraryCategory.AI_RADIO -> TvRoute.AiRadio
@@ -260,20 +299,26 @@ fun TvMainScreen(openSettings: () -> Unit) {
     val selectedKey = when (val root = backStack.firstOrNull()) {
         TvRoute.Home -> "home"
         TvRoute.Search -> "search"
+        TvRoute.Queue -> "queue"
         is TvRoute.Library -> LibraryCategory.entries.firstOrNull { it.mediaType == root.mediaType }?.name
         TvRoute.AiRadio -> LibraryCategory.AI_RADIO.name
         is TvRoute.Browse -> LibraryCategory.BROWSE.name
         else -> null
     }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .onPreviewKeyEvent { event -> nowPlaying && (nowPlayingKeys.handler?.invoke(event) ?: false) },
+    ) {
+        Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(start = TvRailCollapsedWidth)) {
             // Like Plex: what plays, at the top right of every page (Up from the page's top bar).
             nowPlayingInfo?.let { info ->
                 NowPlayingPill(
                     info = info,
                     onClick = { nowPlaying = true },
-                    modifier = Modifier.align(Alignment.End).padding(top = 8.dp, end = 24.dp),
+                    modifier = Modifier.align(Alignment.End).padding(top = 16.dp, end = 48.dp),
                 )
             }
             Box(
@@ -336,6 +381,13 @@ fun TvMainScreen(openSettings: () -> Unit) {
                                 onNavigateClick = ::navigateToItem,
                             )
                         }
+                        entry<TvRoute.Queue> {
+                            TvQueueScreen(
+                                playerData = localPlayer,
+                                homeScreenViewModel = homeScreenViewModel,
+                                onGoToLibrary = { goToRoot(TvRoute.Home) },
+                            )
+                        }
                         entry<TvRoute.AiRadio> {
                             AiRadioScreen(
                                 viewModel = koinViewModel<AiRadioViewModel>(),
@@ -395,6 +447,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
                 homeScreenViewModel = homeScreenViewModel,
                 onAction = onPlayerAction,
                 onOpenNowPlaying = { nowPlaying = true },
+                onOpenQueue = { goToRoot(TvRoute.Queue) },
                 playPauseFocus = playerBarFocus,
             )
         }
@@ -410,13 +463,19 @@ fun TvMainScreen(openSettings: () -> Unit) {
                 asked
             },
         )
+        }
 
         if (nowPlaying) {
             NowPlayingScreen(
                 playerData = localPlayer,
                 homeScreenViewModel = homeScreenViewModel,
                 onAction = onPlayerAction,
-                onClose = { nowPlaying = false },
+                onClose = closeNowPlaying,
+                keys = nowPlayingKeys,
+                onOpenQueue = {
+                    closeNowPlaying()
+                    goToRoot(TvRoute.Queue)
+                },
             )
         }
         ToastHost(toastState = toastState)
@@ -456,4 +515,5 @@ private fun UnsupportedInstallDismissalKeeper(homeScreenViewModel: HomeScreenVie
 }
 
 private const val FOCUS_ATTEMPTS = 40
+private const val MAX_ERROR_LENGTH = 150
 private const val FOCUS_RETRY_MS = 150L

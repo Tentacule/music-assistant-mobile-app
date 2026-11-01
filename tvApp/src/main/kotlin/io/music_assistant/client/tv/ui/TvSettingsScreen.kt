@@ -13,12 +13,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -37,6 +34,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.tv.material3.ExperimentalTvMaterial3Api
 import io.music_assistant.client.api.Defaults
 import io.music_assistant.client.tv.NowPlayingDelay
 import io.music_assistant.client.tv.R
@@ -48,6 +46,10 @@ import io.music_assistant.client.utils.DataConnectionState
 import io.music_assistant.client.utils.SessionState
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.tv.material3.Button as TvButton
+import androidx.tv.material3.FilterChip as TvFilterChip
+import androidx.tv.material3.OutlinedButton as TvOutlinedButton
+import androidx.tv.material3.Text as TvText
 
 /**
  * The TV settings: the server, the sign-in, the name of the TV player and the Now playing delay.
@@ -89,7 +91,7 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                     modifier = Modifier.weight(1f),
                 )
                 if (canGoBack) {
-                    OutlinedButton(onClick = onBack) { Text(stringResource(R.string.tv_back)) }
+                    TvOutlinedButton(onClick = onBack) { TvText(stringResource(R.string.tv_back)) }
                 }
             }
 
@@ -115,15 +117,15 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                     ) {
                         CircularProgressIndicator()
                         Text(stringResource(R.string.tv_connecting, host), modifier = Modifier.weight(1f))
-                        OutlinedButton(onClick = viewModel::disconnect) { Text(stringResource(R.string.tv_cancel)) }
+                        TvOutlinedButton(onClick = viewModel::disconnect) { TvText(stringResource(R.string.tv_cancel)) }
                     }
 
                     is SessionState.Connected -> {
                         val serverName = state.serverInfo?.name?.takeIf { it.isNotBlank() }
                             ?: savedConnectionInfo?.let { "${it.host}:${it.port}" }.orEmpty()
                         Text(stringResource(R.string.tv_connected_to, serverName))
-                        OutlinedButton(onClick = viewModel::disconnect) {
-                            Text(stringResource(R.string.tv_disconnect))
+                        TvOutlinedButton(onClick = viewModel::disconnect) {
+                            TvText(stringResource(R.string.tv_disconnect))
                         }
                     }
                 }
@@ -180,11 +182,11 @@ private fun ServerForm(
     // on-screen keyboard over the form.
     val connectFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { connectFocus.requestFocus() } }
-    Button(
+    TvButton(
         onClick = onConnect,
         enabled = connectEnabled,
         modifier = Modifier.focusRequester(connectFocus),
-    ) { Text(stringResource(R.string.tv_connect)) }
+    ) { TvText(stringResource(R.string.tv_connect)) }
 }
 
 /** The name the TV player gets in Music Assistant. */
@@ -209,11 +211,12 @@ private fun PlayerNameCard() {
                 singleLine = true,
                 modifier = Modifier.weight(1f),
             )
-            Button(onClick = sendspin::save, enabled = isSavable) { Text(stringResource(R.string.tv_save)) }
+            TvButton(onClick = sendspin::save, enabled = isSavable) { TvText(stringResource(R.string.tv_save)) }
         }
     }
 }
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun NowPlayingDelayCard() {
     val prefs: TvPreferences = koinInject()
@@ -221,11 +224,10 @@ private fun NowPlayingDelayCard() {
     SettingsCard(stringResource(R.string.tv_now_playing_delay)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             NowPlayingDelay.entries.forEach { option ->
-                FilterChip(
+                TvFilterChip(
                     selected = option == delay,
                     onClick = { prefs.setNowPlayingDelay(option) },
-                    label = { Text(stringResource(option.label())) },
-                )
+                ) { TvText(stringResource(option.label())) }
             }
         }
     }

@@ -4,7 +4,9 @@ import android.app.ForegroundServiceStartNotAllowedException
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.KeyEvent
+import android.view.ViewConfiguration
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.asLiveData
@@ -49,7 +51,53 @@ class TvMainActivity : ComponentActivity() {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) userActivity.onKey(event.keyCode)
+        if (event.keyCode in SELECT_KEYS && !replayingSelect) return onSelectKey(event)
         return super.dispatchKeyEvent(event)
+    }
+
+    // The OK key, read here rather than by Compose. A long press opens the item menu as soon as the
+    // timeout passes, while OK is still held; the menu takes the focus, and the release then
+    // presses its first entry (playing the item). So the press is held back until the release:
+    // a short one is replayed as a click, a long one as a long click whose release never reaches
+    // the menu.
+    private var selectDownAt = NO_PRESS
+    private var replayingSelect = false
+
+    private fun onSelectKey(event: KeyEvent): Boolean {
+        when (event.action) {
+            KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0) selectDownAt = event.eventTime
+
+            KeyEvent.ACTION_UP -> {
+                if (selectDownAt == NO_PRESS) return true
+                val held = event.eventTime - selectDownAt
+                selectDownAt = NO_PRESS
+                replaySelect(event, longPress = held >= ViewConfiguration.getLongPressTimeout())
+            }
+        }
+        return true
+    }
+
+    private fun replaySelect(up: KeyEvent, longPress: Boolean) {
+        val now = SystemClock.uptimeMillis()
+        val down =
+            KeyEvent(now, now, KeyEvent.ACTION_DOWN, up.keyCode, 0, up.metaState, up.deviceId, up.scanCode, 0, up.source)
+        val release = KeyEvent.changeAction(down, KeyEvent.ACTION_UP)
+        replayingSelect = true
+        super.dispatchKeyEvent(down)
+        replayingSelect = false
+        if (!longPress) {
+            replayingSelect = true
+            super.dispatchKeyEvent(release)
+            replayingSelect = false
+            return
+        }
+        // Compose fires the long click once the timeout passes with the key down. The release
+        // then goes straight to this window's views, not to the menu window that has the focus,
+        // so it only resets the item, whose long click already ran.
+        window.decorView.postDelayed(
+            { window.decorView.dispatchKeyEvent(release) },
+            ViewConfiguration.getLongPressTimeout() + LONG_PRESS_MARGIN_MS,
+        )
     }
 
     // The remote's media keys drive the local player from any screen.
@@ -78,6 +126,9 @@ class TvMainActivity : ComponentActivity() {
     }
 
     private companion object {
+        val SELECT_KEYS = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER)
+        const val NO_PRESS = -1L
+        const val LONG_PRESS_MARGIN_MS = 150L
         const val SEEK_SECONDS = 10L
     }
 }
