@@ -54,4 +54,5 @@
     <string name="tv_nav_player">Lecteur</string>
     <string name="tv_pick_player">Lire sur</string>
     <string name="tv_this_tv">%1$s · cette TV</string>
+    <string name="tv_queue_nothing_next">Rien ensuite dans la file</string>
 </resources>

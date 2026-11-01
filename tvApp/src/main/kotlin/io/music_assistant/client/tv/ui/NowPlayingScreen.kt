@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -18,6 +19,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -52,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -65,7 +72,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import io.music_assistant.client.data.model.client.ImageType
 import io.music_assistant.client.data.model.client.PlayerData
+import io.music_assistant.client.data.model.client.QueueTrack
 import io.music_assistant.client.data.model.client.RepeatMode
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.Track
@@ -77,6 +86,7 @@ import io.music_assistant.client.tv.ui.visualizer.VisualizerStyle
 import io.music_assistant.client.tv.ui.visualizer.artworkVisualizer
 import io.music_assistant.client.tv.ui.visualizer.rememberAudioFrames
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
+import io.music_assistant.client.ui.compose.common.action.QueueAction
 import io.music_assistant.client.ui.compose.common.icons.CrossfadeIcon
 import io.music_assistant.client.ui.compose.common.rememberAnimatedPlayerColors
 import io.music_assistant.client.ui.compose.common.rememberExtractedColorsSource
@@ -133,8 +143,24 @@ fun NowPlayingScreen(
     var choosingArtist by remember { mutableStateOf(false) }
     var artistIndex by remember { mutableIntStateOf(0) }
     // Back first closes the artist list, then hides the controls, then leaves the mode.
+    // The upcoming tracks, shown under the controls with Down; OK plays the one selected.
+    var queueOpen by remember { mutableStateOf(false) }
+    var queueIndex by remember { mutableIntStateOf(0) }
+    val upcoming = remember(playerData?.queueItems, playerData?.queueInfo?.currentIndex) {
+        val items = playerData?.queueItems.orEmpty()
+        val from = (playerData?.queueInfo?.currentIndex ?: -1) + 1
+        if (from in items.indices) items.subList(from, items.size) else emptyList()
+    }
+    val queueListState = rememberLazyListState()
+    LaunchedEffect(queueOpen, queueIndex) {
+        if (queueOpen && upcoming.isNotEmpty()) {
+            queueListState.animateScrollToItem((queueIndex - 1).coerceAtLeast(0))
+        }
+    }
+    // Back (and Up) step out one level: the queue, the artist list, the controls, then the mode.
     BackHandler {
         when {
+            queueOpen -> queueOpen = false
             choosingArtist -> choosingArtist = false
             controlsVisible -> controlsVisible = false
             else -> onClose()
@@ -145,11 +171,13 @@ fun NowPlayingScreen(
     var lastInteraction by remember { mutableStateOf(0L) }
     // An OK press seen by this mode, handled on its release.
     var selectPressed by remember { mutableStateOf(false) }
-    LaunchedEffect(controlsVisible, choosingArtist, lastInteraction) {
+    LaunchedEffect(controlsVisible, choosingArtist, queueOpen, lastInteraction) {
         if (controlsVisible) {
-            delay(CONTROLS_HIDE_DELAY_MS)
+            // Longer while browsing the queue: there is more to read.
+            delay(if (queueOpen) QUEUE_HIDE_DELAY_MS else CONTROLS_HIDE_DELAY_MS)
             controlsVisible = false
             choosingArtist = false
+            queueOpen = false
         }
     }
 
@@ -251,6 +279,24 @@ fun NowPlayingScreen(
     // Now playing never takes the focus: it stays on the element of the app underneath, so closing
     // the mode lands exactly there. The screen hands the remote's keys to [keys] meanwhile; every
     // key is consumed here, except Back (the BackHandler) and the media keys (the activity).
+    fun playUpcoming() {
+        val item = upcoming.getOrNull(queueIndex) ?: return
+        val queueId = playerData?.queueInfo?.id ?: return
+        homeScreenViewModel.queueAction(QueueAction.PlayQueueItem(queueId, item.id))
+        queueOpen = false
+    }
+
+    // What OK does where the remote is: show the controls, play a queued track, open an artist, or
+    // press a control.
+    fun select() {
+        when {
+            !controlsVisible -> controlsVisible = true
+            queueOpen -> playUpcoming()
+            choosingArtist -> artists.getOrNull(artistIndex)?.let(onNavigate)
+            else -> controls.getOrNull(selectedIndex)?.onPress?.invoke()
+        }
+    }
+
     val handleKey: (KeyEvent) -> Boolean = handler@{ event ->
         val select = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
         if (event.type != KeyEventType.KeyDown) {
@@ -258,11 +304,7 @@ fun NowPlayingScreen(
             // otherwise leave the release to the element focused underneath, which would fire too.
             if (select && selectPressed) {
                 selectPressed = false
-                when {
-                    !controlsVisible -> controlsVisible = true
-                    choosingArtist -> artists.getOrNull(artistIndex)?.let(onNavigate)
-                    else -> controls.getOrNull(selectedIndex)?.onPress?.invoke()
-                }
+                select()
                 lastInteraction = System.nanoTime()
             }
             return@handler event.key != Key.Back
@@ -274,14 +316,32 @@ fun NowPlayingScreen(
 
             Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> selectPressed = true
 
+            Key.DirectionUp -> when {
+                !controlsVisible -> controlsVisible = true
+                queueOpen -> queueOpen = false
+                choosingArtist -> choosingArtist = false
+                // Up from the controls goes back to the plain view, like Back.
+                else -> controlsVisible = false
+            }
+
+            Key.DirectionDown -> when {
+                !controlsVisible -> controlsVisible = true
+                !queueOpen && !choosingArtist -> {
+                    queueIndex = 0
+                    queueOpen = true
+                }
+            }
+
             Key.DirectionLeft -> when {
                 !controlsVisible -> controlsVisible = true
+                queueOpen -> queueIndex = (queueIndex - 1).coerceAtLeast(0)
                 choosingArtist -> artistIndex = (artistIndex - 1).coerceAtLeast(0)
                 else -> controls.getOrNull(selectedIndex - 1)?.let { selectedKey = it.key }
             }
 
             Key.DirectionRight -> when {
                 !controlsVisible -> controlsVisible = true
+                queueOpen -> queueIndex = (queueIndex + 1).coerceAtMost((upcoming.size - 1).coerceAtLeast(0))
                 choosingArtist -> artistIndex = (artistIndex + 1).coerceAtMost(artists.lastIndex)
                 else -> controls.getOrNull(selectedIndex + 1)?.let { selectedKey = it.key }
             }
@@ -365,10 +425,20 @@ fun NowPlayingScreen(
                         }
                     } else {
                         controls.forEachIndexed { index, control ->
-                            ControlButton(control.icon, control.label, index == selectedIndex, control.active)
+                            ControlButton(
+                                control.icon,
+                                control.label,
+                                index == selectedIndex && !queueOpen,
+                                control.active,
+                            )
                         }
                     }
                 }
+            }
+
+            // Down from the controls: the tracks coming next, OK plays one.
+            AnimatedVisibility(visible = controlsVisible && queueOpen, enter = fadeIn(), exit = fadeOut()) {
+                UpcomingRow(upcoming, queueIndex, queueListState)
             }
         }
     }
@@ -535,3 +605,82 @@ fun VisualizerStyle.label(): Int = when (this) {
     VisualizerStyle.HALO -> R.string.tv_visualizer_halo
     VisualizerStyle.RADIAL -> R.string.tv_visualizer_radial
 }
+
+/** The tracks after the current one, as artwork cards; [selected] is the remote's position. */
+@Composable
+private fun UpcomingRow(items: List<QueueTrack>, selected: Int, state: LazyListState) {
+    if (items.isEmpty()) {
+        Text(
+            stringResource(R.string.tv_queue_nothing_next),
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.White.copy(alpha = 0.7f),
+            modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+            textAlign = TextAlign.Center,
+        )
+        return
+    }
+    LazyRow(
+        state = state,
+        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp),
+    ) {
+        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+            val isSelected = index == selected
+            val track = item.track
+            Column(
+                modifier = Modifier
+                    .width(UPCOMING_CARD_WIDTH)
+                    .graphicsLayer {
+                        val scale = if (isSelected) UPCOMING_SELECTED_SCALE else 1f
+                        scaleX = scale
+                        scaleY = scale
+                    },
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(UPCOMING_CARD_WIDTH)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .border(
+                            if (isSelected) 3.dp else 0.dp,
+                            if (isSelected) Color.White else Color.Transparent,
+                            RoundedCornerShape(8.dp),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color.White.copy(alpha = 0.5f))
+                    (track as? AppMediaItem)?.image(ImageType.THUMB)?.url?.let { url ->
+                        AsyncImage(
+                            model = url,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+                Text(
+                    track.displayName,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                track.subtitle?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.55f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val UPCOMING_CARD_WIDTH = 132.dp
+private const val UPCOMING_SELECTED_SCALE = 1.08f
+private const val QUEUE_HIDE_DELAY_MS = 12_000L
