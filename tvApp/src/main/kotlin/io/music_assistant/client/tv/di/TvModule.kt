@@ -1,6 +1,7 @@
 package io.music_assistant.client.tv.di
 
 import io.music_assistant.client.data.CarConnectionMonitor
+import io.music_assistant.client.tv.TvLyrics
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.TvUserActivity
 import io.music_assistant.client.tv.audio.TapAudioSink
@@ -19,6 +20,7 @@ fun tvModule() = module {
     // A TV never connects to a car; the shared module still asks for the signal.
     single<CarConnectionMonitor> { NoCarConnectionMonitor }
     single { TvPreferences(androidContext()) }
+    single { TvLyrics(get()) }
     single { TvUserActivity() }
     // The TV's audio output, with a copy for the Now playing visualizations. Replaces the shared
     // binding (this module loads after androidModule()).

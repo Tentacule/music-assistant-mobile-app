@@ -49,6 +49,16 @@ class TvPreferences(context: Context) {
         prefs.edit().putStringSet(KEY_UNSUPPORTED_DISMISSED, ids).apply()
     }
 
+    private val _lyricsMode = MutableStateFlow(prefs.getBoolean(KEY_LYRICS_MODE, false))
+
+    /** Whether Now playing shows the lyrics (when the track has some); kept across tracks. */
+    val lyricsMode: StateFlow<Boolean> = _lyricsMode.asStateFlow()
+
+    fun setLyricsMode(on: Boolean) {
+        prefs.edit().putBoolean(KEY_LYRICS_MODE, on).apply()
+        _lyricsMode.value = on
+    }
+
     /** Whether the TV audio defaults were applied once; later, the user's choice stays. */
     var audioDefaultsApplied: Boolean
         get() = prefs.getBoolean(KEY_AUDIO_DEFAULTS_APPLIED, false)
@@ -56,6 +66,7 @@ class TvPreferences(context: Context) {
 
     private companion object {
         const val KEY_AUDIO_DEFAULTS_APPLIED = "audio_defaults_applied"
+        const val KEY_LYRICS_MODE = "lyrics_mode"
         const val KEY_NOW_PLAYING_DELAY = "now_playing_delay"
         const val KEY_UNSUPPORTED_DISMISSED = "unsupported_install_dismissed"
         const val KEY_VISUALIZER = "visualizer"

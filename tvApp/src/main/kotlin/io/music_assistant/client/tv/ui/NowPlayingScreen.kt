@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.outlined.Lyrics
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +54,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -70,19 +73,23 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import io.music_assistant.client.data.model.client.ImageType
+import io.music_assistant.client.data.model.client.Lyrics
 import io.music_assistant.client.data.model.client.PlayerData
 import io.music_assistant.client.data.model.client.QueueOption
 import io.music_assistant.client.data.model.client.QueueTrack
 import io.music_assistant.client.data.model.client.RepeatMode
 import io.music_assistant.client.data.model.client.items.AppMediaItem
+import io.music_assistant.client.data.model.client.items.PodcastEpisode
 import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.play.PlayDispatcher
 import io.music_assistant.client.data.play.PlayRequest
 import io.music_assistant.client.tv.R
+import io.music_assistant.client.tv.TvLyrics
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.audio.VisualizerTap
 import io.music_assistant.client.tv.ui.visualizer.VisualizerBackdrop
@@ -110,6 +117,9 @@ import org.koin.compose.koinInject
  * Holding OK opens a menu in place of the controls: on a track coming next, play it next, move it
  * (Left/Right, OK drops it, Back cancels) or remove it; on the controls, add the current track again
  * or its album to the queue.
+ *
+ * The Lyrics control (shown when the track has lyrics, or the episode a transcript) switches to
+ * the lyrics mode ([NowPlayingLyrics]); the choice is kept for the next tracks.
  */
 @Composable
 fun NowPlayingScreen(
@@ -130,6 +140,25 @@ fun NowPlayingScreen(
 
     val prefs: TvPreferences = koinInject()
     val tap: VisualizerTap = koinInject()
+    val tvLyrics: TvLyrics = koinInject()
+    val lyricsMode by prefs.lyricsMode.collectAsStateWithLifecycle()
+    // The lyrics of the track or the transcript of the episode; null while loading and when none.
+    val trackLyrics by produceState<Lyrics?>(null, track?.provider, track?.itemId) {
+        value = track?.let { tvLyrics.lyrics(it) }
+    }
+    val episode = playerData?.queueInfo?.currentItem?.track as? PodcastEpisode
+    val transcript = episode?.let {
+        LaunchedEffect(it.provider, it.itemId) { homeScreenViewModel.loadTranscript(it) }
+        remember(it.provider, it.itemId) { homeScreenViewModel.transcript(it) }
+            .collectAsStateWithLifecycle().value.dataOrNull
+    }
+    val lyrics = trackLyrics ?: transcript
+    val showLyrics = lyricsMode && lyrics != null
+    // The artist's photo, the backdrop of the lyrics mode; loaded only in that mode.
+    val leadArtist = artists.firstOrNull()?.takeIf { showLyrics }
+    val artistImage by produceState<String?>(null, leadArtist?.provider, leadArtist?.itemId) {
+        value = leadArtist?.let { tvLyrics.artistImageUrl(it) }
+    }
     val visualizer by prefs.visualizer.collectAsStateWithLifecycle()
     val frame by rememberAudioFrames(tap, enabled = visualizer != VisualizerStyle.NONE)
     val accent = rememberAnimatedPlayerColors(
@@ -298,6 +327,13 @@ fun NowPlayingScreen(
                 visualizerLabelShown = true
             },
         )
+        if (lyrics != null) {
+            add(
+                NpControl(KEY_LYRICS, Icons.Outlined.Lyrics, stringResource(R.string.tv_lyrics), lyricsMode) {
+                    prefs.setLyricsMode(!lyricsMode)
+                },
+            )
+        }
         if (artists.isNotEmpty()) {
             add(
                 NpControl(KEY_ARTIST, Icons.Default.Person, stringResource(R.string.tv_go_to_artist)) {
@@ -513,8 +549,8 @@ fun NowPlayingScreen(
     DisposableEffect(keys) { onDispose { keys.handler = null } }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        // The artwork, dimmed, fills the screen behind everything.
-        info?.imageUrl?.let {
+        // The artwork (the artist's photo in the lyrics mode), dimmed, fills the screen behind everything.
+        (if (showLyrics) artistImage ?: info?.imageUrl else info?.imageUrl)?.let {
             AsyncImage(
                 model = it,
                 contentDescription = null,
@@ -533,31 +569,35 @@ fun NowPlayingScreen(
         VisualizerBackdrop(visualizer, frame, accent, Modifier.fillMaxSize())
 
         Column(Modifier.fillMaxSize().padding(horizontal = 96.dp, vertical = 56.dp)) {
-            Row(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(64.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .aspectRatio(1f)
-                        .artworkVisualizer(visualizer, frame, accent)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
+            if (showLyrics && lyrics != null) {
+                NowPlayingLyrics(lyrics, info, position, Modifier.weight(1f).fillMaxWidth())
+            } else {
+                Row(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(64.dp),
                 ) {
-                    Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(120.dp))
-                    info?.imageUrl?.let {
-                        AsyncImage(
-                            model = it,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .aspectRatio(1f)
+                            .artworkVisualizer(visualizer, frame, accent)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(120.dp))
+                        info?.imageUrl?.let {
+                            AsyncImage(
+                                model = it,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
+                    NowPlayingTexts(info, position, Modifier.weight(1f))
                 }
-                NowPlayingTexts(info, position, Modifier.weight(1f))
             }
 
             AnimatedVisibility(visible = visualizerLabelShown || notice != null, enter = fadeIn(), exit = fadeOut()) {
@@ -586,13 +626,22 @@ fun NowPlayingScreen(
                             ChoiceChip(artist.displayName, selected = index == artistIndex)
                         }
                     } else {
-                        controls.forEachIndexed { index, control ->
-                            ControlButton(
-                                control.icon,
-                                control.label,
-                                index == selectedIndex && !queueOpen,
-                                control.active,
-                            )
+                        // The row holds up to a dozen controls (artist, album, lyrics come and go): they
+                        // shrink to fit the width rather than run off the screen.
+                        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            val count = controls.size.coerceAtLeast(1)
+                            val size = ((maxWidth - CONTROL_GAP * (count - 1)) / count).coerceAtMost(CONTROL_SIZE)
+                            Row(horizontalArrangement = Arrangement.spacedBy(CONTROL_GAP)) {
+                                controls.forEachIndexed { index, control ->
+                                    ControlButton(
+                                        control.icon,
+                                        control.label,
+                                        index == selectedIndex && !queueOpen,
+                                        control.active,
+                                        size,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -706,11 +755,17 @@ private class NpControl(
  * is on (shuffle, repeat), in the accent color, so its state reads at a glance.
  */
 @Composable
-private fun ControlButton(icon: ImageVector, label: String, selected: Boolean, active: Boolean = false) {
+private fun ControlButton(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    active: Boolean = false,
+    size: Dp = CONTROL_SIZE,
+) {
     val accent = MaterialTheme.colorScheme.primary
     Box(
         modifier = Modifier
-            .size(CONTROL_SIZE)
+            .size(size)
             .clip(CircleShape)
             .background(
                 when {
@@ -738,7 +793,7 @@ private fun ControlButton(icon: ImageVector, label: String, selected: Boolean, a
                 selected -> Color.Black
                 else -> Color.White
             },
-            modifier = Modifier.size(34.dp),
+            modifier = Modifier.size(size * CONTROL_ICON_RATIO),
         )
     }
 }
@@ -775,8 +830,11 @@ private const val KEY_CROSSFADE = "crossfade"
 private const val KEY_ARTIST = "artist"
 private const val KEY_ALBUM = "album"
 private const val KEY_VISUALIZER = "visualizer"
+private const val KEY_LYRICS = "lyrics"
 private const val VISUALIZER_LABEL_MS = 2_000L
 private val CONTROL_SIZE = 64.dp
+private val CONTROL_GAP = 20.dp
+private const val CONTROL_ICON_RATIO = 0.53f
 private const val CONTROLS_HIDE_DELAY_MS = 5_000L
 private const val TITLE_MAX_LINES = 3
 private const val BACKDROP_ALPHA = 0.5f
