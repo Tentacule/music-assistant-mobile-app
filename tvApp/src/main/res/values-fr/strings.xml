@@ -58,4 +58,13 @@
     <string name="tv_pick_player">Lire sur</string>
     <string name="tv_this_tv">%1$s · cette TV</string>
     <string name="tv_queue_nothing_next">Rien ensuite dans la file</string>
+    <string name="tv_np_play_next">Lire ensuite</string>
+    <string name="tv_np_move">Déplacer</string>
+    <string name="tv_np_remove">Retirer de la file</string>
+    <string name="tv_np_track_again">Rejouer ce titre ensuite</string>
+    <string name="tv_np_add_album">Ajouter l’album à la file</string>
+    <string name="tv_np_added">Ajouté à la file</string>
+    <string name="tv_np_queue_hint">OK lit · maintenir OK pour lire ensuite, déplacer ou retirer</string>
+    <string name="tv_np_move_hint">Gauche/Droite déplace le titre · OK le pose · Retour annule</string>
+    <string name="tv_np_add_hint">Maintenir OK pour ajouter à la file</string>
 </resources>

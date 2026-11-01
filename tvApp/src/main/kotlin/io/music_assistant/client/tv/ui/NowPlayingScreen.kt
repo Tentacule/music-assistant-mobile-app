@@ -1,5 +1,6 @@
 package io.music_assistant.client.tv.ui
 
+import android.view.ViewConfiguration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -74,10 +75,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import io.music_assistant.client.data.model.client.ImageType
 import io.music_assistant.client.data.model.client.PlayerData
+import io.music_assistant.client.data.model.client.QueueOption
 import io.music_assistant.client.data.model.client.QueueTrack
 import io.music_assistant.client.data.model.client.RepeatMode
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.Track
+import io.music_assistant.client.data.play.PlayDispatcher
+import io.music_assistant.client.data.play.PlayRequest
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.audio.VisualizerTap
@@ -102,6 +106,10 @@ import org.koin.compose.koinInject
  * play/pause, next) for a few seconds; with them shown, Left/Right move between them and OK
  * presses one. The media keys work as everywhere in the app. Every key is consumed here, so the
  * focus never wanders into the app hidden underneath.
+ *
+ * Holding OK opens a menu in place of the controls: on a track coming next, play it next, move it
+ * (Left/Right, OK drops it, Back cancels) or remove it; on the controls, add the current track again
+ * or its album to the queue.
  */
 @Composable
 fun NowPlayingScreen(
@@ -151,15 +159,45 @@ fun NowPlayingScreen(
         val from = (playerData?.queueInfo?.currentIndex ?: -1) + 1
         if (from in items.indices) items.subList(from, items.size) else emptyList()
     }
+    // The upcoming tracks as shown: the server's order, or the local one of a move or a removal
+    // until the server's queue update replaces it.
+    var localOrder by remember(upcoming) { mutableStateOf<List<QueueTrack>?>(null) }
+    val shown = localOrder ?: upcoming
+    // A track being moved with Left/Right; [moveFrom] is where it was, to cancel.
+    var moving by remember { mutableStateOf(false) }
+    var moveFrom by remember { mutableIntStateOf(0) }
+    // The menu of a held OK, shown in place of the controls.
+    var menu by remember { mutableStateOf<NpMenu?>(null) }
+    var menuIndex by remember { mutableIntStateOf(0) }
+    // A short confirmation ("Added to the queue"), shown under the artwork.
+    var notice by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(notice) {
+        if (notice != null) {
+            delay(VISUALIZER_LABEL_MS)
+            notice = null
+        }
+    }
+    LaunchedEffect(upcoming) {
+        // The server changed the queue under a move: its local order is gone, so is the move.
+        moving = false
+    }
+    LaunchedEffect(shown.size) { queueIndex = queueIndex.coerceIn(0, (shown.size - 1).coerceAtLeast(0)) }
     val queueListState = rememberLazyListState()
     LaunchedEffect(queueOpen, queueIndex) {
-        if (queueOpen && upcoming.isNotEmpty()) {
+        if (queueOpen && shown.isNotEmpty()) {
             queueListState.animateScrollToItem((queueIndex - 1).coerceAtLeast(0))
         }
     }
     // Back (and Up) step out one level: the queue, the artist list, the controls, then the mode.
+    fun cancelMove() {
+        localOrder = null
+        queueIndex = moveFrom
+        moving = false
+    }
     BackHandler {
         when {
+            menu != null -> menu = null
+            moving -> cancelMove()
             queueOpen -> queueOpen = false
             choosingArtist -> choosingArtist = false
             controlsVisible -> controlsVisible = false
@@ -171,10 +209,13 @@ fun NowPlayingScreen(
     var lastInteraction by remember { mutableStateOf(0L) }
     // An OK press seen by this mode, handled on its release.
     var selectPressed by remember { mutableStateOf(false) }
+    var selectPresses by remember { mutableIntStateOf(0) }
     LaunchedEffect(controlsVisible, choosingArtist, queueOpen, lastInteraction) {
         if (controlsVisible) {
             // Longer while browsing the queue: there is more to read.
             delay(if (queueOpen) QUEUE_HIDE_DELAY_MS else CONTROLS_HIDE_DELAY_MS)
+            if (moving) cancelMove()
+            menu = null
             controlsVisible = false
             choosingArtist = false
             queueOpen = false
@@ -279,18 +320,105 @@ fun NowPlayingScreen(
     // Now playing never takes the focus: it stays on the element of the app underneath, so closing
     // the mode lands exactly there. The screen hands the remote's keys to [keys] meanwhile; every
     // key is consumed here, except Back (the BackHandler) and the media keys (the activity).
+    val queueId = playerData?.queueInfo?.id
     fun playUpcoming() {
-        val item = upcoming.getOrNull(queueIndex) ?: return
-        val queueId = playerData?.queueInfo?.id ?: return
+        val item = shown.getOrNull(queueIndex) ?: return
+        queueId ?: return
         homeScreenViewModel.queueAction(QueueAction.PlayQueueItem(queueId, item.id))
         queueOpen = false
     }
 
-    // What OK does where the remote is: show the controls, play a queued track, open an artist, or
-    // press a control.
+    // Moves and removals show at once; the server's queue update follows. The positions count from
+    // the first upcoming track: the server takes only the shift between them.
+    fun moveUpcoming(from: Int, to: Int) {
+        val item = shown.getOrNull(from) ?: return
+        queueId ?: return
+        if (from != to) homeScreenViewModel.queueAction(QueueAction.MoveItem(queueId, item.id, from, to))
+        localOrder = shown.toMutableList().apply { add(to, removeAt(from)) }
+        queueIndex = to
+    }
+
+    fun removeUpcoming(item: QueueTrack) {
+        queueId ?: return
+        homeScreenViewModel.queueAction(QueueAction.RemoveItems(queueId, listOf(item.id)))
+        localOrder = shown - item
+    }
+
+    val dispatcher: PlayDispatcher = koinInject()
+    val addedNotice = stringResource(R.string.tv_np_added)
+    fun addToQueue(uri: String, option: QueueOption) {
+        val target = playerData?.queueOrPlayerId ?: return
+        dispatcher.play(PlayRequest(queueOrPlayerId = target, media = listOf(uri), option = option))
+        notice = addedNotice
+    }
+
+    val playNextLabel = stringResource(R.string.tv_np_play_next)
+    val moveLabel = stringResource(R.string.tv_np_move)
+    val removeLabel = stringResource(R.string.tv_np_remove)
+    val againLabel = stringResource(R.string.tv_np_track_again)
+    val addAlbumLabel = stringResource(R.string.tv_np_add_album)
+    val menuEntries: List<NpMenuEntry> = when (menu) {
+        NpMenu.QUEUE_ITEM -> shown.getOrNull(queueIndex)?.let { item ->
+            buildList {
+                if (queueIndex > 0) add(NpMenuEntry(playNextLabel) { moveUpcoming(queueIndex, 0) })
+                if (shown.size > 1) {
+                    add(
+                        NpMenuEntry(moveLabel) {
+                            moveFrom = queueIndex
+                            localOrder = shown
+                            moving = true
+                        },
+                    )
+                }
+                add(NpMenuEntry(removeLabel) { removeUpcoming(item) })
+            }
+        }.orEmpty()
+
+        NpMenu.ADD -> buildList {
+            track?.uri?.let { uri -> add(NpMenuEntry(againLabel) { addToQueue(uri, QueueOption.NEXT) }) }
+            album?.uri?.let { uri -> add(NpMenuEntry(addAlbumLabel) { addToQueue(uri, QueueOption.ADD) }) }
+        }
+
+        null -> emptyList()
+    }
+    val canAdd = track?.uri != null || album?.uri != null
+
+    // What a held OK does: the menu of the selected upcoming track, or the add menu on the controls.
+    fun longSelect() {
+        when {
+            !controlsVisible -> controlsVisible = true
+            menu != null || moving || choosingArtist -> Unit
+            queueOpen -> if (shown.isNotEmpty()) {
+                menuIndex = 0
+                menu = NpMenu.QUEUE_ITEM
+            }
+
+            canAdd -> {
+                menuIndex = 0
+                menu = NpMenu.ADD
+            }
+        }
+    }
+
+    // What OK does where the remote is: show the controls, run a menu entry, drop a moved track,
+    // play a queued track, open an artist, or press a control.
     fun select() {
         when {
             !controlsVisible -> controlsVisible = true
+            menu != null -> {
+                val entry = menuEntries.getOrNull(menuIndex)
+                menu = null
+                entry?.onPress?.invoke()
+            }
+
+            moving -> {
+                moving = false
+                val item = shown.getOrNull(queueIndex)
+                if (item != null && queueId != null && moveFrom != queueIndex) {
+                    homeScreenViewModel.queueAction(QueueAction.MoveItem(queueId, item.id, moveFrom, queueIndex))
+                }
+            }
+
             queueOpen -> playUpcoming()
             choosingArtist -> artists.getOrNull(artistIndex)?.let(onNavigate)
             else -> controls.getOrNull(selectedIndex)?.onPress?.invoke()
@@ -314,10 +442,18 @@ fun NowPlayingScreen(
             Key.MediaPrevious, Key.MediaStop, Key.MediaFastForward, Key.MediaRewind,
             -> return@handler false
 
-            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> selectPressed = true
+            // The activity holds OK back until its release, then replays the press: a short one with
+            // its release at once, a long one without it (see TvMainActivity). So a press whose
+            // release has not come after the long-press timeout was held.
+            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> if (!selectPressed) {
+                selectPressed = true
+                selectPresses++
+            }
 
             Key.DirectionUp -> when {
                 !controlsVisible -> controlsVisible = true
+                menu != null -> menu = null
+                moving -> cancelMove()
                 queueOpen -> queueOpen = false
                 choosingArtist -> choosingArtist = false
                 // Up from the controls goes back to the plain view, like Back.
@@ -326,6 +462,7 @@ fun NowPlayingScreen(
 
             Key.DirectionDown -> when {
                 !controlsVisible -> controlsVisible = true
+                menu != null || moving -> Unit
                 !queueOpen && !choosingArtist -> {
                     queueIndex = 0
                     queueOpen = true
@@ -334,6 +471,12 @@ fun NowPlayingScreen(
 
             Key.DirectionLeft -> when {
                 !controlsVisible -> controlsVisible = true
+                menu != null -> menuIndex = (menuIndex - 1).coerceAtLeast(0)
+                moving -> if (queueIndex > 0) {
+                    localOrder = shown.toMutableList().apply { add(queueIndex - 1, removeAt(queueIndex)) }
+                    queueIndex--
+                }
+
                 queueOpen -> queueIndex = (queueIndex - 1).coerceAtLeast(0)
                 choosingArtist -> artistIndex = (artistIndex - 1).coerceAtLeast(0)
                 else -> controls.getOrNull(selectedIndex - 1)?.let { selectedKey = it.key }
@@ -341,7 +484,13 @@ fun NowPlayingScreen(
 
             Key.DirectionRight -> when {
                 !controlsVisible -> controlsVisible = true
-                queueOpen -> queueIndex = (queueIndex + 1).coerceAtMost((upcoming.size - 1).coerceAtLeast(0))
+                menu != null -> menuIndex = (menuIndex + 1).coerceAtMost((menuEntries.size - 1).coerceAtLeast(0))
+                moving -> if (queueIndex < shown.lastIndex) {
+                    localOrder = shown.toMutableList().apply { add(queueIndex + 1, removeAt(queueIndex)) }
+                    queueIndex++
+                }
+
+                queueOpen -> queueIndex = (queueIndex + 1).coerceAtMost((shown.size - 1).coerceAtLeast(0))
                 choosingArtist -> artistIndex = (artistIndex + 1).coerceAtMost(artists.lastIndex)
                 else -> controls.getOrNull(selectedIndex + 1)?.let { selectedKey = it.key }
             }
@@ -350,6 +499,15 @@ fun NowPlayingScreen(
         }
         lastInteraction = System.nanoTime()
         true
+    }
+    LaunchedEffect(selectPresses) {
+        if (selectPresses == 0) return@LaunchedEffect
+        delay(ViewConfiguration.getLongPressTimeout().toLong())
+        if (selectPressed) {
+            selectPressed = false
+            longSelect()
+            lastInteraction = System.nanoTime()
+        }
     }
     SideEffect { keys.handler = handleKey }
     DisposableEffect(keys) { onDispose { keys.handler = null } }
@@ -402,9 +560,9 @@ fun NowPlayingScreen(
                 NowPlayingTexts(info, position, Modifier.weight(1f))
             }
 
-            AnimatedVisibility(visible = visualizerLabelShown, enter = fadeIn(), exit = fadeOut()) {
+            AnimatedVisibility(visible = visualizerLabelShown || notice != null, enter = fadeIn(), exit = fadeOut()) {
                 Text(
-                    stringResource(R.string.tv_visualizer_current, stringResource(visualizer.label())),
+                    notice ?: stringResource(R.string.tv_visualizer_current, stringResource(visualizer.label())),
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
@@ -419,7 +577,11 @@ fun NowPlayingScreen(
                     horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (choosingArtist) {
+                    if (menu != null) {
+                        menuEntries.forEachIndexed { index, entry ->
+                            ChoiceChip(entry.label, selected = index == menuIndex)
+                        }
+                    } else if (choosingArtist) {
                         artists.forEachIndexed { index, artist ->
                             ChoiceChip(artist.displayName, selected = index == artistIndex)
                         }
@@ -438,7 +600,19 @@ fun NowPlayingScreen(
 
             // Down from the controls: the tracks coming next, OK plays one.
             AnimatedVisibility(visible = controlsVisible && queueOpen, enter = fadeIn(), exit = fadeOut()) {
-                UpcomingRow(upcoming, queueIndex, queueListState)
+                Column {
+                    UpcomingRow(shown, queueIndex, queueListState, moving)
+                    if (shown.isNotEmpty()) {
+                        HintText(stringResource(if (moving) R.string.tv_np_move_hint else R.string.tv_np_queue_hint))
+                    }
+                }
+            }
+            AnimatedVisibility(
+                visible = controlsVisible && !queueOpen && !choosingArtist && menu == null && canAdd,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                HintText(stringResource(R.string.tv_np_add_hint))
             }
         }
     }
@@ -500,6 +674,22 @@ private fun NowPlayingTexts(info: NowPlayingInfo?, position: Double, modifier: M
             )
         }
     }
+}
+
+private enum class NpMenu { QUEUE_ITEM, ADD }
+
+/** One entry of the menu a held OK opens. */
+private class NpMenuEntry(val label: String, val onPress: () -> Unit)
+
+@Composable
+private fun HintText(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        color = Color.White.copy(alpha = 0.6f),
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        textAlign = TextAlign.Center,
+    )
 }
 
 /** One control of the Now playing row; [active] marks a mode that is on (shuffle, repeat). */
@@ -606,9 +796,13 @@ fun VisualizerStyle.label(): Int = when (this) {
     VisualizerStyle.RADIAL -> R.string.tv_visualizer_radial
 }
 
-/** The tracks after the current one, as artwork cards; [selected] is the remote's position. */
+/**
+ * The tracks after the current one, as artwork cards; [selected] is the remote's position, lifted
+ * and outlined in the accent color while [moving].
+ */
 @Composable
-private fun UpcomingRow(items: List<QueueTrack>, selected: Int, state: LazyListState) {
+private fun UpcomingRow(items: List<QueueTrack>, selected: Int, state: LazyListState, moving: Boolean) {
+    val accent = MaterialTheme.colorScheme.primary
     if (items.isEmpty()) {
         Text(
             stringResource(R.string.tv_queue_nothing_next),
@@ -632,9 +826,14 @@ private fun UpcomingRow(items: List<QueueTrack>, selected: Int, state: LazyListS
                 modifier = Modifier
                     .width(UPCOMING_CARD_WIDTH)
                     .graphicsLayer {
-                        val scale = if (isSelected) UPCOMING_SELECTED_SCALE else 1f
+                        val scale = when {
+                            isSelected && moving -> UPCOMING_MOVING_SCALE
+                            isSelected -> UPCOMING_SELECTED_SCALE
+                            else -> 1f
+                        }
                         scaleX = scale
                         scaleY = scale
+                        translationY = if (isSelected && moving) -UPCOMING_MOVING_LIFT_DP * density else 0f
                     },
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
@@ -645,7 +844,11 @@ private fun UpcomingRow(items: List<QueueTrack>, selected: Int, state: LazyListS
                         .background(Color.White.copy(alpha = 0.1f))
                         .border(
                             if (isSelected) 3.dp else 0.dp,
-                            if (isSelected) Color.White else Color.Transparent,
+                            when {
+                                isSelected && moving -> accent
+                                isSelected -> Color.White
+                                else -> Color.Transparent
+                            },
                             RoundedCornerShape(8.dp),
                         ),
                     contentAlignment = Alignment.Center,
@@ -683,4 +886,6 @@ private fun UpcomingRow(items: List<QueueTrack>, selected: Int, state: LazyListS
 
 private val UPCOMING_CARD_WIDTH = 132.dp
 private const val UPCOMING_SELECTED_SCALE = 1.08f
+private const val UPCOMING_MOVING_SCALE = 1.12f
+private const val UPCOMING_MOVING_LIFT_DP = 12f
 private const val QUEUE_HIDE_DELAY_MS = 12_000L

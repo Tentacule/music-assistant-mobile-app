@@ -59,4 +59,13 @@
     <string name="tv_pick_player">Play on</string>
     <string name="tv_this_tv">%1$s · this TV</string>
     <string name="tv_queue_nothing_next">Nothing next in the queue</string>
+    <string name="tv_np_play_next">Play next</string>
+    <string name="tv_np_move">Move</string>
+    <string name="tv_np_remove">Remove from the queue</string>
+    <string name="tv_np_track_again">Play this track again next</string>
+    <string name="tv_np_add_album">Add the album to the queue</string>
+    <string name="tv_np_added">Added to the queue</string>
+    <string name="tv_np_queue_hint">OK plays · hold OK to play next, move or remove</string>
+    <string name="tv_np_move_hint">Left/Right moves the track · OK drops it · Back cancels</string>
+    <string name="tv_np_add_hint">Hold OK to add to the queue</string>
 </resources>

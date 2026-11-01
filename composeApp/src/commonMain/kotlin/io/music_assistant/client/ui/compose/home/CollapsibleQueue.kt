@@ -105,6 +105,7 @@ import musicassistantclient.composeapp.generated.resources.queue_label
 import musicassistantclient.composeapp.generated.resources.queue_label_with_position
 import musicassistantclient.composeapp.generated.resources.queue_loading
 import musicassistantclient.composeapp.generated.resources.queue_move
+import musicassistantclient.composeapp.generated.resources.queue_move_hint
 import musicassistantclient.composeapp.generated.resources.queue_no_items
 import musicassistantclient.composeapp.generated.resources.queue_not_loaded
 import org.jetbrains.compose.resources.stringResource
@@ -446,275 +447,300 @@ fun Queue(
                         }
                     }
 
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .testTag(CollapsibleQueueSemantics.QUEUE_TAG),
-                        state = listState,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        contentPadding = contentPadding,
-                    ) {
-                        itemsIndexed(
-                            items = displayRows,
-                            key = { _, row -> row.key },
-                        ) { _, row ->
-                            if (row is QueueDisplayRow.ChapterItem) {
-                                QueueChapterRow(
-                                    chapter = row.chapter,
-                                    isActive = row.chapter == active,
-                                    onClick = { onChapterClick(row.chapter) },
-                                )
-                                return@itemsIndexed
-                            }
-                            val queueRow = row as QueueDisplayRow.QueueItem
-                            val item = queueRow.item
-                            val isCurrent = item.id == currentItemId
-                            val isPlayed = queueRow.queueIndex < currentItemIndex
-                            val isPlayable = item.isPlayable
+                    Box(Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .testTag(CollapsibleQueueSemantics.QUEUE_TAG),
+                            state = listState,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            contentPadding = contentPadding,
+                        ) {
+                            itemsIndexed(
+                                items = displayRows,
+                                key = { _, row -> row.key },
+                            ) { _, row ->
+                                if (row is QueueDisplayRow.ChapterItem) {
+                                    QueueChapterRow(
+                                        chapter = row.chapter,
+                                        isActive = row.chapter == active,
+                                        onClick = { onChapterClick(row.chapter) },
+                                    )
+                                    return@itemsIndexed
+                                }
+                                val queueRow = row as QueueDisplayRow.QueueItem
+                                val item = queueRow.item
+                                val isCurrent = item.id == currentItemId
+                                val isPlayed = queueRow.queueIndex < currentItemIndex
+                                val isPlayable = item.isPlayable
 
-                            ReorderableItem(
-                                state = reorderableLazyListState,
-                                key = queueRow.key,  // MUST equal the LazyColumn item key
-                                enabled = isPlayable,  // Disable reordering for unplayable items
-                            ) {
-                                Box {
-                                    Row(
-                                        modifier = Modifier
-                                            .padding(vertical = 1.dp)
-                                            .alpha(
-                                                when {
-                                                    !isPlayable -> DISABLED_ITEM_ALPHA  // Gray out unplayable items
-                                                    isPlayed -> 0.5f
-                                                    else -> 1f
-                                                },
-                                            )
-                                            .fillMaxWidth()
-                                            .onPreviewKeyEvent { onMoveKey(it, queueData.info.id) }
-                                            .then(
-                                                if (movingItemId == item.id) {
-                                                    Modifier
-                                                        .background(
-                                                            MaterialTheme.colorScheme.primaryContainer,
-                                                            RoundedCornerShape(8.dp),
-                                                        )
-                                                        .border(
-                                                            2.dp,
-                                                            MaterialTheme.colorScheme.primary,
-                                                            RoundedCornerShape(8.dp),
-                                                        )
-                                                } else {
-                                                    Modifier
-                                                },
-                                            )
-                                            .clip(shape = RoundedCornerShape(8.dp))
-                                            .conditional(
-                                                condition = isPlayed,  // Treat unplayable like played items
-                                                ifTrue = {
-                                                    clickable(isPlayable) {  // Only clickable if playable
-                                                        queueAction(
-                                                            QueueAction.PlayQueueItem(
-                                                                queueData.info.id, item.id,
-                                                            ),
-                                                        )
-                                                    }
-                                                },
-                                                ifFalse = {
-                                                    combinedClickable(
-                                                        onClick = {
-                                                            if (!isCurrent && isPlayable) {
-                                                                queueAction(
-                                                                    QueueAction.PlayQueueItem(
-                                                                        queueData.info.id,
-                                                                        item.id,
-                                                                    ),
-                                                                )
-                                                            }
-                                                        },
-                                                        onLongClick = {
-                                                            menuItemId = item.id
-                                                        },
-                                                    )
-                                                },
-                                            )
-                                            .padding(horizontal = 12.dp, vertical = 2.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Start,
-                                    ) {
-                                        val placeholder = rememberPlaceholderPainter(
-                                            backgroundColor = MaterialTheme.colorScheme.background,
-                                            iconColor = MaterialTheme.colorScheme.secondary,
-                                            icon = TrackIcon,
-                                        )
-                                        AsyncImage(
+                                ReorderableItem(
+                                    state = reorderableLazyListState,
+                                    key = queueRow.key,  // MUST equal the LazyColumn item key
+                                    enabled = isPlayable,  // Disable reordering for unplayable items
+                                ) {
+                                    Box {
+                                        Row(
                                             modifier = Modifier
-                                                .padding(end = 8.dp)
-                                                .size(40.dp)
-                                                .clip(RoundedCornerShape(size = 4.dp)),
-                                            placeholder = placeholder,
-                                            fallback = placeholder,
-                                            model = rememberArtworkRequest(item.track.image(ImageType.THUMB)?.url),
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                        )
-                                        if (isCurrent) {
-                                            Icon(
-                                                modifier = Modifier.padding(end = 8.dp)
-                                                    .size(12.dp),
-                                                imageVector = PlayIcon,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.secondary,
-                                            )
-                                        }
-                                        Column(
-                                            modifier = Modifier.weight(1f).wrapContentHeight(),
+                                                .padding(vertical = 1.dp)
+                                                .alpha(
+                                                    when {
+                                                        !isPlayable -> DISABLED_ITEM_ALPHA  // Gray out unplayable items
+                                                        isPlayed -> 0.5f
+                                                        else -> 1f
+                                                    },
+                                                )
+                                                .fillMaxWidth()
+                                                .onPreviewKeyEvent { onMoveKey(it, queueData.info.id) }
+                                                .then(
+                                                    if (movingItemId == item.id) {
+                                                        Modifier
+                                                            .background(
+                                                                MaterialTheme.colorScheme.primaryContainer,
+                                                                RoundedCornerShape(8.dp),
+                                                            )
+                                                            .border(
+                                                                2.dp,
+                                                                MaterialTheme.colorScheme.primary,
+                                                                RoundedCornerShape(8.dp),
+                                                            )
+                                                    } else {
+                                                        Modifier
+                                                    },
+                                                )
+                                                .clip(shape = RoundedCornerShape(8.dp))
+                                                .conditional(
+                                                    condition = isPlayed,  // Treat unplayable like played items
+                                                    ifTrue = {
+                                                        clickable(isPlayable) {  // Only clickable if playable
+                                                            queueAction(
+                                                                QueueAction.PlayQueueItem(
+                                                                    queueData.info.id, item.id,
+                                                                ),
+                                                            )
+                                                        }
+                                                    },
+                                                    ifFalse = {
+                                                        combinedClickable(
+                                                            onClick = {
+                                                                if (!isCurrent && isPlayable) {
+                                                                    queueAction(
+                                                                        QueueAction.PlayQueueItem(
+                                                                            queueData.info.id,
+                                                                            item.id,
+                                                                        ),
+                                                                    )
+                                                                }
+                                                            },
+                                                            onLongClick = {
+                                                                menuItemId = item.id
+                                                            },
+                                                        )
+                                                    },
+                                                )
+                                                .padding(horizontal = 12.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Start,
                                         ) {
-                                            Text(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                text = item.track.displayName,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                color = MaterialTheme.colorScheme.secondary,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = when {
-                                                    isCurrent -> FontWeight.Bold
-                                                    else -> FontWeight.Normal
-                                                },
+                                            val placeholder = rememberPlaceholderPainter(
+                                                backgroundColor = MaterialTheme.colorScheme.background,
+                                                iconColor = MaterialTheme.colorScheme.secondary,
+                                                icon = TrackIcon,
                                             )
-                                            Text(
-                                                modifier = Modifier.fillMaxWidth().alpha(0.7f),
-                                                text = if (isPlayable) {
-                                                    (item.track as? AppMediaItem)?.localizedSubtitle()
-                                                        ?: stringResource(Res.string.item_subtitle_unknown)
-                                                } else {
-                                                    stringResource(Res.string.queue_cannot_play)
-                                                },
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                color = MaterialTheme.colorScheme.secondary,
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                        }
-                                        if (!isCurrent && !isPlayed && isPlayable) {
-                                            Icon(
+                                            AsyncImage(
                                                 modifier = Modifier
-                                                    .draggableHandle(
-                                                        onDragStopped = {
-                                                            val from = dragStartIndex
-                                                            val to = dragEndIndex
-                                                            if (from != null && to != null) {
-                                                                queueAction(
-                                                                    QueueAction.MoveItem(
-                                                                        queueData.info.id,
-                                                                        item.id,
-                                                                        from = from,
-                                                                        to = to,
-                                                                    ),
-                                                                )
-                                                            }
-                                                            dragStartIndex = null
-                                                            dragEndIndex = null
+                                                    .padding(end = 8.dp)
+                                                    .size(40.dp)
+                                                    .clip(RoundedCornerShape(size = 4.dp)),
+                                                placeholder = placeholder,
+                                                fallback = placeholder,
+                                                model = rememberArtworkRequest(item.track.image(ImageType.THUMB)?.url),
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                            )
+                                            if (isCurrent) {
+                                                Icon(
+                                                    modifier = Modifier.padding(end = 8.dp)
+                                                        .size(12.dp),
+                                                    imageVector = PlayIcon,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.secondary,
+                                                )
+                                            }
+                                            Column(
+                                                modifier = Modifier.weight(1f).wrapContentHeight(),
+                                            ) {
+                                                Text(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    text = item.track.displayName,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = MaterialTheme.colorScheme.secondary,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = when {
+                                                        isCurrent -> FontWeight.Bold
+                                                        else -> FontWeight.Normal
+                                                    },
+                                                )
+                                                Text(
+                                                    modifier = Modifier.fillMaxWidth().alpha(0.7f),
+                                                    text = if (isPlayable) {
+                                                        (item.track as? AppMediaItem)?.localizedSubtitle()
+                                                            ?: stringResource(Res.string.item_subtitle_unknown)
+                                                    } else {
+                                                        stringResource(Res.string.queue_cannot_play)
+                                                    },
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = MaterialTheme.colorScheme.secondary,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                )
+                                            }
+                                            if (!isCurrent && !isPlayed && isPlayable) {
+                                                Icon(
+                                                    modifier = Modifier
+                                                        .draggableHandle(
+                                                            onDragStopped = {
+                                                                val from = dragStartIndex
+                                                                val to = dragEndIndex
+                                                                if (from != null && to != null) {
+                                                                    queueAction(
+                                                                        QueueAction.MoveItem(
+                                                                            queueData.info.id,
+                                                                            item.id,
+                                                                            from = from,
+                                                                            to = to,
+                                                                        ),
+                                                                    )
+                                                                }
+                                                                dragStartIndex = null
+                                                                dragEndIndex = null
+                                                            },
+                                                        )
+                                                        .size(16.dp),
+                                                    imageVector = TablerIcons.GripVertical,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.secondary,
+                                                )
+                                            }
+                                        }
+
+                                        // Long-click menu
+                                        DropdownMenu(
+                                            modifier = Modifier.queueMenuHeight(),
+                                            expanded = menuItemId == item.id,
+                                            onDismissRequest = { menuItemId = null },
+                                        ) {
+                                            val track = item.track as? Track
+                                            val mixSeed = (item.track as? AppMediaItem)?.takeIf { it.canStartEndlessMix }
+                                            if (mixSeed != null && onStartEndlessMix != null) {
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text(stringResource(Res.string.action_start_endless_mix))
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(
+                                                            imageVector = Icons.Default.CellTower,
+                                                            contentDescription = null,
+                                                        )
+                                                    },
+                                                    onClick = {
+                                                        onStartEndlessMix(mixSeed)
+                                                        menuItemId = null
+                                                    },
+                                                )
+                                            }
+                                            if (track != null && onAddToPlaylist != null) {
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text(stringResource(Res.string.action_add_to_playlist))
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(
+                                                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                                                            contentDescription = null,
+                                                        )
+                                                    },
+                                                    onClick = {
+                                                        onAddToPlaylist(track)
+                                                        menuItemId = null
+                                                    },
+                                                )
+                                            }
+                                            if (showMoveActions && isPlayable && !isPlayed && !isCurrent) {
+                                                val from = queueRow.queueIndex
+                                                val nextSlot = currentItemIndex + 1
+                                                fun move(to: Int) {
+                                                    // Shown at once, like a drag; the server's queue update follows.
+                                                    internalItems = internalItems.toMutableList().apply { add(to, removeAt(from)) }
+                                                    queueAction(QueueAction.MoveItem(queueData.info.id, item.id, from, to))
+                                                }
+                                                if (from > nextSlot) {
+                                                    DropdownMenuItem(
+                                                        text = { Text(stringResource(Res.string.action_play_next)) },
+                                                        leadingIcon = { Icon(Icons.Default.QueuePlayNext, contentDescription = null) },
+                                                        onClick = {
+                                                            move(nextSlot)
+                                                            menuItemId = null
                                                         },
                                                     )
-                                                    .size(16.dp),
-                                                imageVector = TablerIcons.GripVertical,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.secondary,
-                                            )
-                                        }
-                                    }
-
-                                    // Long-click menu
-                                    DropdownMenu(
-                                        modifier = Modifier.queueMenuHeight(),
-                                        expanded = menuItemId == item.id,
-                                        onDismissRequest = { menuItemId = null },
-                                    ) {
-                                        val track = item.track as? Track
-                                        val mixSeed = (item.track as? AppMediaItem)?.takeIf { it.canStartEndlessMix }
-                                        if (mixSeed != null && onStartEndlessMix != null) {
+                                                }
+                                                if (from > nextSlot || from < internalItems.lastIndex) {
+                                                    DropdownMenuItem(
+                                                        text = { Text(stringResource(Res.string.queue_move)) },
+                                                        leadingIcon = { Icon(Icons.Default.SwapVert, contentDescription = null) },
+                                                        onClick = {
+                                                            moveOrigin = from
+                                                            movingItemId = item.id
+                                                            menuItemId = null
+                                                        },
+                                                    )
+                                                }
+                                            }
                                             DropdownMenuItem(
-                                                text = {
-                                                    Text(stringResource(Res.string.action_start_endless_mix))
-                                                },
+                                                text = { Text(stringResource(Res.string.common_delete)) },
                                                 leadingIcon = {
                                                     Icon(
-                                                        imageVector = Icons.Default.CellTower,
+                                                        imageVector = Icons.Default.Delete,
                                                         contentDescription = null,
                                                     )
                                                 },
                                                 onClick = {
-                                                    onStartEndlessMix(mixSeed)
-                                                    menuItemId = null
-                                                },
-                                            )
-                                        }
-                                        if (track != null && onAddToPlaylist != null) {
-                                            DropdownMenuItem(
-                                                text = {
-                                                    Text(stringResource(Res.string.action_add_to_playlist))
-                                                },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                                                        contentDescription = null,
+                                                    queueAction(
+                                                        QueueAction.RemoveItems(
+                                                            queueData.info.id,
+                                                            listOf(item.id),
+                                                        ),
                                                     )
-                                                },
-                                                onClick = {
-                                                    onAddToPlaylist(track)
                                                     menuItemId = null
                                                 },
                                             )
                                         }
-                                        if (showMoveActions && isPlayable && !isPlayed && !isCurrent) {
-                                            val from = queueRow.queueIndex
-                                            val nextSlot = currentItemIndex + 1
-                                            fun move(to: Int) {
-                                                // Shown at once, like a drag; the server's queue update follows.
-                                                internalItems = internalItems.toMutableList().apply { add(to, removeAt(from)) }
-                                                queueAction(QueueAction.MoveItem(queueData.info.id, item.id, from, to))
-                                            }
-                                            if (from > nextSlot) {
-                                                DropdownMenuItem(
-                                                    text = { Text(stringResource(Res.string.action_play_next)) },
-                                                    leadingIcon = { Icon(Icons.Default.QueuePlayNext, contentDescription = null) },
-                                                    onClick = {
-                                                        move(nextSlot)
-                                                        menuItemId = null
-                                                    },
-                                                )
-                                            }
-                                            if (from > nextSlot || from < internalItems.lastIndex) {
-                                                DropdownMenuItem(
-                                                    text = { Text(stringResource(Res.string.queue_move)) },
-                                                    leadingIcon = { Icon(Icons.Default.SwapVert, contentDescription = null) },
-                                                    onClick = {
-                                                        moveOrigin = from
-                                                        movingItemId = item.id
-                                                        menuItemId = null
-                                                    },
-                                                )
-                                            }
-                                        }
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(Res.string.common_delete)) },
-                                            leadingIcon = {
-                                                Icon(
-                                                    imageVector = Icons.Default.Delete,
-                                                    contentDescription = null,
-                                                )
-                                            },
-                                            onClick = {
-                                                queueAction(
-                                                    QueueAction.RemoveItems(
-                                                        queueData.info.id,
-                                                        listOf(item.id),
-                                                    ),
-                                                )
-                                                menuItemId = null
-                                            },
-                                        )
                                     }
                                 }
+                            }
+                        }
+                        // D-pad move mode: the keys to use, over the list, as long as the mode lasts.
+                        if (movingItemId != null) {
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 8.dp)
+                                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(50))
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.SwapVert,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                )
+                                Text(
+                                    stringResource(Res.string.queue_move_hint),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
                             }
                         }
                     }
