@@ -1,0 +1,36 @@
+<resources>
+    <string name="tv_nav_home">Accueil</string>
+    <string name="tv_nav_search">Recherche</string>
+    <string name="tv_nav_now_playing">En lecture</string>
+    <string name="tv_nav_player_controls">Contrôles du lecteur</string>
+    <string name="tv_nav_settings">Paramètres</string>
+    <string name="tv_nothing_playing">Aucune lecture</string>
+    <string name="tv_up_next">Ensuite : %1$s</string>
+    <string name="tv_open_now_playing">Ouvrir En lecture</string>
+    <string name="tv_play">Lecture</string>
+    <string name="tv_pause">Pause</string>
+    <string name="tv_previous">Précédent</string>
+    <string name="tv_next">Suivant</string>
+    <string name="tv_settings_title">Paramètres</string>
+    <string name="tv_server">Serveur</string>
+    <string name="tv_server_host">Adresse du serveur</string>
+    <string name="tv_server_port">Port</string>
+    <string name="tv_server_tls">Connexion sécurisée (HTTPS)</string>
+    <string name="tv_connect">Se connecter</string>
+    <string name="tv_connecting">Connexion à %1$s…</string>
+    <string name="tv_cancel">Annuler</string>
+    <string name="tv_disconnect">Se déconnecter</string>
+    <string name="tv_connected_to">Connecté à %1$s</string>
+    <string name="tv_login">Identification</string>
+    <string name="tv_player">Lecteur de la TV</string>
+    <string name="tv_player_name">Nom du lecteur</string>
+    <string name="tv_save">Enregistrer</string>
+    <string name="tv_now_playing_delay">Ouvrir En lecture quand la télécommande est inactive</string>
+    <string name="tv_delay_off">Jamais</string>
+    <string name="tv_delay_30s">Après 30 secondes</string>
+    <string name="tv_delay_1m">Après 1 minute</string>
+    <string name="tv_delay_5m">Après 5 minutes</string>
+    <string name="tv_back">Retour</string>
+    <string name="tv_loading">Connexion…</string>
+    <string name="tv_default_player_name">Ma TV</string>
+</resources>

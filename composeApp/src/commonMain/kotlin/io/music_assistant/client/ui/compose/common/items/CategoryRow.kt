@@ -6,6 +6,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -359,6 +362,14 @@ private fun RowWithTitle(
         val rowListState = rememberLazyListState()
         LazyRow(
             state = rowListState,
+            // With a D-pad (Android TV, keyboard), Right on the last item stays there. Left the
+            // row, the search would pick the nearest focusable to the right anywhere on screen,
+            // often one scrolled out of view, and the focus would seem lost.
+            modifier = Modifier
+                .focusProperties {
+                    onExit = { if (requestedFocusDirection == FocusDirection.Right) cancelFocusChange() }
+                }
+                .focusGroup(),
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {

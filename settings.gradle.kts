@@ -32,6 +32,7 @@ dependencyResolutionManagement {
 
 include(":composeApp")
 include(":androidApp")
+include(":tvApp")
 include(":shared-icons")
 include(":nav")
 include(":ui-utils")
