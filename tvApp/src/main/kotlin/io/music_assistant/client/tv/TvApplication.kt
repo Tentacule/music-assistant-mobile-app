@@ -24,6 +24,7 @@ class TvApplication : Application() {
             androidContext(this@TvApplication)
         }
         nameTheLocalPlayer()
+        applyAudioDefaults()
         playTracksFromHereByDefault()
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
@@ -54,6 +55,29 @@ class TvApplication : Application() {
     }
 
     /**
+     * The TV plays from a LAN connection and only for itself (never in a group), so it trades a little
+     * jitter cushion for shorter track changes, and spends its plentiful memory on a longer buffer.
+     *
+     * The startup buffer (`min_buffer_ms`) is set on every launch, since no TV screen sets it: the
+     * server waits that long before the first chunk of every stream. At 1000 ms (the shared default)
+     * every skip was silent for about 1 s; the reopened AudioTrack itself costs only ~40 ms.
+     * The buffer length is the TV default once, only if the user kept the shared default; the TV
+     * settings change it afterwards.
+     */
+    private fun applyAudioDefaults() {
+        val koin = GlobalContext.get()
+        val settings: SettingsRepository = koin.get()
+        val prefs: TvPreferences = koin.get()
+        settings.setSendspinMinBufferMs(TV_MIN_BUFFER_MS)
+        if (prefs.audioDefaultsApplied) return
+        val current = settings.sendspinPlayerSettings.value
+        if (current.bufferSeconds == SettingsRepository.BUFFER_SECONDS_DEFAULT) {
+            settings.setSendspinPlayerSettings(current.copy(bufferSeconds = TV_BUFFER_SECONDS))
+        }
+        prefs.audioDefaultsApplied = true
+    }
+
+    /**
      * A track picked in an album or a playlist plays that album or playlist from it on, instead of
      * the track alone (the shared default, "Play now"). Only where the user made no choice: the
      * phone sets it in its click-action settings, which the TV has no screen for.
@@ -67,5 +91,10 @@ class TvApplication : Application() {
             ItemKind.TRACK,
             current + missing.associateWith { DefaultClickOption.PLAY_FROM_HERE },
         )
+    }
+
+    private companion object {
+        const val TV_MIN_BUFFER_MS = 500
+        const val TV_BUFFER_SECONDS = 20
     }
 }

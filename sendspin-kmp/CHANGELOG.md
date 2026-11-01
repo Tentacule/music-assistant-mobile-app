@@ -4,6 +4,12 @@ All changes to `io.github.music-assistant:sendspin-kmp` are in this file.
 
 ## 0.2.0
 
+- `LocalPlayerConfig.minBufferMs` sets the `min_buffer_ms` of `client/state` (spec 1.0 wire). The
+  server waits that long before the first chunk of every stream, so a lower value shortens the
+  silence of a track change. The default stays 1000 ms. A change applies without a reconnect.
+- The scheduler does not count the device underruns before the first write of a stream, and it logs
+  a jump of the server timeline between two chunks (`Timeline jump`).
+
 ## 0.1.0
 
 The first published version.

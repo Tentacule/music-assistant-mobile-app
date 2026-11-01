@@ -7,7 +7,8 @@ import kotlinx.coroutines.channels.ReceiveChannel
  * `null` disables the player and is the only "stop".
  *
  * A change to [endpoint], [deviceName], [codecPreference], [bitDepth], or [bufferSeconds]
- * restarts the connection. The audio pipeline is untouched. [userDelayMs] applies live.
+ * restarts the connection. The audio pipeline is untouched. [userDelayMs] and [minBufferMs]
+ * apply live.
  */
 public data class LocalPlayerConfig(
     val endpoint: Endpoint,
@@ -23,6 +24,13 @@ public data class LocalPlayerConfig(
     val bufferSeconds: Int,
     /** Manual playback lag, added to every chunk's presentation time. */
     val userDelayMs: Int,
+    /**
+     * `min_buffer_ms` of `client/state` (spec 1.0 wire only): the audio the server queues
+     * before the first chunk of every stream is due, so also the silence of every track change,
+     * seek, and play. A live source (radio) keeps it as its only jitter cushion; a buffered one
+     * grows past it within the first second. The server clamps it to 0..30 000.
+     */
+    val minBufferMs: Int = 1_000,
 )
 
 public sealed interface Endpoint {

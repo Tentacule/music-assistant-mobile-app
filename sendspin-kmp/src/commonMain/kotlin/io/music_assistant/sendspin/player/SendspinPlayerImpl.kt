@@ -304,13 +304,15 @@ internal class SendspinPlayerImpl(
 
         /**
          * Spec 1.0.0-rc1: `available` only once the time filter has converged (the
-         * server starts no stream before it), then again on every change. The reported
+         * server starts no stream before it), then again on every change of the delay or
+         * of [LocalPlayerConfig.minBufferMs]. The reported
          * delay is informational for the server's send-ahead; the scheduler still applies
          * the signed [LocalPlayerConfig.userDelayMs] itself.
          */
         private suspend fun reportSpecState(session: NoiseSession) {
             while (!clockSync.isConverged) delay(CLOCK_POLL_MILLIS)
-            config.filterNotNull().map { it.userDelayMs }.distinctUntilChanged().collect { delayMs ->
+            val timing = config.filterNotNull().map { it.userDelayMs to it.minBufferMs }.distinctUntilChanged()
+            timing.collect { (delayMs, minBufferMs) ->
                 session.send(
                     WireCodec.encode(
                         ClientStateMessage(
@@ -318,7 +320,7 @@ internal class SendspinPlayerImpl(
                                 player = PlayerStateObject.spec(
                                     outputDelayMs = delayMs.coerceIn(0, MAX_OUTPUT_DELAY_MS),
                                     requiredLeadTimeMs = REQUIRED_LEAD_TIME_MS,
-                                    minBufferMs = MIN_BUFFER_MS,
+                                    minBufferMs = minBufferMs.coerceIn(0, MAX_TIMING_PARAMETER_MS),
                                 ),
                                 available = true,
                             ),
@@ -406,7 +408,7 @@ internal class SendspinPlayerImpl(
         /** Startup lead the server grants a buffered source before the first chunk is due. */
         const val REQUIRED_LEAD_TIME_MS = 250
 
-        /** Ongoing buffer the server keeps queued; absorbs Wi-Fi and WebRTC jitter. */
-        const val MIN_BUFFER_MS = 1_000
+        /** Spec range of `required_lead_time_ms` and `min_buffer_ms`. */
+        const val MAX_TIMING_PARAMETER_MS = 30_000
     }
 }

@@ -43,6 +43,9 @@
     <string name="tv_player">TV player</string>
     <string name="tv_player_name">Player name</string>
     <string name="tv_save">Save</string>
+    <string name="tv_buffer">Audio buffer</string>
+    <string name="tv_buffer_hint">A longer buffer rides out network stalls. Changing it restarts the player.</string>
+    <string name="tv_buffer_seconds">%1$d s</string>
     <string name="tv_now_playing_delay">Open Now playing when the remote is idle</string>
     <string name="tv_delay_off">Never</string>
     <string name="tv_delay_30s">After 30 seconds</string>

@@ -463,7 +463,7 @@ final class io.music_assistant.sendspin.api/DeviceInfo { // io.music_assistant.s
 }
 
 final class io.music_assistant.sendspin.api/LocalPlayerConfig { // io.music_assistant.sendspin.api/LocalPlayerConfig|null[0]
-    constructor <init>(io.music_assistant.sendspin.api/Endpoint, kotlin/String, kotlin.collections/List<io.music_assistant.sendspin.api/AudioCodec>, kotlin/Int = ..., kotlin/Int, kotlin/Int) // io.music_assistant.sendspin.api/LocalPlayerConfig.<init>|<init>(io.music_assistant.sendspin.api.Endpoint;kotlin.String;kotlin.collections.List<io.music_assistant.sendspin.api.AudioCodec>;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    constructor <init>(io.music_assistant.sendspin.api/Endpoint, kotlin/String, kotlin.collections/List<io.music_assistant.sendspin.api/AudioCodec>, kotlin/Int = ..., kotlin/Int, kotlin/Int, kotlin/Int = ...) // io.music_assistant.sendspin.api/LocalPlayerConfig.<init>|<init>(io.music_assistant.sendspin.api.Endpoint;kotlin.String;kotlin.collections.List<io.music_assistant.sendspin.api.AudioCodec>;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
 
     final val bitDepth // io.music_assistant.sendspin.api/LocalPlayerConfig.bitDepth|{}bitDepth[0]
         final fun <get-bitDepth>(): kotlin/Int // io.music_assistant.sendspin.api/LocalPlayerConfig.bitDepth.<get-bitDepth>|<get-bitDepth>(){}[0]
@@ -475,6 +475,8 @@ final class io.music_assistant.sendspin.api/LocalPlayerConfig { // io.music_assi
         final fun <get-deviceName>(): kotlin/String // io.music_assistant.sendspin.api/LocalPlayerConfig.deviceName.<get-deviceName>|<get-deviceName>(){}[0]
     final val endpoint // io.music_assistant.sendspin.api/LocalPlayerConfig.endpoint|{}endpoint[0]
         final fun <get-endpoint>(): io.music_assistant.sendspin.api/Endpoint // io.music_assistant.sendspin.api/LocalPlayerConfig.endpoint.<get-endpoint>|<get-endpoint>(){}[0]
+    final val minBufferMs // io.music_assistant.sendspin.api/LocalPlayerConfig.minBufferMs|{}minBufferMs[0]
+        final fun <get-minBufferMs>(): kotlin/Int // io.music_assistant.sendspin.api/LocalPlayerConfig.minBufferMs.<get-minBufferMs>|<get-minBufferMs>(){}[0]
     final val userDelayMs // io.music_assistant.sendspin.api/LocalPlayerConfig.userDelayMs|{}userDelayMs[0]
         final fun <get-userDelayMs>(): kotlin/Int // io.music_assistant.sendspin.api/LocalPlayerConfig.userDelayMs.<get-userDelayMs>|<get-userDelayMs>(){}[0]
 
@@ -484,7 +486,8 @@ final class io.music_assistant.sendspin.api/LocalPlayerConfig { // io.music_assi
     final fun component4(): kotlin/Int // io.music_assistant.sendspin.api/LocalPlayerConfig.component4|component4(){}[0]
     final fun component5(): kotlin/Int // io.music_assistant.sendspin.api/LocalPlayerConfig.component5|component5(){}[0]
     final fun component6(): kotlin/Int // io.music_assistant.sendspin.api/LocalPlayerConfig.component6|component6(){}[0]
-    final fun copy(io.music_assistant.sendspin.api/Endpoint = ..., kotlin/String = ..., kotlin.collections/List<io.music_assistant.sendspin.api/AudioCodec> = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): io.music_assistant.sendspin.api/LocalPlayerConfig // io.music_assistant.sendspin.api/LocalPlayerConfig.copy|copy(io.music_assistant.sendspin.api.Endpoint;kotlin.String;kotlin.collections.List<io.music_assistant.sendspin.api.AudioCodec>;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    final fun component7(): kotlin/Int // io.music_assistant.sendspin.api/LocalPlayerConfig.component7|component7(){}[0]
+    final fun copy(io.music_assistant.sendspin.api/Endpoint = ..., kotlin/String = ..., kotlin.collections/List<io.music_assistant.sendspin.api/AudioCodec> = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): io.music_assistant.sendspin.api/LocalPlayerConfig // io.music_assistant.sendspin.api/LocalPlayerConfig.copy|copy(io.music_assistant.sendspin.api.Endpoint;kotlin.String;kotlin.collections.List<io.music_assistant.sendspin.api.AudioCodec>;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.music_assistant.sendspin.api/LocalPlayerConfig.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.music_assistant.sendspin.api/LocalPlayerConfig.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.music_assistant.sendspin.api/LocalPlayerConfig.toString|toString(){}[0]

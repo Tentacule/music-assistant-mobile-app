@@ -33,4 +33,11 @@ class LocalPlayerConfigMappingTest {
         assertEquals(24, config(staticDelayMs = 0)?.bitDepth)
         assertEquals(15, config(staticDelayMs = 0)?.bufferSeconds)
     }
+
+    @Test
+    fun minBufferPassesThroughWithTheModuleDefault() {
+        assertEquals(1_000, config(staticDelayMs = 0)?.minBufferMs)
+        val tv = localPlayerConfig(true, endpoint, "TV", AudioCodec.FLAC, 16, 20, 0, minBufferMs = 500)
+        assertEquals(500, tv?.minBufferMs)
+    }
 }

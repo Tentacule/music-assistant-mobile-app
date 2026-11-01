@@ -69,6 +69,9 @@ internal class Scheduler(
     private var lastWriteMicros = 0L
     private var clockWaitSinceMicros: Long? = null
 
+    /** Server time where the next chunk should start if the timeline is continuous; null after a discontinuity. */
+    private var expectedTimestampMicros: Long? = null
+
     /** Lead of the chunk being written, for the first-audio report. */
     private var lastLeadMicros = 0L
 
@@ -104,6 +107,7 @@ internal class Scheduler(
             decoder.reset()
             framesWritten = 0
             played = false // the next write is a new start: the app must be told again
+            expectedTimestampMicros = null
             restartCorrection()
         }
         when {
@@ -164,6 +168,7 @@ internal class Scheduler(
         evictedAtOpen = pipeline.buffer.evicted
         correctionLogs = 0
         lastWriteMicros = 0L
+        expectedTimestampMicros = null
         val generation = state.generation
         // The collector lives with this handle, not with the scheduler, and an event that
         // belongs to this stream must never end a later one. A regain ends nothing: it passes,
@@ -294,7 +299,25 @@ internal class Scheduler(
         if (pcm == null && decoder.consecutiveFailures >= DECODER_FAILURE_LIMIT) {
             pipeline.onSinkFailure(AudioEvent.DecoderFailed(pipeline.stream.value.format?.codec ?: "?"))
         }
+        pcm?.let { checkTimeline(chunk, it) }
         return pcm
+    }
+
+    /**
+     * Chunks of one stream follow each other on the server timeline. A jump means the server moved
+     * the timeline (or chunks went missing): the scheduler then waits or drops to follow it, which
+     * is heard as a gap or a cut even with audio in the buffer, and the buffer size cannot help.
+     */
+    private fun checkTimeline(chunk: AudioChunk, pcm: ByteArray) {
+        val fmt = format?.takeIf { it.isPcm } ?: return
+        val expected = expectedTimestampMicros
+        expectedTimestampMicros = chunk.timestampMicros + framesToMicros((pcm.size / fmt.bytesPerFrame).toLong(), fmt)
+        val jump = expected?.let { chunk.timestampMicros - it } ?: return
+        if (abs(jump) < TIMELINE_JUMP_LOG_MICROS || correctionLogs++ >= MAX_CORRECTION_LOGS) return
+        logger.w {
+            "Timeline jump: ${jump / MICROS_PER_MILLI} ms between chunks, " +
+                "bufferedMs=${pipeline.buffer.spanMicros / MICROS_PER_MILLI} written=$framesWritten"
+        }
     }
 
     /** Waits up to [micros], but wakes early on any stream change or new chunk. */
@@ -320,6 +343,8 @@ internal class Scheduler(
         if (fmt.isPcm) framesWritten += length / fmt.bytesPerFrame
         lastWriteMicros = clock.nowMicros()
         if (!played && length > 0) {
+            // The device counts the wait for this first write as an underrun only now.
+            underruns = out.underrunCount()
             played = true
             reportFirstAudio()
             pipeline.emit(AudioEvent.Started)
@@ -341,9 +366,17 @@ internal class Scheduler(
         }
     }
 
-    /** A sink underrun is audible by itself; the gap since the last write tells a stalled feeder from a slow sink. */
+    /**
+     * A sink underrun is audible by itself; the gap since the last write tells a stalled feeder from a slow sink.
+     * Before the first write of a stream (after an open or a flush) the device plays nothing on purpose,
+     * so those underruns are the baseline, not glitches.
+     */
     private fun checkUnderruns(out: SinkHandle) {
         val count = out.underrunCount()
+        if (!played) {
+            underruns = count
+            return
+        }
         if (count <= underruns) return
         if (correctionLogs++ < MAX_CORRECTION_LOGS) {
             logger.w { "Sink underrun: +${count - underruns} total=$count sinceWriteMs=${sinceWriteMillis()}" }
@@ -444,6 +477,9 @@ internal class Scheduler(
         const val BITS_PER_BYTE = 8
         const val MICROS_PER_SECOND = 1_000_000L
         const val MICROS_PER_MILLI = 1_000L
+
+        /** Smallest jump of the server timeline worth a log line; decoder framing stays far below. */
+        const val TIMELINE_JUMP_LOG_MICROS = 100_000L
 
         /** How long a chunk may wait for the first clock estimate. */
         const val CLOCK_WAIT_MICROS = 3_000_000L

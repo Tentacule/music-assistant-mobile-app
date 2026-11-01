@@ -42,7 +42,7 @@ internal class LegacySendspinPlayerTest : SendspinPlayerScenarios(WireVersion.LE
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SpecSendspinPlayerTest : SendspinPlayerScenarios(WireVersion.SPEC_1_0) {
     @Test
-    fun stateIsSentOnceTheClockIsSyncedAndAgainOnlyWhenTheDelayChanges() = playerTest { h ->
+    fun stateIsSentOnceTheClockIsSyncedAndAgainOnlyWhenTheDelayOrTheMinBufferChanges() = playerTest { h ->
         val server = h.connectServer()
         h.awaitConnected()
         h.nextEvent()
@@ -59,7 +59,7 @@ internal class SpecSendspinPlayerTest : SendspinPlayerScenarios(WireVersion.SPEC
             SendspinPlayerImpl.REQUIRED_LEAD_TIME_MS,
             player.getValue("required_lead_time_ms").jsonPrimitive.content.toInt(),
         )
-        assertEquals(SendspinPlayerImpl.MIN_BUFFER_MS, player.getValue("min_buffer_ms").jsonPrimitive.content.toInt())
+        assertEquals(1_000, player.getValue("min_buffer_ms").jsonPrimitive.content.toInt(), "the config default")
         assertEquals(0, player.getValue("supported_commands").jsonArray.size)
 
         h.config.value = h.config.value!!.copy(userDelayMs = 500)
@@ -71,6 +71,10 @@ internal class SpecSendspinPlayerTest : SendspinPlayerScenarios(WireVersion.SPEC
         runCurrent()
         assertEquals(0, server.clientStates[2].player().getValue("output_delay_ms").jsonPrimitive.content.toInt())
 
+        h.config.value = h.config.value!!.copy(minBufferMs = 400)
+        runCurrent()
+        assertEquals(400, server.clientStates[3].player().getValue("min_buffer_ms").jsonPrimitive.content.toInt())
+
         server.startStream()
         val start = currentTime * 1_000
         repeat(10) { i -> server.sendAudio(4, start + i * 500_000L, h.pcm(500)) }
@@ -78,7 +82,7 @@ internal class SpecSendspinPlayerTest : SendspinPlayerScenarios(WireVersion.SPEC
         assertIs<PlayerEvent.PlaybackStarted>(h.nextEvent())
         advanceTimeBy(10_000)
         runCurrent()
-        assertEquals(3, server.clientStates.size, "no periodic resend on spec 1.0.0-rc1")
+        assertEquals(4, server.clientStates.size, "no periodic resend on spec 1.0.0-rc1")
     }
 
     @Test

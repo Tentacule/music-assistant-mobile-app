@@ -134,7 +134,8 @@ class LocalPlayerAdapter(
         endpoints.endpoint,
         settings.sendspinPlayerSettings,
         settings.sendspinStaticDelayMs,
-    ) { enabled, endpoint, playerSettings, staticDelayMs ->
+        settings.sendspinMinBufferMs,
+    ) { enabled, endpoint, playerSettings, staticDelayMs, minBufferMs ->
         localPlayerConfig(
             enabled = enabled,
             endpoint = endpoint,
@@ -143,6 +144,7 @@ class LocalPlayerAdapter(
             bitDepth = playerSettings.effectiveBitDepth(),
             bufferSeconds = playerSettings.bufferSeconds,
             staticDelayMs = staticDelayMs,
+            minBufferMs = minBufferMs,
         )
     }.stateIn(this, SharingStarted.Eagerly, null)
 
@@ -674,6 +676,7 @@ class LocalPlayerAdapter(
             bitDepth: Int,
             bufferSeconds: Int,
             staticDelayMs: Int,
+            minBufferMs: Int = SettingsRepository.MIN_BUFFER_MS_DEFAULT,
         ): LocalPlayerConfig? {
             if (!enabled || endpoint == null) return null
             return LocalPlayerConfig(
@@ -683,6 +686,7 @@ class LocalPlayerAdapter(
                 bitDepth = bitDepth,
                 bufferSeconds = bufferSeconds,
                 userDelayMs = -staticDelayMs,
+                minBufferMs = minBufferMs,
             )
         }
 

@@ -49,7 +49,13 @@ class TvPreferences(context: Context) {
         prefs.edit().putStringSet(KEY_UNSUPPORTED_DISMISSED, ids).apply()
     }
 
+    /** Whether the TV audio defaults were applied once; later, the user's choice stays. */
+    var audioDefaultsApplied: Boolean
+        get() = prefs.getBoolean(KEY_AUDIO_DEFAULTS_APPLIED, false)
+        set(value) = prefs.edit().putBoolean(KEY_AUDIO_DEFAULTS_APPLIED, value).apply()
+
     private companion object {
+        const val KEY_AUDIO_DEFAULTS_APPLIED = "audio_defaults_applied"
         const val KEY_NOW_PLAYING_DELAY = "now_playing_delay"
         const val KEY_UNSUPPORTED_DISMISSED = "unsupported_install_dismissed"
         const val KEY_VISUALIZER = "visualizer"

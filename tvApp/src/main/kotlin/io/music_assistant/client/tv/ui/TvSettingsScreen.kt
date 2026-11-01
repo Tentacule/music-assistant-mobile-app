@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import io.music_assistant.client.api.Defaults
+import io.music_assistant.client.settings.SettingsRepository
 import io.music_assistant.client.tv.NowPlayingDelay
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvPreferences
@@ -54,7 +55,7 @@ import androidx.tv.material3.OutlinedButton as TvOutlinedButton
 import androidx.tv.material3.Text as TvText
 
 /**
- * The TV settings: the server, the sign-in, the name of the TV player and the Now playing delay.
+ * The TV settings: the server, the sign-in, the TV player (name, buffer) and the Now playing delay.
  * Built on the phone settings ViewModels; no QR code or OAuth sign-in (no camera, often no browser).
  */
 @Composable
@@ -138,7 +139,7 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                     AuthenticationPanel(modifier = Modifier.fillMaxWidth(), user = connected.user)
                 }
                 if (connected.dataConnectionState is DataConnectionState.Authenticated) {
-                    PlayerNameCard()
+                    TvPlayerCard()
                     NowPlayingDelayCard()
                     VisualizerCard()
                 }
@@ -192,9 +193,10 @@ private fun ServerForm(
     ) { TvText(stringResource(R.string.tv_connect)) }
 }
 
-/** The name the TV player gets in Music Assistant. */
+/** The TV player: the name it gets in Music Assistant and the length of its audio buffer. */
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun PlayerNameCard() {
+private fun TvPlayerCard() {
     val sendspin = koinViewModel<SendspinSettingsViewModel>()
     val draft by sendspin.draft.collectAsStateWithLifecycle()
     val isSavable by sendspin.isSavable.collectAsStateWithLifecycle()
@@ -216,8 +218,30 @@ private fun PlayerNameCard() {
             )
             TvButton(onClick = sendspin::save, enabled = isSavable) { TvText(stringResource(R.string.tv_save)) }
         }
+        // A longer buffer rides out network stalls; it costs memory, not latency. A change reconnects
+        // the player, so it applies at once rather than through the Save button.
+        Text(stringResource(R.string.tv_buffer), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.tv_buffer_hint), style = MaterialTheme.typography.bodyMedium)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            BUFFER_SECONDS_CHOICES.forEach { seconds ->
+                TvFilterChip(
+                    selected = seconds == draft.bufferSeconds,
+                    onClick = {
+                        sendspin.update { it.copy(bufferSeconds = seconds) }
+                        sendspin.save()
+                    },
+                ) { TvText(stringResource(R.string.tv_buffer_seconds, seconds)) }
+            }
+        }
     }
 }
+
+private val BUFFER_SECONDS_CHOICES = (SettingsRepository.BUFFER_SECONDS_MIN..SettingsRepository.BUFFER_SECONDS_MAX)
+    .step(SettingsRepository.BUFFER_SECONDS_STEP)
+    .toList()
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable

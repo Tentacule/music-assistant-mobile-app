@@ -562,6 +562,20 @@ class SettingsRepository(
         _sendspinStaticDelayMs.update { clamped }
     }
 
+    // `min_buffer_ms` the local player reports (spec 1.0 wire): the server waits that long before
+    // the first chunk of every stream, so it is the silence of every track change. No phone screen
+    // sets it; the TV app lowers it at startup. Applies live, without a reconnect.
+    private val _sendspinMinBufferMs = MutableStateFlow(
+        settings.getInt("sendspin_min_buffer_ms", MIN_BUFFER_MS_DEFAULT).coerceIn(0, MIN_BUFFER_MS_MAX),
+    )
+    val sendspinMinBufferMs = _sendspinMinBufferMs.asStateFlow()
+
+    fun setSendspinMinBufferMs(ms: Int) {
+        val clamped = ms.coerceIn(0, MIN_BUFFER_MS_MAX)
+        settings.putInt("sendspin_min_buffer_ms", clamped)
+        _sendspinMinBufferMs.update { clamped }
+    }
+
     // Connection method preference
     private val _preferredConnectionMethod = MutableStateFlow(
         settings.getString("preferred_connection_method", "direct"),
@@ -847,6 +861,8 @@ class SettingsRepository(
         const val BUFFER_SECONDS_MAX: Int = 30
         const val BUFFER_SECONDS_STEP: Int = 5
         const val BUFFER_SECONDS_DEFAULT: Int = 10
+        const val MIN_BUFFER_MS_DEFAULT: Int = 1_000
+        const val MIN_BUFFER_MS_MAX: Int = 5_000
         const val BYTES_PER_MB: Int = 1_000_000
         const val BIT_DEPTH_DEFAULT: Int = 16
         const val BIT_DEPTH_HI_RES: Int = 24
