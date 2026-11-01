@@ -18,18 +18,20 @@ import kotlinx.coroutines.launch
  * from the couch. Provided as `LocalIndication`, so every `clickable` of the reused phone screens
  * gets it instead of the phone ripple, whose focus state is too faint on a TV.
  */
-class TvFocusIndication(private val color: Color) : IndicationNodeFactory {
+class TvFocusIndication(private val border: Color, private val fill: Color) : IndicationNodeFactory {
     override fun create(interactionSource: InteractionSource): DelegatableNode =
-        TvFocusNode(interactionSource, color)
+        TvFocusNode(interactionSource, border, fill)
 
-    override fun equals(other: Any?): Boolean = other is TvFocusIndication && other.color == color
+    override fun equals(other: Any?): Boolean =
+        other is TvFocusIndication && other.border == border && other.fill == fill
 
-    override fun hashCode(): Int = color.hashCode()
+    override fun hashCode(): Int = 31 * border.hashCode() + fill.hashCode()
 }
 
 private class TvFocusNode(
     private val interactionSource: InteractionSource,
-    private val color: Color,
+    private val border: Color,
+    private val fill: Color,
 ) : Modifier.Node(), DrawModifierNode {
     private var focused = false
 
@@ -54,14 +56,14 @@ private class TvFocusNode(
         drawContent()
         if (focused) {
             val radius = CornerRadius(CORNER_DP * density, CORNER_DP * density)
-            drawRoundRect(color = color.copy(alpha = FILL_ALPHA), cornerRadius = radius)
-            drawRoundRect(color = color, cornerRadius = radius, style = Stroke(width = STROKE_DP * density))
+            drawRoundRect(color = fill.copy(alpha = FILL_ALPHA), cornerRadius = radius)
+            drawRoundRect(color = border, cornerRadius = radius, style = Stroke(width = STROKE_DP * density))
         }
     }
 
     private companion object {
-        const val FILL_ALPHA = 0.18f
+        const val FILL_ALPHA = 0.35f
         const val CORNER_DP = 8f
-        const val STROKE_DP = 3f
+        const val STROKE_DP = 4f
     }
 }

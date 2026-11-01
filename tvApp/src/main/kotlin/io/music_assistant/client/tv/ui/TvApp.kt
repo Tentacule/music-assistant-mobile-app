@@ -1,6 +1,5 @@
 package io.music_assistant.client.tv.ui
 
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,7 +32,6 @@ import io.music_assistant.client.ui.compose.common.ProvideDislikeSupport
 import io.music_assistant.client.ui.compose.common.ProvideGrantedScopes
 import io.music_assistant.client.ui.compose.common.ProvidePlayMediaSupport
 import io.music_assistant.client.ui.compose.common.items.ProvideClickActionPrefs
-import io.music_assistant.client.ui.theme.AppTheme
 import io.music_assistant.client.utils.AuthProcessState
 import io.music_assistant.client.utils.DataConnectionState
 import io.music_assistant.client.utils.SessionState
@@ -49,18 +46,14 @@ fun TvApp() {
     LaunchedEffect(Unit) {
         if (!settings.sendspinEnabled.value) settings.setSendspinEnabled(true)
     }
-    AppTheme(darkTheme = true) {
-        CompositionLocalProvider(
-            LocalIndication provides TvFocusIndication(MaterialTheme.colorScheme.primary),
-        ) {
-            // A Surface, not a bare background: it also gives the text its on-background color.
-            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                ProvideGrantedScopes {
-                    ProvideDislikeSupport {
-                        ProvidePlayMediaSupport {
-                            ProvideClickActionPrefs {
-                                TvRoot()
-                            }
+    TvTheme {
+        // A Surface, not a bare background: it also gives the text its on-background color.
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            ProvideGrantedScopes {
+                ProvideDislikeSupport {
+                    ProvidePlayMediaSupport {
+                        ProvideClickActionPrefs {
+                            TvRoot()
                         }
                     }
                 }
