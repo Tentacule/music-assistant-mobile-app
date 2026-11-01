@@ -35,7 +35,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
@@ -168,10 +167,6 @@ fun TvMainScreen(openSettings: () -> Unit) {
                 "dynamic=${info.isDynamicPlaylist} autoplay=${info.autoPlayEnabled}"
         }
     }
-    val playerName = activePlayer?.let { player ->
-        if (player.isLocal) stringResource(R.string.tv_this_tv, player.player.name) else player.player.name
-    }
-
     val dynamicLockedMessage = stringResource(R.string.tv_dynamic_queue_locked)
     val onPlayerAction: (PlayerAction) -> Unit = { action ->
         activePlayer?.let { player ->
@@ -351,15 +346,6 @@ fun TvMainScreen(openSettings: () -> Unit) {
     ) {
         Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(start = TvRailCollapsedWidth)) {
-            // Like Plex: what plays, at the top right of every page (Up from the page's top bar).
-            nowPlayingInfo?.let { info ->
-                NowPlayingPill(
-                    info = info,
-                    playerName = playerName.orEmpty(),
-                    onClick = { nowPlaying = true },
-                    modifier = Modifier.align(Alignment.End).padding(top = 16.dp, end = 48.dp),
-                )
-            }
             Box(
                 Modifier
                     .weight(1f)
