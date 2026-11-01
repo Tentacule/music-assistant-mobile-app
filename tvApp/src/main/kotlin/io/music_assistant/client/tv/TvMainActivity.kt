@@ -50,6 +50,14 @@ class TvMainActivity : ComponentActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // A keyboard's Escape (the emulator, a TV keyboard) is Back here. Left to Compose, the first
+        // Escape only clears the focus, which strands the remote, and only the next one goes back.
+        // A synthesized BACK key event would not reach the back callbacks (Android 13+ routes the
+        // real one through OnBackInvokedDispatcher), so the release presses Back directly.
+        if (event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) onBackPressedDispatcher.onBackPressed()
+            return true
+        }
         if (event.action == KeyEvent.ACTION_DOWN) userActivity.onKey(event.keyCode)
         if (event.keyCode in SELECT_KEYS && !replayingSelect) return onSelectKey(event)
         return super.dispatchKeyEvent(event)
