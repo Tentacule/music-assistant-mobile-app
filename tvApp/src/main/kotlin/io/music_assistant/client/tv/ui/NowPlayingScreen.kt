@@ -143,6 +143,8 @@ fun NowPlayingScreen(
     // The selected control, by key: the Artist and Album controls come and go with the track.
     var selectedKey by remember { mutableStateOf(KEY_PLAY_PAUSE) }
     var lastInteraction by remember { mutableStateOf(0L) }
+    // An OK press seen by this mode, handled on its release.
+    var selectPressed by remember { mutableStateOf(false) }
     LaunchedEffect(controlsVisible, choosingArtist, lastInteraction) {
         if (controlsVisible) {
             delay(CONTROLS_HIDE_DELAY_MS)
@@ -250,17 +252,27 @@ fun NowPlayingScreen(
     // the mode lands exactly there. The screen hands the remote's keys to [keys] meanwhile; every
     // key is consumed here, except Back (the BackHandler) and the media keys (the activity).
     val handleKey: (KeyEvent) -> Boolean = handler@{ event ->
-        if (event.type != KeyEventType.KeyDown) return@handler event.key != Key.Back
+        val select = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
+        if (event.type != KeyEventType.KeyDown) {
+            // OK acts on its release: a control that closes the mode (queue, artist, album) would
+            // otherwise leave the release to the element focused underneath, which would fire too.
+            if (select && selectPressed) {
+                selectPressed = false
+                when {
+                    !controlsVisible -> controlsVisible = true
+                    choosingArtist -> artists.getOrNull(artistIndex)?.let(onNavigate)
+                    else -> controls.getOrNull(selectedIndex)?.onPress?.invoke()
+                }
+                lastInteraction = System.nanoTime()
+            }
+            return@handler event.key != Key.Back
+        }
         when (event.key) {
             Key.Back, Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause, Key.MediaNext,
             Key.MediaPrevious, Key.MediaStop, Key.MediaFastForward, Key.MediaRewind,
             -> return@handler false
 
-            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> when {
-                !controlsVisible -> controlsVisible = true
-                choosingArtist -> artists.getOrNull(artistIndex)?.let(onNavigate)
-                else -> controls.getOrNull(selectedIndex)?.onPress?.invoke()
-            }
+            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> selectPressed = true
 
             Key.DirectionLeft -> when {
                 !controlsVisible -> controlsVisible = true

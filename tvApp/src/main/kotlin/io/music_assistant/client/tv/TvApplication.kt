@@ -5,8 +5,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.pm.ApplicationInfo
 import android.provider.Settings
+import io.music_assistant.client.data.model.client.ClickContext
+import io.music_assistant.client.data.model.client.ItemKind
 import io.music_assistant.client.di.androidModule
 import io.music_assistant.client.di.initKoin
+import io.music_assistant.client.settings.DefaultClickOption
 import io.music_assistant.client.settings.SettingsRepository
 import io.music_assistant.client.tv.di.tvModule
 import io.music_assistant.client.tv.services.MediaNotificationManager
@@ -21,6 +24,7 @@ class TvApplication : Application() {
             androidContext(this@TvApplication)
         }
         nameTheLocalPlayer()
+        playTracksFromHereByDefault()
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 MediaNotificationManager.CHANNEL_ID,
@@ -47,5 +51,21 @@ class TvApplication : Application() {
         val name = deviceName?.let { getString(R.string.tv_player_default_name, it) }
             ?: getString(R.string.tv_default_player_name)
         settings.setSendspinPlayerSettings(current.copy(name = name))
+    }
+
+    /**
+     * A track picked in an album or a playlist plays that album or playlist from it on, instead of
+     * the track alone (the shared default, "Play now"). Only where the user made no choice: the
+     * phone sets it in its click-action settings, which the TV has no screen for.
+     */
+    private fun playTracksFromHereByDefault() {
+        val settings: SettingsRepository = GlobalContext.get().get()
+        val current = settings.defaultClickActions.value[ItemKind.TRACK].orEmpty()
+        val missing = listOf(ClickContext.ALBUM, ClickContext.PLAYLIST).filterNot { it in current }
+        if (missing.isEmpty()) return
+        settings.setDefaultClickActions(
+            ItemKind.TRACK,
+            current + missing.associateWith { DefaultClickOption.PLAY_FROM_HERE },
+        )
     }
 }

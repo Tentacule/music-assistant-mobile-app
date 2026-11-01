@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
+import io.music_assistant.client.ui.compose.common.dpadFocusZoom
 import io.music_assistant.client.ui.utils.WindowClass
 
 @Composable
@@ -41,6 +42,7 @@ fun GridItem(
         Column(
             modifier = cellWidthModifier
                 .then(modifier)
+                .dpadFocusZoom(RoundedCornerShape(8.dp))
                 .clip(RoundedCornerShape(8.dp))
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(4.dp),

@@ -56,13 +56,11 @@ private class TvFocusNode(
         drawContent()
         if (focused) {
             val radius = CornerRadius(CORNER_DP * density, CORNER_DP * density)
-            drawRoundRect(color = fill.copy(alpha = FILL_ALPHA), cornerRadius = radius)
             drawRoundRect(color = border, cornerRadius = radius, style = Stroke(width = STROKE_DP * density))
         }
     }
 
     private companion object {
-        const val FILL_ALPHA = 0.35f
         const val CORNER_DP = 8f
         const val STROKE_DP = 4f
     }
