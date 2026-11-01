@@ -11,6 +11,7 @@ import android.media.AudioManager
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.widget.Toast
@@ -149,7 +150,13 @@ class MainMediaPlaybackService : MediaBrowserServiceCompat() {
         // doesn't need the radio awake.
         scope.launch {
             dataSource.isAnythingPlaying.collect { playing ->
-                if (playing) acquireWifiLock() else releaseWifiLock()
+                if (playing) {
+                    acquireWifiLock()
+                    acquireWakeLock()
+                } else {
+                    releaseWifiLock()
+                    releaseWakeLock()
+                }
             }
         }
         dataSource.apiClient.onPlaybackActive()
@@ -174,6 +181,22 @@ class MainMediaPlaybackService : MediaBrowserServiceCompat() {
             logger.i { "Wi-Fi lock released" }
         }
         wifiLock = null
+    }
+
+    // TV: a partial wake lock while playing, so a standby of the device does not stop the stream.
+    private var wakeLock: PowerManager.WakeLock? = null
+
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val powerManager = applicationContext.getSystemService(POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MusicAssistantTv:Playback")
+            .apply { acquire() }
+        logger.i { "Wake lock acquired for playback" }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.takeIf { it.isHeld }?.release()
+        wakeLock = null
     }
 
     private val notificationDismissReceiver = object : BroadcastReceiver() {
@@ -266,6 +289,7 @@ class MainMediaPlaybackService : MediaBrowserServiceCompat() {
     override fun onDestroy() {
         if (fullyInitialized) {
             releaseWifiLock()
+            releaseWakeLock()
             unregisterReceiver(notificationDismissReceiver)
             unregisterReceiver(transportReceiver)
             audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)

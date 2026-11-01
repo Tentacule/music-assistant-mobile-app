@@ -49,4 +49,8 @@
     <string name="tv_back">Back</string>
     <string name="tv_loading">Connecting…</string>
     <string name="tv_default_player_name">My TV</string>
+    <string name="tv_player_default_name">%1$s (Music Assistant)</string>
+    <string name="tv_nav_player">Player</string>
+    <string name="tv_pick_player">Play on</string>
+    <string name="tv_this_tv">%1$s · this TV</string>
 </resources>

@@ -100,7 +100,7 @@ class TvMainActivity : ComponentActivity() {
         )
     }
 
-    // The remote's media keys drive the local player from any screen.
+    // The remote's media keys drive the selected player (this TV by default) from any screen.
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         val action = when (keyCode) {
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_HEADSETHOOK -> PlayerAction.TogglePlayPause
@@ -117,9 +117,9 @@ class TvMainActivity : ComponentActivity() {
             if (event?.repeatCount == 0) userActivity.toggleNowPlaying()
             return true
         }
-        val local = dataSource.localPlayer.value
-        if (action != null && local != null && event?.repeatCount == 0) {
-            dataSource.playerAction(local, action)
+        val target = dataSource.selectedPlayer ?: dataSource.localPlayer.value
+        if (action != null && target != null && event?.repeatCount == 0) {
+            dataSource.playerAction(target, action)
             return true
         }
         return super.onKeyDown(keyCode, event)

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -140,17 +141,28 @@ fun TvMainScreen(openSettings: () -> Unit) {
     val localPlayer by dataSource.localPlayer.collectAsStateWithLifecycle()
     val playersState by homeScreenViewModel.playersState.collectAsStateWithLifecycle()
 
-    // The TV only ever plays on itself: keep the local player selected, so every play request of
-    // the reused phone pages (which target the selected player) lands on the TV.
+    // The TV plays on itself by default: each launch starts on the local player. The player picker
+    // can then send the music to any other player; the reused phone pages (which play on the
+    // selected player), the player bar, Now playing and the queue all follow the choice.
     LaunchedEffect(playersState, localPlayer) {
+        if (localPlayerSelectedThisLaunch) return@LaunchedEffect
         val local = localPlayer ?: return@LaunchedEffect
         val data = playersState as? HomeScreenViewModel.PlayersState.Data ?: return@LaunchedEffect
         if (data.selectedPlayer?.playerId != local.playerId) homeScreenViewModel.selectPlayer(local.player)
+        localPlayerSelectedThisLaunch = true
+    }
+    val playersData = playersState as? HomeScreenViewModel.PlayersState.Data
+    val selectedPlayer = playersData?.selectedPlayer
+    // The local player's own state (optimistic, from the Sendspin adapter) when it is the one chosen.
+    val activePlayer = if (selectedPlayer == null || selectedPlayer.isLocal) localPlayer ?: selectedPlayer else selectedPlayer
+    var pickingPlayer by remember { mutableStateOf(false) }
+    val playerName = activePlayer?.let { player ->
+        if (player.isLocal) stringResource(R.string.tv_this_tv, player.player.name) else player.player.name
     }
 
     val dynamicLockedMessage = stringResource(R.string.tv_dynamic_queue_locked)
     val onPlayerAction: (PlayerAction) -> Unit = { action ->
-        localPlayer?.let { player ->
+        activePlayer?.let { player ->
             val locked = action is PlayerAction.ToggleShuffle || action is PlayerAction.ToggleRepeatMode
             // The server refuses these on a smart mix; say why instead of letting the toggle bounce back.
             if (locked && player.queueInfo?.isDynamicPlaylist == true) {
@@ -203,7 +215,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
     // Idle remote during playback: switch to the Now playing mode by itself, like a screensaver.
     val lastKeyAt by userActivity.lastKeyAt.collectAsStateWithLifecycle()
     val idleDelay by prefs.nowPlayingDelay.collectAsStateWithLifecycle()
-    val isPlaying = localPlayer?.player?.isPlaying == true
+    val isPlaying = activePlayer?.player?.isPlaying == true
     // Not over an open menu or dialog: those are windows above the app, which then has no window
     // focus. The mode waits until they close.
     val view = LocalView.current
@@ -228,7 +240,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
         backStack += route
     }
 
-    val nowPlayingInfo = localPlayer?.nowPlayingInfo()
+    val nowPlayingInfo = activePlayer?.nowPlayingInfo()
     LaunchedEffect(userActivity) {
         userActivity.nowPlayingToggles.collect { if (nowPlaying) closeNowPlaying() else nowPlaying = true }
     }
@@ -293,6 +305,14 @@ fun TvMainScreen(openSettings: () -> Unit) {
         }
         add(
             TvRailItem(
+                key = "player",
+                icon = Icons.Default.Speaker,
+                label = stringResource(R.string.tv_nav_player),
+                group = 2,
+            ) { pickingPlayer = true },
+        )
+        add(
+            TvRailItem(
                 "settings",
                 Icons.Default.Settings,
                 stringResource(R.string.tv_nav_settings),
@@ -322,6 +342,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
             nowPlayingInfo?.let { info ->
                 NowPlayingPill(
                     info = info,
+                    playerName = playerName.orEmpty(),
                     onClick = { nowPlaying = true },
                     modifier = Modifier.align(Alignment.End).padding(top = 16.dp, end = 48.dp),
                 )
@@ -388,7 +409,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
                         }
                         entry<TvRoute.Queue> {
                             TvQueueScreen(
-                                playerData = localPlayer,
+                                playerData = activePlayer,
                                 homeScreenViewModel = homeScreenViewModel,
                                 onGoToLibrary = { goToRoot(TvRoute.Home) },
                             )
@@ -448,10 +469,11 @@ fun TvMainScreen(openSettings: () -> Unit) {
                 )
             }
             TvPlayerBar(
-                playerData = localPlayer,
+                playerData = activePlayer,
                 homeScreenViewModel = homeScreenViewModel,
                 onAction = onPlayerAction,
                 onOpenNowPlaying = { nowPlaying = true },
+                onPickPlayer = { pickingPlayer = true },
                 onOpenQueue = { goToRoot(TvRoute.Queue) },
                 playPauseFocus = playerBarFocus,
             )
@@ -472,7 +494,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
 
         if (nowPlaying) {
             NowPlayingScreen(
-                playerData = localPlayer,
+                playerData = activePlayer,
                 homeScreenViewModel = homeScreenViewModel,
                 onAction = onPlayerAction,
                 onClose = closeNowPlaying,
@@ -485,6 +507,14 @@ fun TvMainScreen(openSettings: () -> Unit) {
                     closeNowPlaying()
                     goToRoot(TvRoute.Queue)
                 },
+            )
+        }
+        if (pickingPlayer) {
+            TvPlayerPicker(
+                players = playersData?.playerData.orEmpty(),
+                selectedPlayerId = selectedPlayer?.playerId,
+                onPick = { homeScreenViewModel.selectPlayer(it.player) },
+                onDismiss = { pickingPlayer = false },
             )
         }
         ToastHost(toastState = toastState)
@@ -524,6 +554,9 @@ private fun UnsupportedInstallDismissalKeeper(homeScreenViewModel: HomeScreenVie
 }
 
 private const val FOCUS_ATTEMPTS = 40
+
+// Once per process: the app starts on this TV, and keeps the player chosen afterwards.
+private var localPlayerSelectedThisLaunch = false
 private const val WINDOW_FOCUS_POLL_MS = 500L
 private const val MAX_ERROR_LENGTH = 150
 private const val FOCUS_RETRY_MS = 150L

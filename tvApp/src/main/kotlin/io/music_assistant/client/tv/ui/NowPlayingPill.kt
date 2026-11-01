@@ -23,9 +23,9 @@ import io.music_assistant.client.tv.R
 import androidx.tv.material3.Icon as TvIcon
 import androidx.tv.material3.Text as TvText
 
-/** The compact "what plays" button above the pages; OK opens the Now playing mode. */
+/** Where the music plays, above the pages, with the current artwork; OK opens the Now playing mode. */
 @Composable
-fun NowPlayingPill(info: NowPlayingInfo, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun NowPlayingPill(info: NowPlayingInfo, playerName: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     TvFocusSurface(
         onClick = onClick,
         modifier = modifier,
@@ -44,7 +44,7 @@ fun NowPlayingPill(info: NowPlayingInfo, onClick: () -> Unit, modifier: Modifier
             modifier = Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)),
         )
         TvText(
-            text = listOfNotNull(info.title, info.artist).joinToString(" · "),
+            text = playerName,
             style = MaterialTheme.typography.titleSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

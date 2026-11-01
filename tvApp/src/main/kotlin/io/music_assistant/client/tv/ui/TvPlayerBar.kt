@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -53,6 +54,8 @@ fun TvPlayerBar(
     onAction: (PlayerAction) -> Unit,
     onOpenNowPlaying: () -> Unit,
     onOpenQueue: () -> Unit,
+    // Opens the player picker (the player's name shows in the top pill).
+    onPickPlayer: () -> Unit,
     // Focused by the menu's "Player controls" entry, so the bar is one press away from any page.
     playPauseFocus: FocusRequester,
     modifier: Modifier = Modifier,
@@ -162,6 +165,8 @@ fun TvPlayerBar(
                     onClick = { onAction(PlayerAction.Next) },
                 )
             }
+            // Last on the row: where the music plays (shown even when nothing plays).
+            TvIconButton(Icons.Default.Speaker, stringResource(R.string.tv_pick_player), onPickPlayer)
         }
     }
 }

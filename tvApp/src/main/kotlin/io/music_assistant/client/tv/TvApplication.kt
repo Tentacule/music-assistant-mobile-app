@@ -32,16 +32,20 @@ class TvApplication : Application() {
 
     /**
      * The shared default name of the local player is "My Phone". Until the user picks one, the TV
-     * player takes the name of the device (Android TV settings > Device preferences > About), or
-     * "Ma TV". Set before the player is turned on, so it registers under that name.
+     * player is named after the device (Android TV settings > Device preferences > About) as
+     * "SHIELD (Music Assistant)": the device name alone is also the name of its built-in Google
+     * Cast receiver, which Music Assistant lists as a separate player. "Ma TV" without a device
+     * name. Set before the player is turned on, so it registers under that name.
      */
     private fun nameTheLocalPlayer() {
         val settings: SettingsRepository = GlobalContext.get().get()
         val current = settings.sendspinPlayerSettings.value
-        if (current.name != SettingsRepository.DEVICE_NAME) return
         val deviceName = Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
             ?.takeIf { it.isNotBlank() }
+        // Automatic names only: the shared default, or the bare device name of earlier versions.
+        if (current.name != SettingsRepository.DEVICE_NAME && current.name != deviceName) return
+        val name = deviceName?.let { getString(R.string.tv_player_default_name, it) }
             ?: getString(R.string.tv_default_player_name)
-        settings.setSendspinPlayerSettings(current.copy(name = deviceName))
+        settings.setSendspinPlayerSettings(current.copy(name = name))
     }
 }

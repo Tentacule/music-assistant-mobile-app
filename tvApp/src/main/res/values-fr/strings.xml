@@ -48,4 +48,8 @@
     <string name="tv_back">Retour</string>
     <string name="tv_loading">Connexion…</string>
     <string name="tv_default_player_name">Ma TV</string>
+    <string name="tv_player_default_name">%1$s (Music Assistant)</string>
+    <string name="tv_nav_player">Lecteur</string>
+    <string name="tv_pick_player">Lire sur</string>
+    <string name="tv_this_tv">%1$s · cette TV</string>
 </resources>
