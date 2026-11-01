@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,6 +40,7 @@ import io.music_assistant.client.api.Defaults
 import io.music_assistant.client.tv.NowPlayingDelay
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvPreferences
+import io.music_assistant.client.tv.ui.visualizer.VisualizerStyle
 import io.music_assistant.client.ui.compose.auth.AuthenticationPanel
 import io.music_assistant.client.ui.compose.settings.SendspinSettingsViewModel
 import io.music_assistant.client.ui.compose.settings.SettingsViewModel
@@ -138,6 +140,7 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                 if (connected.dataConnectionState is DataConnectionState.Authenticated) {
                     PlayerNameCard()
                     NowPlayingDelayCard()
+                    VisualizerCard()
                 }
             }
         }
@@ -228,6 +231,26 @@ private fun NowPlayingDelayCard() {
                     selected = option == delay,
                     onClick = { prefs.setNowPlayingDelay(option) },
                 ) { TvText(stringResource(option.label())) }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun VisualizerCard() {
+    val prefs: TvPreferences = koinInject()
+    val current by prefs.visualizer.collectAsStateWithLifecycle()
+    SettingsCard(stringResource(R.string.tv_visualizer)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            VisualizerStyle.entries.forEach { style ->
+                TvFilterChip(
+                    selected = style == current,
+                    onClick = { prefs.setVisualizer(style) },
+                ) { TvText(stringResource(style.label())) }
             }
         }
     }

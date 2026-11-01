@@ -15,6 +15,16 @@
     <string name="tv_next">Next</string>
     <string name="tv_shuffle">Shuffle</string>
     <string name="tv_repeat">Repeat</string>
+    <string name="tv_visualizer">Visualization</string>
+    <string name="tv_visualizer_current">Visualization: %1$s</string>
+    <string name="tv_visualizer_none">None</string>
+    <string name="tv_visualizer_pulse">Pulsing artwork</string>
+    <string name="tv_visualizer_bars">Spectrum bars</string>
+    <string name="tv_visualizer_wave">Oscilloscope</string>
+    <string name="tv_visualizer_halo">Light halo</string>
+    <string name="tv_visualizer_radial">Rays</string>
+    <string name="tv_go_to_artist">Go to artist</string>
+    <string name="tv_go_to_album">Go to album</string>
     <string name="tv_smart_mix">Smart mix</string>
     <string name="tv_dynamic_queue_locked">This queue is a smart mix: the server manages its order, so shuffle and repeat cannot be changed. Play an album or a playlist to get a normal queue.</string>
     <string name="tv_settings_title">Settings</string>

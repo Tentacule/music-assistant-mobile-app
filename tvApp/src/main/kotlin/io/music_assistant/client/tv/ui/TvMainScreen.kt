@@ -32,6 +32,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -203,10 +204,14 @@ fun TvMainScreen(openSettings: () -> Unit) {
     val lastKeyAt by userActivity.lastKeyAt.collectAsStateWithLifecycle()
     val idleDelay by prefs.nowPlayingDelay.collectAsStateWithLifecycle()
     val isPlaying = localPlayer?.player?.isPlaying == true
+    // Not over an open menu or dialog: those are windows above the app, which then has no window
+    // focus. The mode waits until they close.
+    val view = LocalView.current
     LaunchedEffect(lastKeyAt, idleDelay, isPlaying, nowPlaying) {
         val millis = idleDelay.millis ?: return@LaunchedEffect
         if (!isPlaying || nowPlaying) return@LaunchedEffect
         delay(millis)
+        while (!view.hasWindowFocus()) delay(WINDOW_FOCUS_POLL_MS)
         nowPlaying = true
     }
 
@@ -471,6 +476,10 @@ fun TvMainScreen(openSettings: () -> Unit) {
                 homeScreenViewModel = homeScreenViewModel,
                 onAction = onPlayerAction,
                 onClose = closeNowPlaying,
+                onNavigate = { item ->
+                    closeNowPlaying()
+                    navigateToItem(item)
+                },
                 keys = nowPlayingKeys,
                 onOpenQueue = {
                     closeNowPlaying()
@@ -515,5 +524,6 @@ private fun UnsupportedInstallDismissalKeeper(homeScreenViewModel: HomeScreenVie
 }
 
 private const val FOCUS_ATTEMPTS = 40
+private const val WINDOW_FOCUS_POLL_MS = 500L
 private const val MAX_ERROR_LENGTH = 150
 private const val FOCUS_RETRY_MS = 150L

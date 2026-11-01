@@ -52,6 +52,7 @@ kotlin {
 dependencies {
     implementation(projects.composeApp)
     implementation(project(":nav"))
+    implementation(project(":sendspin-kmp"))
     implementation(project(":ui-utils"))
     implementation(project(":shared-icons"))
     implementation(libs.compose.runtime)
