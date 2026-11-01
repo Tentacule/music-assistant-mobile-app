@@ -2,6 +2,7 @@ package io.music_assistant.client.ui.compose.library
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -12,6 +13,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,6 +33,7 @@ import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.settings.SeriesGrouping
 import io.music_assistant.client.settings.ViewMode
 import io.music_assistant.client.ui.compose.common.DataState
+import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
 import io.music_assistant.client.ui.compose.common.LocalGrantedScopes
 import io.music_assistant.client.ui.compose.common.SelectOption
 import io.music_assistant.client.ui.compose.common.ToastHost
@@ -167,105 +170,122 @@ private fun LibraryListTopBar(
     onLoadFilterOptions: () -> Unit,
 ) {
     var showSearch by remember { mutableStateOf(searchQuery.isNotEmpty()) }
-    Column {
-        TwoRowTopAppBar(
-            title = {
+    val title: @Composable () -> Unit = {
+        if (showSearch) {
+            SearchInput(
+                query = searchQuery,
+                onQueryChanged = onSearchQueryChanged,
+                onSearchAction = onSearch,
+                placeholder = stringResource(Res.string.search_query_label),
+            )
+        } else {
+            val title = when (mediaType) {
+                MediaType.ARTIST -> stringResource(
+                    Res.string.media_type_artists,
+                )
+
+                MediaType.ALBUM -> stringResource(Res.string.media_type_albums)
+                MediaType.TRACK -> stringResource(Res.string.media_type_tracks)
+                MediaType.PLAYLIST -> stringResource(
+                    Res.string.media_type_playlists,
+                )
+
+                MediaType.AUDIOBOOK -> stringResource(
+                    Res.string.media_type_audiobooks,
+                )
+
+                MediaType.PODCAST -> stringResource(
+                    Res.string.media_type_podcasts,
+                )
+
+                MediaType.RADIO -> stringResource(Res.string.media_type_radio)
+                MediaType.GENRE -> stringResource(Res.string.media_type_genres)
+                else -> {
+                    throw IllegalArgumentException("Invalid MediaType for ItemListScreen!")
+                }
+            }
+
+            Text(title)
+        }
+    }
+    val navigationIcon: @Composable () -> Unit = {
+        IconButton(onClick = onBack) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                stringResource(Res.string.common_back),
+            )
+        }
+    }
+    val filterAndSearch: @Composable RowScope.() -> Unit = {
+        if (!showSearch) {
+            LibraryFilterAction(
+                mediaType = mediaType,
+                filters = filters,
+                providerOptions = providerOptions,
+                genreOptions = genreOptions,
+                audiobookArtistTypes = audiobookArtistTypes,
+                onLoadOptions = onLoadFilterOptions,
+                onApply = {
+                    onFiltersChange(it)
+                },
+            )
+        }
+        IconButton(
+            onClick = {
                 if (showSearch) {
-                    SearchInput(
-                        query = searchQuery,
-                        onQueryChanged = onSearchQueryChanged,
-                        onSearchAction = onSearch,
-                        placeholder = stringResource(Res.string.search_query_label),
-                    )
+                    onSearchQueryChanged("")
+                    showSearch = false
                 } else {
-                    val title = when (mediaType) {
-                        MediaType.ARTIST -> stringResource(
-                            Res.string.media_type_artists,
-                        )
-
-                        MediaType.ALBUM -> stringResource(Res.string.media_type_albums)
-                        MediaType.TRACK -> stringResource(Res.string.media_type_tracks)
-                        MediaType.PLAYLIST -> stringResource(
-                            Res.string.media_type_playlists,
-                        )
-
-                        MediaType.AUDIOBOOK -> stringResource(
-                            Res.string.media_type_audiobooks,
-                        )
-
-                        MediaType.PODCAST -> stringResource(
-                            Res.string.media_type_podcasts,
-                        )
-
-                        MediaType.RADIO -> stringResource(Res.string.media_type_radio)
-                        MediaType.GENRE -> stringResource(Res.string.media_type_genres)
-                        else -> {
-                            throw IllegalArgumentException("Invalid MediaType for ItemListScreen!")
-                        }
-                    }
-
-                    Text(title)
+                    showSearch = true
                 }
             },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        stringResource(Res.string.common_back),
-                    )
-                }
-            },
-            actions = {
-                if (!showSearch) {
-                    LibraryFilterAction(
-                        mediaType = mediaType,
-                        filters = filters,
-                        providerOptions = providerOptions,
-                        genreOptions = genreOptions,
-                        audiobookArtistTypes = audiobookArtistTypes,
-                        onLoadOptions = onLoadFilterOptions,
-                        onApply = {
-                            onFiltersChange(it)
-                        },
-                    )
-                }
-                IconButton(
-                    onClick = {
-                        if (showSearch) {
-                            onSearchQueryChanged("")
-                            showSearch = false
-                        } else {
-                            showSearch = true
-                        }
-                    },
-                ) {
-                    if (showSearch) {
-                        Icon(Icons.Default.Close, stringResource(Res.string.cd_close))
-                    } else {
-                        Icon(Icons.Default.Search, stringResource(Res.string.library_quick_search))
-                    }
-                }
-            },
-            secondRow = {
-                ItemSortChip(
-                    sortOption = sortOption,
-                    offers = sortOffers,
-                    onSortChanged = { onSortChanged(it) },
-                )
-
-                // Series grouping applies to the books, not to the authors or narrators.
-                if (mediaType == MediaType.AUDIOBOOK && filters.audiobookArtistType == null) {
-                    SeriesGroupingToggle(
-                        grouping = seriesGrouping,
-                        onToggle = onToggleSeriesGrouping,
-                    )
-                }
-
-                ViewModeToggle(
-                    viewMode = viewMode,
-                    onToggleViewMode = onToggleViewMode,
-                )
-            },
+        ) {
+            if (showSearch) {
+                Icon(Icons.Default.Close, stringResource(Res.string.cd_close))
+            } else {
+                Icon(Icons.Default.Search, stringResource(Res.string.library_quick_search))
+            }
+        }
+    }
+    val sortAndView: @Composable RowScope.() -> Unit = {
+        ItemSortChip(
+            sortOption = sortOption,
+            offers = sortOffers,
+            onSortChanged = { onSortChanged(it) },
         )
+
+        // Series grouping applies to the books, not to the authors or narrators.
+        if (mediaType == MediaType.AUDIOBOOK && filters.audiobookArtistType == null) {
+            SeriesGroupingToggle(
+                grouping = seriesGrouping,
+                onToggle = onToggleSeriesGrouping,
+            )
+        }
+
+        ViewModeToggle(
+            viewMode = viewMode,
+            onToggleViewMode = onToggleViewMode,
+        )
+    }
+    Column {
+        if (LocalDpadNavigation.current) {
+            // A TV has the width: every option on the title row, so the remote reaches them in one
+            // line and the list starts higher.
+            TopAppBar(
+                title = title,
+                navigationIcon = navigationIcon,
+                actions = {
+                    sortAndView()
+                    filterAndSearch()
+                },
+            )
+        } else {
+            TwoRowTopAppBar(
+                title = title,
+                navigationIcon = navigationIcon,
+                actions = filterAndSearch,
+                secondRow = sortAndView,
+            )
+        }
     }
 }
