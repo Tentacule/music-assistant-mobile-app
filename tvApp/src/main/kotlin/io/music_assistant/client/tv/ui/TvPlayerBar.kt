@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.AllInclusive
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -147,6 +148,15 @@ fun TvPlayerBar(
                     onClick = { onAction(PlayerAction.ToggleRepeatMode(current = info.repeatMode)) },
                     tint = modeTint(info.repeatMode != RepeatMode.OFF),
                 )
+                info.autoplay?.let { autoplay ->
+                    // Autoplay keeps adding music once the queue runs out; a smart mix always does.
+                    TvIconButton(
+                        Icons.Default.AllInclusive,
+                        stringResource(R.string.tv_autoplay),
+                        onClick = { onAction(PlayerAction.ToggleDontStopTheMusic(current = autoplay)) },
+                        tint = modeTint(autoplay || info.isDynamic),
+                    )
+                }
                 TvIconButton(Icons.AutoMirrored.Filled.QueueMusic, stringResource(R.string.tv_nav_queue), onOpenQueue)
                 TvIconButton(
                     Icons.Default.SkipPrevious,

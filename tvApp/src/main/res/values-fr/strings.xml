@@ -14,6 +14,8 @@
     <string name="tv_next">Suivant</string>
     <string name="tv_shuffle">Lecture aléatoire</string>
     <string name="tv_repeat">Répéter</string>
+    <string name="tv_autoplay">Lecture continue</string>
+    <string name="tv_crossfade">Fondu enchaîné</string>
     <string name="tv_visualizer">Visualisation</string>
     <string name="tv_visualizer_current">Visualisation : %1$s</string>
     <string name="tv_visualizer_none">Aucune</string>
@@ -25,7 +27,7 @@
     <string name="tv_go_to_artist">Aller à l’artiste</string>
     <string name="tv_go_to_album">Aller à l’album</string>
     <string name="tv_smart_mix">Mix intelligent</string>
-    <string name="tv_dynamic_queue_locked">Cette file est un mix intelligent : le serveur gère son ordre, l’aléatoire et la répétition ne peuvent pas être changés. Lancez un album ou une playlist pour avoir une file normale.</string>
+    <string name="tv_dynamic_queue_locked">Cette file est un mix intelligent : le serveur gère son ordre, l’aléatoire, la répétition et la lecture continue ne peuvent pas être changés. Lancez un album ou une playlist pour avoir une file normale.</string>
     <string name="tv_settings_title">Paramètres</string>
     <string name="tv_server">Serveur</string>
     <string name="tv_server_host">Adresse du serveur</string>

@@ -156,6 +156,18 @@ fun TvMainScreen(openSettings: () -> Unit) {
     // The local player's own state (optimistic, from the Sendspin adapter) when it is the one chosen.
     val activePlayer = if (selectedPlayer == null || selectedPlayer.isLocal) localPlayer ?: selectedPlayer else selectedPlayer
     var pickingPlayer by remember { mutableStateOf(false) }
+    // Traces the queue's size as playback goes, to see the server top a smart mix or autoplay queue
+    // up (it does when fewer than 5 tracks remain after the current one).
+    val queueSize = activePlayer?.queueItems?.size
+    val queueIndex = activePlayer?.queueInfo?.currentIndex
+    LaunchedEffect(queueSize, queueIndex) {
+        val info = activePlayer?.queueInfo ?: return@LaunchedEffect
+        Logger.withTag("TvQueue").i {
+            "Queue ${info.id}: $queueSize items, current $queueIndex, " +
+                "remaining ${queueSize?.let { size -> queueIndex?.let { size - it - 1 } }}, " +
+                "dynamic=${info.isDynamicPlaylist} autoplay=${info.autoPlayEnabled}"
+        }
+    }
     val playerName = activePlayer?.let { player ->
         if (player.isLocal) stringResource(R.string.tv_this_tv, player.player.name) else player.player.name
     }
@@ -163,7 +175,8 @@ fun TvMainScreen(openSettings: () -> Unit) {
     val dynamicLockedMessage = stringResource(R.string.tv_dynamic_queue_locked)
     val onPlayerAction: (PlayerAction) -> Unit = { action ->
         activePlayer?.let { player ->
-            val locked = action is PlayerAction.ToggleShuffle || action is PlayerAction.ToggleRepeatMode
+            val locked = action is PlayerAction.ToggleShuffle || action is PlayerAction.ToggleRepeatMode ||
+                action is PlayerAction.ToggleDontStopTheMusic
             // The server refuses these on a smart mix; say why instead of letting the toggle bounce back.
             if (locked && player.queueInfo?.isDynamicPlaylist == true) {
                 toastState.showToast(dynamicLockedMessage, ToastDuration.LONG)

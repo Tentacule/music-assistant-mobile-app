@@ -23,6 +23,9 @@ data class NowPlayingInfo(
     // A dynamic queue (a smart mix the server manages) is always mixed; the server refuses
     // shuffle and repeat changes on it, and mixes added tracks into it.
     val isDynamic: Boolean,
+    // Autoplay ("don't stop the music") and crossfade; null when the server does not support them.
+    val autoplay: Boolean?,
+    val crossfade: Boolean?,
 )
 
 fun PlayerData.nowPlayingInfo(): NowPlayingInfo? {
@@ -41,6 +44,8 @@ fun PlayerData.nowPlayingInfo(): NowPlayingInfo? {
         shuffle = queueInfo?.shuffleEnabled == true,
         repeatMode = queueInfo?.repeatMode ?: RepeatMode.OFF,
         isDynamic = queueInfo?.isDynamicPlaylist == true,
+        autoplay = queueInfo?.autoPlayEnabled,
+        crossfade = queueInfo?.crossfadeEnabled,
     )
 }
 

@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.AllInclusive
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -76,6 +77,7 @@ import io.music_assistant.client.tv.ui.visualizer.VisualizerStyle
 import io.music_assistant.client.tv.ui.visualizer.artworkVisualizer
 import io.music_assistant.client.tv.ui.visualizer.rememberAudioFrames
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
+import io.music_assistant.client.ui.compose.common.icons.CrossfadeIcon
 import io.music_assistant.client.ui.compose.common.rememberAnimatedPlayerColors
 import io.music_assistant.client.ui.compose.common.rememberExtractedColorsSource
 import io.music_assistant.client.ui.compose.home.HomeScreenViewModel
@@ -188,6 +190,25 @@ fun NowPlayingScreen(
                 info?.repeatMode.let { it != null && it != RepeatMode.OFF },
             ) { onAction(PlayerAction.ToggleRepeatMode(current = info?.repeatMode ?: RepeatMode.OFF)) },
         )
+        info?.autoplay?.let { autoplay ->
+            add(
+                NpControl(
+                    KEY_AUTOPLAY,
+                    Icons.Default.AllInclusive,
+                    stringResource(R.string.tv_autoplay),
+                    autoplay || info.isDynamic,
+                ) {
+                    onAction(PlayerAction.ToggleDontStopTheMusic(current = autoplay))
+                },
+            )
+        }
+        info?.crossfade?.let { crossfade ->
+            add(
+                NpControl(KEY_CROSSFADE, CrossfadeIcon, stringResource(R.string.tv_crossfade), crossfade) {
+                    onAction(PlayerAction.ToggleCrossfade(current = crossfade))
+                },
+            )
+        }
         add(
             NpControl(
                 KEY_QUEUE,
@@ -477,6 +498,8 @@ private const val KEY_PLAY_PAUSE = "play_pause"
 private const val KEY_NEXT = "next"
 private const val KEY_REPEAT = "repeat"
 private const val KEY_QUEUE = "queue"
+private const val KEY_AUTOPLAY = "autoplay"
+private const val KEY_CROSSFADE = "crossfade"
 private const val KEY_ARTIST = "artist"
 private const val KEY_ALBUM = "album"
 private const val KEY_VISUALIZER = "visualizer"
