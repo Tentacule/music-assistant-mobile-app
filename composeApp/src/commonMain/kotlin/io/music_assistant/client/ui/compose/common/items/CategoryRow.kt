@@ -40,7 +40,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -63,6 +65,9 @@ import io.music_assistant.client.data.model.client.items.RadioStation
 import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.ui.compose.common.DataState
 import io.music_assistant.client.ui.compose.common.DisplayString
+import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
+import io.music_assistant.client.ui.compose.common.NoDpadStateLayer
+import io.music_assistant.client.ui.compose.common.dpadFocusOutline
 import io.music_assistant.client.ui.compose.common.providers.ProviderIconFetcher
 import io.music_assistant.client.ui.compose.common.toDisplayString
 import io.music_assistant.client.ui.compose.grid.GridItem
@@ -148,8 +153,13 @@ fun <T> CategoryRow(
     }
 
     val title = itemCategory.title.string()
+    // "View all" is at the far right of the title line, where Up from most tiles never lands: under
+    // a D-pad, Up from any tile goes to it, or to the filter of a row without it.
+    val actionFocus = remember { FocusRequester() }
+    val hasAction = itemCategory.list != null || itemCategory.filter != null
     CategoryRow(
         title = title,
+        upFocus = actionFocus.takeIf { hasAction && LocalDpadNavigation.current },
         actions = {
             if (itemCategory.filter != null) {
                 FilterSelector(
@@ -159,6 +169,7 @@ fun <T> CategoryRow(
                     options = itemCategory.filter.options,
                     optionLabels = { itemCategory.filter.labelTransform(it).string() },
                     contentDescriptionResource = itemCategory.filter.contentDescription,
+                    modifier = if (itemCategory.list == null) Modifier.focusRequester(actionFocus) else Modifier,
                 )
             }
 
@@ -168,6 +179,7 @@ fun <T> CategoryRow(
                     onNavigateToList = onNavigateToList,
                     itemList = itemCategory.list,
                     color = viewAllColor,
+                    modifier = Modifier.focusRequester(actionFocus),
                 )
             }
         },
@@ -187,6 +199,7 @@ fun <T> CategoryRow(
 fun CategoryRow(
     title: String,
     actions: @Composable () -> Unit = {},
+    upFocus: FocusRequester? = null,
     onNavigateClick: (AppMediaItem) -> Unit,
     containerItem: AppMediaItem? = null,
     onPlayClick: PlayHandler<AppMediaItem>,
@@ -213,6 +226,7 @@ fun CategoryRow(
             Text(title)
         },
         actions = actions,
+        upFocus = upFocus,
     ) {
         itemsIndexed(
             items = mediaItems,
@@ -337,6 +351,7 @@ private fun RowWithTitle(
     modifier: Modifier = Modifier,
     title: @Composable () -> Unit,
     actions: @Composable () -> Unit,
+    upFocus: FocusRequester? = null,
     row: LazyListScope.() -> Unit,
 ) {
     Column(modifier) {
@@ -344,7 +359,8 @@ private fun RowWithTitle(
             modifier = Modifier
                 .height(56.dp)
                 .fillMaxWidth()
-                .padding(start = 16.dp),
+                // Room for the focus outline of "View all", which would be cut at the screen edge.
+                .padding(start = 16.dp, end = if (LocalDpadNavigation.current) 16.dp else 0.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -367,11 +383,17 @@ private fun RowWithTitle(
             // often one scrolled out of view, and the focus would seem lost.
             modifier = Modifier
                 .focusProperties {
-                    onExit = { if (requestedFocusDirection == FocusDirection.Right) cancelFocusChange() }
+                    onExit = {
+                        when (requestedFocusDirection) {
+                            FocusDirection.Right -> cancelFocusChange()
+                            FocusDirection.Up -> upFocus?.requestFocus()
+                        }
+                    }
                 }
                 .focusGroup(),
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            // A focused tile grows over its neighbors: a TV needs more room between them.
+            horizontalArrangement = Arrangement.spacedBy(if (LocalDpadNavigation.current) 16.dp else 4.dp),
         ) {
             row()
         }
@@ -401,20 +423,25 @@ private fun ViewAllButton(
     onNavigateToList: (String, ItemList) -> Unit,
     itemList: ItemList,
     color: Color,
+    modifier: Modifier = Modifier,
 ) {
     val viewAllContentDescription = stringResource(Res.string.cd_view_all, rowTitle)
-    TextButton(
-        modifier = Modifier.semantics {
-            contentDescription = viewAllContentDescription
-        },
-        onClick = {
-            onNavigateToList(rowTitle, itemList)
-        },
-    ) {
-        Text(
-            text = stringResource(Res.string.action_view_all),
-            color = color,
-        )
+    NoDpadStateLayer {
+        TextButton(
+            modifier = modifier
+                .dpadFocusOutline(RoundedCornerShape(50))
+                .semantics {
+                    contentDescription = viewAllContentDescription
+                },
+            onClick = {
+                onNavigateToList(rowTitle, itemList)
+            },
+        ) {
+            Text(
+                text = stringResource(Res.string.action_view_all),
+                color = color,
+            )
+        }
     }
 }
 
@@ -426,6 +453,7 @@ private fun <T> FilterSelector(
     options: List<T>,
     optionLabels: @Composable (T) -> String,
     contentDescriptionResource: StringResource? = null,
+    modifier: Modifier = Modifier,
 ) {
     Box {
         var expanded by remember { mutableStateOf(false) }
@@ -441,7 +469,7 @@ private fun <T> FilterSelector(
         }
 
         FilterChip(
-            modifier = Modifier
+            modifier = modifier
                 .semantics {
                     if (chipContentDescription != null) {
                         contentDescription = chipContentDescription

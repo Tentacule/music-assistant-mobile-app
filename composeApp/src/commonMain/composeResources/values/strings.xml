@@ -250,7 +250,13 @@
   <string name="discover_edit_rows">Edit rows</string>
   <string name="discover_save_rows">Save rows</string>
   <string name="discover_shortcuts">Shortcuts</string>
+  <string name="discover_row_shown">Shown</string>
+  <string name="discover_row_hidden">Hidden</string>
+  <string name="discover_row_move_up">Move up</string>
+  <string name="discover_row_move_down">Move down</string>
   <string name="item_description_more">More</string>
+  <string name="item_description_hint_scroll">Up and Down to scroll</string>
+  <string name="item_description_hint_close">OK or Back to close</string>
   <string name="item_duration_hours">%1$d h</string>
   <string name="item_duration_hours_minutes">%1$d h %2$d min</string>
   <string name="item_duration_minutes">%1$d min</string>

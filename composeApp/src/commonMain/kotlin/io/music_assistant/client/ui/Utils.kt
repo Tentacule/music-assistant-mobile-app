@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
@@ -19,6 +20,28 @@ fun Color.inactive() = alphaOn(false)
 /** Black or white, whichever stays legible on top of this (opaque) color. */
 fun Color.contentColorByLuminance(): Color =
     if (luminance() > LUMINANCE_MIDPOINT) Color.Black else Color.White
+
+/**
+ * The fill of a D-pad control without the focus: this color, opaque, and darkened if it is so light
+ * that the white fill of the focused control would not stand out from it.
+ */
+fun Color.dpadRestingFill(): Color {
+    var fill = copy(alpha = 1f)
+    while (fill.luminance() > DPAD_MAX_RESTING_LUMINANCE) {
+        fill = lerp(fill, Color.Black, DPAD_DARKEN_STEP)
+    }
+    return fill
+}
+
+/** Black or white, whichever has the higher contrast ratio on this (opaque) color. */
+fun Color.bestContrastContent(): Color =
+    if (luminance() > EQUAL_CONTRAST_LUMINANCE) Color.Black else Color.White
+
+private const val DPAD_MAX_RESTING_LUMINANCE = 0.45f
+private const val DPAD_DARKEN_STEP = 0.1f
+
+// At this luminance, black and white have the same contrast ratio.
+private const val EQUAL_CONTRAST_LUMINANCE = 0.179f
 
 /**
  * Cancels the given [padding] on left/right/top so a child (e.g. a colored header) drawn inside a

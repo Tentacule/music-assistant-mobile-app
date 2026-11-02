@@ -2,18 +2,21 @@ package io.music_assistant.client.ui.compose.item
 
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonDefaults.LeadingButton
 import androidx.compose.material3.SplitButtonDefaults.TrailingButton
 import androidx.compose.material3.SplitButtonLayout
+import androidx.compose.material3.SplitButtonShapes
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -37,9 +41,13 @@ import io.music_assistant.client.data.model.client.itemKind
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.server.PlayMediaSupport
 import io.music_assistant.client.data.play.PlayMode
+import io.music_assistant.client.ui.bestContrastContent
+import io.music_assistant.client.ui.compose.common.DpadControlSpacing
+import io.music_assistant.client.ui.compose.common.DpadFocusedContent
+import io.music_assistant.client.ui.compose.common.DpadFocusedFill
 import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
+import io.music_assistant.client.ui.compose.common.NoDpadStateLayer
 import io.music_assistant.client.ui.compose.common.OverflowMenuButton
-import io.music_assistant.client.ui.compose.common.dpadFocusOutline
 import io.music_assistant.client.ui.compose.common.items.DefaultClickActionsDialog
 import io.music_assistant.client.ui.compose.common.items.ItemAction
 import io.music_assistant.client.ui.compose.common.items.LocalClickActionConfig
@@ -49,6 +57,7 @@ import io.music_assistant.client.ui.compose.common.items.title
 import io.music_assistant.client.ui.compose.common.items.toOverflowOption
 import io.music_assistant.client.ui.compose.common.items.toPlayMode
 import io.music_assistant.client.ui.contentColorByLuminance
+import io.music_assistant.client.ui.dpadRestingFill
 import musicassistantclient.composeapp.generated.resources.Res
 import musicassistantclient.composeapp.generated.resources.cd_play_options
 import org.jetbrains.compose.resources.stringResource
@@ -64,11 +73,17 @@ fun ItemPlayButton(
     if (!item.isPlayable) return
 
     // Art-derived control tint as the button fill; black/white content per its luminance.
-    val onTint = tint.contentColorByLuminance()
-    val buttonColors = ButtonDefaults.buttonColors(
-        containerColor = tint,
-        contentColor = onTint,
-    )
+    val dpad = LocalDpadNavigation.current
+    val fill = if (dpad) tint.dpadRestingFill() else tint
+    val onFill = if (dpad) fill.bestContrastContent() else fill.contentColorByLuminance()
+    var leadingFocused by remember { mutableStateOf(false) }
+    var trailingFocused by remember { mutableStateOf(false) }
+    val colorsFor: @Composable (Boolean) -> ButtonColors = { focused ->
+        ButtonDefaults.buttonColors(
+            containerColor = if (focused) DpadFocusedFill else fill,
+            contentColor = if (focused) DpadFocusedContent else onFill,
+        )
+    }
 
     // The detail header is wrapped in ProvideClickActions(DETAIL), so the config resolves
     // this item's DETAIL default. effectiveActionFor is non-null here (item is playable).
@@ -85,7 +100,6 @@ fun ItemPlayButton(
 
     // D-pad (Android TV): entering the button from any direction lands on the play action, never
     // on the options chevron next to it, and the page opens with the focus on it (once per item).
-    val dpad = LocalDpadNavigation.current
     val playFocus = remember { FocusRequester() }
     var initialFocusDone by rememberSaveable(item.itemId) { mutableStateOf(false) }
     if (dpad) {
@@ -104,19 +118,35 @@ fun ItemPlayButton(
         } else {
             modifier
         },
+        spacing = if (dpad) DpadControlSpacing else SplitButtonDefaults.Spacing,
         leadingButton = {
             val label = stringResource(effective.title())
-            LeadingButton(
-                modifier = Modifier
-                    .semantics { contentDescription = label }
-                    .focusRequester(playFocus)
-                    .dpadFocusOutline(LeadingOutline),
-                onClick = { runPlayAction(effective) },
-                colors = buttonColors,
-            ) {
+            val leadingModifier = Modifier
+                .semantics { contentDescription = label }
+                .focusRequester(playFocus)
+                .onFocusChanged { leadingFocused = dpad && it.hasFocus }
+            val leadingContent: @Composable RowScope.() -> Unit = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(imageVector = effective.icon(clickActionConfig.context), contentDescription = null)
                     Text(modifier = Modifier.padding(start = 8.dp), text = label)
+                }
+            }
+            NoDpadStateLayer {
+                if (dpad) {
+                    LeadingButton(
+                        modifier = leadingModifier,
+                        onClick = { runPlayAction(effective) },
+                        colors = colorsFor(leadingFocused),
+                        shapes = DpadPillShapes,
+                        content = leadingContent,
+                    )
+                } else {
+                    LeadingButton(
+                        modifier = leadingModifier,
+                        onClick = { runPlayAction(effective) },
+                        colors = colorsFor(false),
+                        content = leadingContent,
+                    )
                 }
             }
         },
@@ -130,15 +160,24 @@ fun ItemPlayButton(
                 context = clickActionConfig.context,
                 playMediaSupport = clickActionConfig.playMediaSupport,
             ) { onClick ->
-                TrailingButton(
-                    onClick = onClick,
-                    colors = buttonColors,
-                    modifier = Modifier.dpadFocusOutline(TrailingOutline),
-                ) {
+                val trailingContent: @Composable RowScope.() -> Unit = {
                     Icon(
                         imageVector = Icons.Default.ExpandMore,
                         contentDescription = stringResource(Res.string.cd_play_options),
                     )
+                }
+                NoDpadStateLayer {
+                    if (dpad) {
+                        TrailingButton(
+                            onClick = onClick,
+                            colors = colorsFor(trailingFocused),
+                            modifier = Modifier.onFocusChanged { trailingFocused = it.hasFocus },
+                            shapes = DpadPillShapes,
+                            content = trailingContent,
+                        )
+                    } else {
+                        TrailingButton(onClick = onClick, colors = colorsFor(false), content = trailingContent)
+                    }
                 }
             }
         },
@@ -151,6 +190,14 @@ fun ItemPlayButton(
         )
     }
 }
+
+// Under a D-pad the two halves stand apart, so each one is a whole pill.
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private val DpadPillShapes = SplitButtonShapes(
+    shape = CircleShape,
+    pressedShape = CircleShape,
+    checkedShape = CircleShape,
+)
 
 @Composable
 private fun PlayOverflow(
@@ -173,20 +220,3 @@ private fun PlayOverflow(
         buttonContent = button,
     )
 }
-
-// The D-pad focus outline of each half of the split button: rounded on its outer side, nearly
-// square on the side the two halves share.
-private const val PILL_PERCENT = 50
-private val SPLIT_INNER_CORNER = 4.dp
-private val LeadingOutline = RoundedCornerShape(
-    topStart = CornerSize(PILL_PERCENT),
-    bottomStart = CornerSize(PILL_PERCENT),
-    topEnd = CornerSize(SPLIT_INNER_CORNER),
-    bottomEnd = CornerSize(SPLIT_INNER_CORNER),
-)
-private val TrailingOutline = RoundedCornerShape(
-    topStart = CornerSize(SPLIT_INNER_CORNER),
-    bottomStart = CornerSize(SPLIT_INNER_CORNER),
-    topEnd = CornerSize(PILL_PERCENT),
-    bottomEnd = CornerSize(PILL_PERCENT),
-)

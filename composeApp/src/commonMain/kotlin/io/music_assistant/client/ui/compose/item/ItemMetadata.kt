@@ -42,6 +42,7 @@ import io.music_assistant.client.data.model.client.items.PlaylistAccessPart
 import io.music_assistant.client.data.model.client.items.PlaylistOwnerLine
 import io.music_assistant.client.data.model.client.items.PodcastEpisode
 import io.music_assistant.client.data.model.client.stringResource
+import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
 import io.music_assistant.client.utils.TotalDuration
 import io.music_assistant.client.utils.toTotalDuration
 import musicassistantclient.composeapp.generated.resources.Res
@@ -179,7 +180,7 @@ fun GenreChips(
     }
 }
 
-private fun ItemDescriptionKind.stringResource(): StringResource = when (this) {
+internal fun ItemDescriptionKind.stringResource(): StringResource = when (this) {
     ItemDescriptionKind.BIOGRAPHY -> Res.string.item_section_biography
     ItemDescriptionKind.REVIEW -> Res.string.item_section_review
     ItemDescriptionKind.DESCRIPTION -> Res.string.item_section_description
@@ -199,11 +200,21 @@ fun ItemDescriptionBlock(
 ) {
     var clamped by remember(description) { mutableStateOf(false) }
     val more = stringResource(Res.string.item_description_more)
+    // Under a D-pad the clickable area stops short of the screen edges, because the focus outline
+    // follows it, and leaves room around the text. The text stays at the same place.
+    val dpad = LocalDpadNavigation.current
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .then(if (dpad) Modifier.padding(horizontal = 8.dp) else Modifier)
             .clickable(enabled = clamped, onClickLabel = more, role = Role.Button, onClick = onOpen)
-            .padding(horizontal = 16.dp),
+            .then(
+                if (dpad) {
+                    Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                } else {
+                    Modifier.padding(horizontal = 16.dp)
+                },
+            ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(

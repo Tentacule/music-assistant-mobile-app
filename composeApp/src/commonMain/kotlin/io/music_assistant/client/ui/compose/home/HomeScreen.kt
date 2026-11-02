@@ -4,6 +4,7 @@
 package io.music_assistant.client.ui.compose.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,11 +30,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -53,12 +56,14 @@ import io.music_assistant.client.ui.compose.ScreenSemantics
 import io.music_assistant.client.ui.compose.common.CenteredProgress
 import io.music_assistant.client.ui.compose.common.CenteredText
 import io.music_assistant.client.ui.compose.common.DataState
+import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
 import io.music_assistant.client.ui.compose.common.UnsupportedInstallCard
 import io.music_assistant.client.ui.compose.common.items.CategoryRow
 import io.music_assistant.client.ui.compose.common.items.ItemCategory
 import io.music_assistant.client.ui.compose.common.items.ProvideClickActions
 import io.music_assistant.client.ui.compose.common.items.lazyListKey
 import io.music_assistant.client.ui.compose.common.moveToEnabledBoundary
+import io.music_assistant.client.ui.compose.common.moveWithinEnabled
 import io.music_assistant.client.ui.compose.common.providers.ProviderIconFetcher
 import io.music_assistant.client.ui.compose.common.toDisplayString
 import io.music_assistant.client.ui.compose.common.viewmodel.ActionsViewModel
@@ -115,6 +120,34 @@ fun HomeScreen(
     }
 
     BackHandler(enabled = editMode) { editMode = false }
+
+    // A row moved with the D-pad keeps the focus but can leave the viewport: the list follows it.
+    val dpad = LocalDpadNavigation.current
+    val focusedRow = remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(items) {
+        if (!dpad || !editMode) return@LaunchedEffect
+        withFrameNanos {} // The layout info below must describe the new order.
+        val index = items.indexOfFirst { it.first.category.lazyListKey == focusedRow.value }
+        if (index < 0) return@LaunchedEffect
+        val layout = state.lazyListState.layoutInfo
+        val row = layout.visibleItemsInfo.firstOrNull { it.index == index }
+        when {
+            row == null -> state.lazyListState.animateScrollToItem((index - 1).coerceAtLeast(0))
+            row.offset < layout.viewportStartOffset ->
+                state.lazyListState.animateScrollBy((row.offset - layout.viewportStartOffset).toFloat())
+
+            row.offset + row.size > layout.viewportEndOffset ->
+                state.lazyListState.animateScrollBy((row.offset + row.size - layout.viewportEndOffset).toFloat())
+        }
+    }
+
+    // A lazy list scrolls to keep its first visible key in place, so a moved first row would stay
+    // on screen while the others pass above it, and the move would look like it did nothing.
+    fun changeRowsInPlace(change: () -> List<Pair<HomeRow, Boolean>>) {
+        val list = state.lazyListState
+        list.requestScrollToItem(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset)
+        items = change()
+    }
 
     TopBarLayout(
         topBar = {
@@ -182,8 +215,22 @@ fun HomeScreen(
                         items = displayedData,
                         key = { it.category.lazyListKey },
                     ) { homeRow ->
-                        if (editMode) {
-                            val enabled = enabledByKey[homeRow.category.lazyListKey] ?: true
+                        val enabled = enabledByKey[homeRow.category.lazyListKey] ?: true
+                        if (editMode && dpad) {
+                            HomeRowDpadEditor(
+                                title = homeRow.category.title.string(),
+                                enabled = enabled,
+                                onToggle = {
+                                    // Keep at least one row visible, as the phone's switch does.
+                                    if (!enabled || enabledCount > 1) {
+                                        changeRowsInPlace { moveToEnabledBoundary(items, homeRow, !enabled) }
+                                    }
+                                },
+                                onMoveUp = { changeRowsInPlace { moveWithinEnabled(items, homeRow, -1) } },
+                                onMoveDown = { changeRowsInPlace { moveWithinEnabled(items, homeRow, 1) } },
+                                onFocused = { focusedRow.value = homeRow.category.lazyListKey },
+                            )
+                        } else if (editMode) {
                             ReorderableItem(reorderableState, key = homeRow.category.lazyListKey) {
                                 Box(modifier = Modifier.fillMaxWidth()) {
                                     rowContent(homeRow)

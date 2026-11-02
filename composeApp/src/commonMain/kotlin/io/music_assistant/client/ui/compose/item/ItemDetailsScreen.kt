@@ -78,6 +78,7 @@ import io.music_assistant.client.data.model.client.stringResource
 import io.music_assistant.client.data.model.client.toClickContext
 import io.music_assistant.client.data.model.server.ServerMediaItem
 import io.music_assistant.client.data.play.PlayMode
+import io.music_assistant.client.nav.BackHandler
 import io.music_assistant.client.settings.PlayedFilter
 import io.music_assistant.client.settings.ViewMode
 import io.music_assistant.client.ui.compose.common.CenteredProgress
@@ -86,6 +87,7 @@ import io.music_assistant.client.ui.compose.common.DataState
 import io.music_assistant.client.ui.compose.common.DisplayString
 import io.music_assistant.client.ui.compose.common.ExtractedColors
 import io.music_assistant.client.ui.compose.common.ExtractedColorsSource
+import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
 import io.music_assistant.client.ui.compose.common.NoOverscroll
 import io.music_assistant.client.ui.compose.common.items.AlbumWithMenu
 import io.music_assistant.client.ui.compose.common.items.ArtistWithMenu
@@ -405,6 +407,35 @@ private fun ItemContent(
         enabled = rememberDynamicColorsEnabled(),
     )
 
+    val dpad = LocalDpadNavigation.current
+    val query = state.playableItemsQuery
+    val onQueryChanged = onPlayableItemsQueryChanged.takeIf {
+        item is Album || item is Playlist || item is Podcast
+    }
+    // A remote is a long way from the close button: Back leaves the search, not the page.
+    BackHandler(enabled = dpad && query != null) { onPlayableItemsQueryChanged(null) }
+    val actions: @Composable () -> Unit = {
+        ItemActions(
+            item = item,
+            onBack = onBack,
+            libraryActions = libraryActions,
+            playlistActions = playlistActions.takeIf { item.supportsAddToPlaylist },
+            navigateToItem = onNavigateClick,
+            onSimilarArtistsClick = { showSimilarArtists = true },
+            onLyricsClick = state.lyrics?.let { { showLyrics = true } },
+            // force_refresh is a playlist-tracks-only server argument, so no other
+            // media type gets the action.
+            onRefresh = onRefreshPlaylist.takeIf { item is Playlist },
+            refreshAction = refreshAction,
+            refreshingItem = state.refreshingItem,
+            onRefreshItem = onRefreshItem,
+            query = query,
+            onQueryChanged = onQueryChanged,
+            // Next to the play button in the hero. The search bar replaces the hero.
+            fill = colors.controlTint.takeIf { dpad && query == null },
+        )
+    }
+
     val heroSlot: @Composable () -> Unit = {
         AnimatedVisibility(
             visible = state.playableItemsQuery == null,
@@ -424,6 +455,7 @@ private fun ItemContent(
                     providerDetails = providerDetails,
                     description = description,
                     onOpenDescription = { showDescription = true },
+                    actions = actions.takeIf { dpad },
                 )
             }
         }
@@ -431,26 +463,18 @@ private fun ItemContent(
 
     TopBarLayout(
         topBar = {
-            ItemTopBar(
-                item = item,
-                colors = colors,
-                onBack = onBack,
-                libraryActions = libraryActions,
-                playlistActions = playlistActions.takeIf { item.supportsAddToPlaylist },
-                navigateToItem = onNavigateClick,
-                onSimilarArtistsClick = { showSimilarArtists = true },
-                onLyricsClick = state.lyrics?.let { { showLyrics = true } },
-                // force_refresh is a playlist-tracks-only server argument, so no other
-                // media type gets the action.
-                onRefresh = onRefreshPlaylist.takeIf { item is Playlist },
-                refreshAction = refreshAction,
-                refreshingItem = state.refreshingItem,
-                onRefreshItem = onRefreshItem,
-                query = state.playableItemsQuery,
-                onQueryChanged = onPlayableItemsQueryChanged.takeIf {
-                    item is Album || item is Playlist || item is Podcast
-                },
-            )
+            // On a TV the controls are in the hero, and the bar remains only to hold the search
+            // field, while the hero is hidden.
+            if (!dpad || query != null) {
+                ItemTopBar(
+                    item = item,
+                    colors = colors,
+                    onBack = onBack.takeIf { !dpad },
+                    query = query,
+                    onQueryChanged = onQueryChanged,
+                    actions = actions,
+                )
+            }
         },
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -559,7 +583,16 @@ private fun ItemContent(
     }
 
     description?.takeIf { showDescription }?.let {
-        ItemDescriptionSheet(description = it, onDismiss = { showDescription = false })
+        if (dpad) {
+            ItemDescriptionReader(
+                description = it,
+                item = item,
+                colors = colors,
+                onDismiss = { showDescription = false },
+            )
+        } else {
+            ItemDescriptionSheet(description = it, onDismiss = { showDescription = false })
+        }
     }
 }
 

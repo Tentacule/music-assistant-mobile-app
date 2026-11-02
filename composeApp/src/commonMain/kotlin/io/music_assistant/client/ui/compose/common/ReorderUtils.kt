@@ -15,3 +15,17 @@ internal fun <T> moveToEnabledBoundary(
     mutable.add(insertIndex, target to newEnabled)
     return mutable
 }
+
+// Moves an enabled item by [delta] places inside the enabled section; the key equivalent of the
+// drag. A disabled item, or a move past either end of the section, changes nothing.
+internal fun <T> moveWithinEnabled(
+    items: List<Pair<T, Boolean>>,
+    target: T,
+    delta: Int,
+): List<Pair<T, Boolean>> {
+    val from = items.indexOfFirst { it.first == target }
+    val to = from + delta
+    val enabledCount = items.count { it.second }
+    if (from !in 0 until enabledCount || to !in 0 until enabledCount) return items
+    return items.toMutableList().apply { add(to, removeAt(from)) }
+}

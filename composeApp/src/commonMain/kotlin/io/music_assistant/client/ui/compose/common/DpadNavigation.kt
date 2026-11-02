@@ -2,6 +2,10 @@ package io.music_assistant.client.ui.compose.common
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,6 +23,7 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 
 /**
@@ -26,6 +31,32 @@ import androidx.compose.ui.zIndex
  * provides it; the phone keeps the default, so the hooks below change nothing there.
  */
 val LocalDpadNavigation = staticCompositionLocalOf { false }
+
+/**
+ * The look of the controls on the row of the play button under [LocalDpadNavigation]: the focused
+ * one turns white with a black content. They neither grow nor get an outline, which would run over
+ * the neighboring control.
+ */
+internal val DpadFocusedFill = Color.White
+internal val DpadFocusedContent = Color.Black
+
+/** The space between the controls of that row. */
+internal val DpadControlSpacing = 8.dp
+
+/**
+ * The TV's white focus layer draws over the fill and the label of a button, which washes out a
+ * colored button or a colored label: under [LocalDpadNavigation], the content goes without it and
+ * shows the focus another way. Not around a menu, whose entries need the layer.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun NoDpadStateLayer(content: @Composable () -> Unit) {
+    if (LocalDpadNavigation.current) {
+        CompositionLocalProvider(LocalRippleConfiguration provides null, content = content)
+    } else {
+        content()
+    }
+}
 
 /**
  * Under [LocalDpadNavigation], a focused control gets a white outline and grows a little: the

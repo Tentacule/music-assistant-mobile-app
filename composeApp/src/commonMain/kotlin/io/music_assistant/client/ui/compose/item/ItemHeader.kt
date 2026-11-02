@@ -7,6 +7,7 @@ package io.music_assistant.client.ui.compose.item
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -45,6 +48,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -74,8 +80,14 @@ import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.imageloader.rememberArtworkRequest
 import io.music_assistant.client.ui.INACTIVE_ALPHA
+import io.music_assistant.client.ui.bestContrastContent
+import io.music_assistant.client.ui.compose.common.DpadControlSpacing
+import io.music_assistant.client.ui.compose.common.DpadFocusedContent
+import io.music_assistant.client.ui.compose.common.DpadFocusedFill
 import io.music_assistant.client.ui.compose.common.LocalDislikeSupported
+import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
 import io.music_assistant.client.ui.compose.common.LocalGrantedScopes
+import io.music_assistant.client.ui.compose.common.NoDpadStateLayer
 import io.music_assistant.client.ui.compose.common.OverflowMenuButton
 import io.music_assistant.client.ui.compose.common.OverflowMenuOption
 import io.music_assistant.client.ui.compose.common.PlayerColors
@@ -98,6 +110,7 @@ import io.music_assistant.client.ui.compose.common.painters.rememberPlaceholderP
 import io.music_assistant.client.ui.compose.common.providers.ProviderIconFetcher
 import io.music_assistant.client.ui.compose.search.SearchInput
 import io.music_assistant.client.ui.contentColorByLuminance
+import io.music_assistant.client.ui.dpadRestingFill
 import io.music_assistant.client.ui.inactive
 import io.music_assistant.client.ui.utils.WindowClass
 import io.music_assistant.client.ui.utils.fadingEdges
@@ -136,6 +149,8 @@ fun ItemHeader(
     providerDetails: (String) -> ProviderDetails? = { null },
     description: ItemDescription? = null,
     onOpenDescription: () -> Unit = {},
+    // Controls on the row of the play button: the TV has no top bar on this page.
+    actions: (@Composable () -> Unit)? = null,
 ) {
     // Art color on top, fading down to the surface the Screen actually paints, so the
     // wash dissolves seamlessly where the tabs begin. Mirrors the player gradient (inverted).
@@ -157,7 +172,29 @@ fun ItemHeader(
 
         val textAndControls = @Composable { textAlign: TextAlign ->
             ItemText(item, textAlign, navigateToItem, Modifier.padding(top = 16.dp))
-            ItemPlayButton(
+            actions?.let { rowActions ->
+                Row(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        // Nothing is above this row or to the right of it on the page: left, the
+                        // search would pick a far element, such as an entry of the side menu.
+                        .focusProperties {
+                            onExit = {
+                                if (requestedFocusDirection == FocusDirection.Up ||
+                                    requestedFocusDirection == FocusDirection.Right
+                                ) {
+                                    cancelFocusChange()
+                                }
+                            }
+                        }
+                        .focusGroup(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DpadControlSpacing),
+                ) {
+                    ItemPlayButton(item, onPlayClick = onPlayClick, tint = colors.controlTint)
+                    rowActions()
+                }
+            } ?: ItemPlayButton(
                 item,
                 onPlayClick = onPlayClick,
                 tint = colors.controlTint,
@@ -223,18 +260,11 @@ internal fun ItemTopBar(
         MaterialTheme.colorScheme.primaryContainer,
         MaterialTheme.colorScheme.primary,
     ),
-    onBack: () -> Unit,
-    libraryActions: LibraryActions?,
-    playlistActions: PlaylistActions?,
-    navigateToItem: (AppMediaItem) -> Unit,
-    onSimilarArtistsClick: () -> Unit,
-    onLyricsClick: (() -> Unit)? = null,
-    onRefresh: (() -> Unit)? = null,
-    refreshAction: RefreshItemAction? = null,
-    refreshingItem: Boolean = false,
-    onRefreshItem: () -> Unit = {},
+    // Null on the TV: the Back key of the remote goes back.
+    onBack: (() -> Unit)?,
     query: String?,
     onQueryChanged: ((String?) -> Unit)?,
+    actions: @Composable () -> Unit,
 ) {
     val searchEnabled = onQueryChanged != null
 
@@ -267,58 +297,121 @@ internal fun ItemTopBar(
                 titleContentColor = onBar,
             ),
             navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        stringResource(Res.string.common_back),
-                    )
+                onBack?.let { back ->
+                    IconButton(onClick = back) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            stringResource(Res.string.common_back),
+                        )
+                    }
                 }
             },
-            actions = {
-                if (refreshingItem) {
-                    val description = stringResource(Res.string.cd_refreshing_item)
-                    Box(
-                        modifier = Modifier.size(48.dp).semantics { contentDescription = description },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = onBar, strokeWidth = 2.dp)
-                    }
-                }
+            actions = { actions() },
+        )
+    }
+}
 
-                if (searchEnabled && query != null) {
-                    IconButton(onClick = { onQueryChanged(null) }) {
-                        Icon(Icons.Default.Close, stringResource(Res.string.cd_close))
-                    }
-                } else {
-                    onRefresh?.let { refresh ->
-                        IconButton(onClick = refresh) {
-                            Icon(
-                                Icons.Default.Refresh,
-                                stringResource(Res.string.refresh),
-                            )
-                        }
-                    }
+/** The page's controls: in the top bar on a phone, on the row of the play button on a TV. */
+@Composable
+internal fun ItemActions(
+    item: AppMediaItem,
+    onBack: () -> Unit,
+    libraryActions: LibraryActions?,
+    playlistActions: PlaylistActions?,
+    navigateToItem: (AppMediaItem) -> Unit,
+    onSimilarArtistsClick: () -> Unit,
+    onLyricsClick: (() -> Unit)? = null,
+    onRefresh: (() -> Unit)? = null,
+    refreshAction: RefreshItemAction? = null,
+    refreshingItem: Boolean = false,
+    onRefreshItem: () -> Unit = {},
+    query: String?,
+    onQueryChanged: ((String?) -> Unit)?,
+    // The fill of the buttons when they sit next to the play button, whose look they share.
+    fill: Color? = null,
+) {
+    if (refreshingItem) {
+        val description = stringResource(Res.string.cd_refreshing_item)
+        Box(
+            modifier = Modifier.size(48.dp).semantics { contentDescription = description },
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = LocalContentColor.current,
+                strokeWidth = 2.dp,
+            )
+        }
+    }
 
-                    if (searchEnabled) {
-                        IconButton(onClick = { onQueryChanged("") }) {
-                            Icon(Icons.Default.Search, stringResource(Res.string.cd_find_in_list))
-                        }
-                    }
+    if (onQueryChanged != null && query != null) {
+        ItemActionButton(onClick = { onQueryChanged(null) }, fill = fill) {
+            Icon(Icons.Default.Close, stringResource(Res.string.cd_close))
+        }
+    } else {
+        onRefresh?.let { refresh ->
+            ItemActionButton(onClick = refresh, fill = fill) {
+                Icon(
+                    Icons.Default.Refresh,
+                    stringResource(Res.string.refresh),
+                )
+            }
+        }
 
-                    ItemOverflow(
-                        item = item,
-                        libraryActions = libraryActions,
-                        playlistActions = playlistActions,
-                        navigateToItem = navigateToItem,
-                        onSimilarArtistsClick = onSimilarArtistsClick,
-                        onLyricsClick = onLyricsClick,
-                        refreshAction = refreshAction,
-                        refreshingItem = refreshingItem,
-                        onRefreshItem = onRefreshItem,
-                        onRemovedFromLibrary = onBack,
-                    )
-                }
-            },
+        onQueryChanged?.let { changeQuery ->
+            ItemActionButton(onClick = { changeQuery("") }, fill = fill) {
+                Icon(Icons.Default.Search, stringResource(Res.string.cd_find_in_list))
+            }
+        }
+
+        ItemOverflow(
+            item = item,
+            libraryActions = libraryActions,
+            playlistActions = playlistActions,
+            navigateToItem = navigateToItem,
+            onSimilarArtistsClick = onSimilarArtistsClick,
+            onLyricsClick = onLyricsClick,
+            refreshAction = refreshAction,
+            refreshingItem = refreshingItem,
+            onRefreshItem = onRefreshItem,
+            onRemovedFromLibrary = onBack,
+            fill = fill,
+        )
+    }
+}
+
+/**
+ * An icon button of the page. Under a D-pad it looks like the play button next to it: the same
+ * fill when [fill] is given, white with a black icon when focused. Elsewhere, a plain icon button.
+ */
+@Composable
+private fun ItemActionButton(
+    onClick: () -> Unit,
+    fill: Color?,
+    content: @Composable () -> Unit,
+) {
+    val dpad = LocalDpadNavigation.current
+    var focused by remember { mutableStateOf(false) }
+    val restingFill = fill?.takeIf { dpad }?.dpadRestingFill()
+    val colors = when {
+        focused -> IconButtonDefaults.iconButtonColors(
+            containerColor = DpadFocusedFill,
+            contentColor = DpadFocusedContent,
+        )
+
+        restingFill != null -> IconButtonDefaults.iconButtonColors(
+            containerColor = restingFill,
+            contentColor = restingFill.bestContrastContent(),
+        )
+
+        else -> IconButtonDefaults.iconButtonColors()
+    }
+    NoDpadStateLayer {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.onFocusChanged { focused = dpad && it.hasFocus },
+            colors = colors,
+            content = content,
         )
     }
 }
@@ -336,6 +429,7 @@ private fun ItemOverflow(
     onRefreshItem: () -> Unit,
     // The page shows the removed item, so it closes with the removal, like the web app.
     onRemovedFromLibrary: () -> Unit,
+    fill: Color?,
 ) {
     var showPlaylistDialog by rememberSaveable { mutableStateOf(false) }
     var showRemoveConfirmation by remember { mutableStateOf(false) }
@@ -404,7 +498,7 @@ private fun ItemOverflow(
         options = canonical + item.navigationOptions(navigateToItem, containerItem = item) + similarArtists +
             lyrics + refresh + dynamicColorsMenuOption(),
     ) { onClick ->
-        IconButton(onClick = onClick) {
+        ItemActionButton(onClick = onClick, fill = fill) {
             Icon(
                 imageVector = Icons.Default.MoreVert,
                 contentDescription = stringResource(Res.string.cd_more),
