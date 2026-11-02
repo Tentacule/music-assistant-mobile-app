@@ -85,6 +85,7 @@ import io.music_assistant.client.ui.compose.common.CenteredProgress
 import io.music_assistant.client.ui.compose.common.CenteredText
 import io.music_assistant.client.ui.compose.common.DataState
 import io.music_assistant.client.ui.compose.common.DisplayString
+import io.music_assistant.client.ui.compose.common.DpadRememberedFocus
 import io.music_assistant.client.ui.compose.common.ExtractedColors
 import io.music_assistant.client.ui.compose.common.ExtractedColorsSource
 import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
@@ -927,18 +928,20 @@ private fun AlbumsTabContent(
                     ViewMode.LIST -> { _, _ -> GridItemSpan(maxLineSpan) }
                     ViewMode.GRID -> null
                 },
-            ) { _, album ->
-                AlbumWithMenu(
-                    item = album,
-                    viewMode = viewMode,
-                    onNavigateClick = onNavigateClick,
-                    navigateToItem = onNavigateClick,
-                    containerItem = parentItem,
-                    onPlayOption = onPlayChildClick,
-                    playlistActions = playlistActions,
-                    libraryActions = libraryActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+            ) { index, album ->
+                DpadRememberedFocus(rowKey = "albums", itemKey = albumKeys[index]) {
+                    AlbumWithMenu(
+                        item = album,
+                        viewMode = viewMode,
+                        onNavigateClick = onNavigateClick,
+                        navigateToItem = onNavigateClick,
+                        containerItem = parentItem,
+                        onPlayOption = onPlayChildClick,
+                        playlistActions = playlistActions,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
+                }
             }
         }
     }
@@ -969,15 +972,17 @@ private fun ArtistsTabContent(
                     ViewMode.LIST -> { _, _ -> GridItemSpan(maxLineSpan) }
                     ViewMode.GRID -> null
                 },
-            ) { _, artist ->
-                ArtistWithMenu(
-                    item = artist,
-                    viewMode = viewMode,
-                    onNavigateClick = onNavigateClick,
-                    onPlayOption = onPlayChildClick,
-                    libraryActions = libraryActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+            ) { index, artist ->
+                DpadRememberedFocus(rowKey = "artists", itemKey = artistKeys[index]) {
+                    ArtistWithMenu(
+                        item = artist,
+                        viewMode = viewMode,
+                        onNavigateClick = onNavigateClick,
+                        onPlayOption = onPlayChildClick,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
+                }
             }
         }
     }

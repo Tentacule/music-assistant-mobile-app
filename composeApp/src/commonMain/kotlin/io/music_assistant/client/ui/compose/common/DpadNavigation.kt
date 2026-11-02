@@ -1,20 +1,26 @@
 package io.music_assistant.client.ui.compose.common
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -31,6 +37,61 @@ import androidx.compose.ui.zIndex
  * provides it; the phone keeps the default, so the hooks below change nothing there.
  */
 val LocalDpadNavigation = staticCompositionLocalOf { false }
+
+/**
+ * The tile of a page that last had the focus. A page leaves the composition when another opens over
+ * it: its lists come back scrolled as they were, but nothing else holds which tile was focused.
+ */
+class DpadFocusMemory internal constructor(internal var focusedId: String?) {
+    private var restorePending = focusedId != null
+
+    internal fun remember(id: String) {
+        focusedId = id
+        restorePending = false
+    }
+
+    internal fun takeRestore(id: String): Boolean =
+        (restorePending && focusedId == id).also { if (it) restorePending = false }
+}
+
+/** Null on the phone, and on the pages of a TV that do not ask for it: tiles are left untouched. */
+private val LocalDpadFocusMemory = staticCompositionLocalOf<DpadFocusMemory?> { null }
+
+private val DpadFocusMemorySaver = Saver<DpadFocusMemory, String>(
+    save = { it.focusedId.orEmpty() },
+    restore = { saved -> DpadFocusMemory(saved.ifEmpty { null }) },
+)
+
+/** Gives the tiles of [content] a focus that comes back to them when the user returns to the page. */
+@Composable
+fun ProvideDpadFocusMemory(content: @Composable () -> Unit) {
+    val memory = rememberSaveable(saver = DpadFocusMemorySaver) { DpadFocusMemory(null) }
+    CompositionLocalProvider(LocalDpadFocusMemory provides memory, content = content)
+}
+
+/** One tile of a row, under [ProvideDpadFocusMemory]. Without it, just [content]. */
+@Composable
+internal fun DpadRememberedFocus(rowKey: String, itemKey: Any, content: @Composable () -> Unit) {
+    val memory = LocalDpadFocusMemory.current ?: return content()
+    val id = "$rowKey/$itemKey"
+    val requester = remember { FocusRequester() }
+    var focused by remember { mutableStateOf(false) }
+    LaunchedEffect(id) {
+        if (memory.takeRestore(id)) runCatching { requester.requestFocus() }
+    }
+    Box(
+        modifier = Modifier
+            // In place of the tile's own z-index, which only applies inside this box.
+            .zIndex(if (focused) 1f else 0f)
+            .focusRequester(requester)
+            .onFocusChanged {
+                focused = it.hasFocus
+                if (it.hasFocus) memory.remember(id)
+            },
+    ) {
+        content()
+    }
+}
 
 /**
  * The look of the controls on the row of the play button under [LocalDpadNavigation]: the focused

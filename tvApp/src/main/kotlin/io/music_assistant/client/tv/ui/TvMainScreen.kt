@@ -46,6 +46,7 @@ import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvMenuEntry
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.TvUserActivity
+import io.music_assistant.client.ui.compose.common.ProvideDpadFocusMemory
 import io.music_assistant.client.ui.compose.common.ToastDuration
 import io.music_assistant.client.ui.compose.common.ToastHost
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
@@ -314,15 +315,17 @@ fun TvMainScreen(openSettings: () -> Unit) {
                         val padding = PaddingValues(bottom = 27.dp)
                         val onBack: () -> Unit = { backStack.removeLastOrNull() }
                         entry<TvRoute.Home> {
-                            HomeScreen(
-                                homeScreenViewModel = homeScreenViewModel,
-                                contentPadding = padding,
-                                onNavigateClick = ::navigateToItem,
-                                providerIconFetcher = providerViewModel.providerIconFetcher(),
-                                actionsViewModel = actionsViewModel,
-                                state = HomeScreenState.create(),
-                                onOpenSettings = openSettings,
-                            )
+                            ProvideDpadFocusMemory {
+                                HomeScreen(
+                                    homeScreenViewModel = homeScreenViewModel,
+                                    contentPadding = padding,
+                                    onNavigateClick = ::navigateToItem,
+                                    providerIconFetcher = providerViewModel.providerIconFetcher(),
+                                    actionsViewModel = actionsViewModel,
+                                    state = HomeScreenState.create(),
+                                    onOpenSettings = openSettings,
+                                )
+                            }
                         }
                         entry<TvRoute.Search> {
                             SearchScreen(
@@ -339,20 +342,22 @@ fun TvMainScreen(openSettings: () -> Unit) {
                             )
                         }
                         entry<TvRoute.Library> { route ->
-                            LibraryListScreen(
-                                libraryListViewModel = koinViewModel<LibraryListViewModel> {
-                                    parametersOf(route.mediaType)
-                                },
-                                viewModeViewModel = viewModeViewModel,
-                                contentPadding = padding,
-                                actionsViewModel = actionsViewModel,
-                                onBack = onBack,
-                                onGlobalSearch = { query ->
-                                    pendingSearch = GlobalSearchRequest(query, route.mediaType)
-                                    goToRoot(TvRoute.Search)
-                                },
-                                onNavigateClick = ::navigateToItem,
-                            )
+                            ProvideDpadFocusMemory {
+                                LibraryListScreen(
+                                    libraryListViewModel = koinViewModel<LibraryListViewModel> {
+                                        parametersOf(route.mediaType)
+                                    },
+                                    viewModeViewModel = viewModeViewModel,
+                                    contentPadding = padding,
+                                    actionsViewModel = actionsViewModel,
+                                    onBack = onBack,
+                                    onGlobalSearch = { query ->
+                                        pendingSearch = GlobalSearchRequest(query, route.mediaType)
+                                        goToRoot(TvRoute.Search)
+                                    },
+                                    onNavigateClick = ::navigateToItem,
+                                )
+                            }
                         }
                         entry<TvRoute.Queue> {
                             TvQueueScreen(
@@ -369,48 +374,54 @@ fun TvMainScreen(openSettings: () -> Unit) {
                             )
                         }
                         entry<TvRoute.Browse> { route ->
-                            BrowseScreen(
-                                browseViewModel = koinViewModel<BrowseViewModel> { parametersOf(route.path) },
-                                title = route.title,
-                                contentPadding = padding,
-                                actionsViewModel = actionsViewModel,
-                                onNavigateClick = ::navigateToItem,
-                                onBack = onBack,
-                            )
+                            ProvideDpadFocusMemory {
+                                BrowseScreen(
+                                    browseViewModel = koinViewModel<BrowseViewModel> { parametersOf(route.path) },
+                                    title = route.title,
+                                    contentPadding = padding,
+                                    actionsViewModel = actionsViewModel,
+                                    onNavigateClick = ::navigateToItem,
+                                    onBack = onBack,
+                                )
+                            }
                         }
                         entry<TvRoute.ItemDetails> { route ->
-                            ItemDetailsScreen(
-                                itemDetailsViewModel = koinViewModel<ItemDetailsViewModel> {
-                                    parametersOf(route.itemId, route.mediaType, route.providerId)
-                                },
-                                viewModeViewModel = viewModeViewModel,
-                                actionsViewModel = actionsViewModel,
-                                providerViewModel = providerViewModel,
-                                onBack = onBack,
-                                onNavigateToItem = { id, type, provider ->
-                                    backStack += TvRoute.ItemDetails(id, type, provider)
-                                },
-                                onNavigateToList = { title, itemList, clickContext ->
-                                    backStack += TvRoute.ItemPage(title, itemList, clickContext)
-                                },
-                                contentPadding = padding,
-                            )
+                            ProvideDpadFocusMemory {
+                                ItemDetailsScreen(
+                                    itemDetailsViewModel = koinViewModel<ItemDetailsViewModel> {
+                                        parametersOf(route.itemId, route.mediaType, route.providerId)
+                                    },
+                                    viewModeViewModel = viewModeViewModel,
+                                    actionsViewModel = actionsViewModel,
+                                    providerViewModel = providerViewModel,
+                                    onBack = onBack,
+                                    onNavigateToItem = { id, type, provider ->
+                                        backStack += TvRoute.ItemDetails(id, type, provider)
+                                    },
+                                    onNavigateToList = { title, itemList, clickContext ->
+                                        backStack += TvRoute.ItemPage(title, itemList, clickContext)
+                                    },
+                                    contentPadding = padding,
+                                )
+                            }
                         }
                         entry<TvRoute.ItemPage> { route ->
-                            ItemListScreen(
-                                title = route.title,
-                                mediaType = route.itemList.mediaType,
-                                sortContext = route.itemList.sortContext,
-                                itemListViewModel = koinViewModel<ItemListViewModel> {
-                                    parametersOf(route.itemList)
-                                },
-                                viewModeViewModel = viewModeViewModel,
-                                actionsViewModel = actionsViewModel,
-                                onNavigateClick = ::navigateToItem,
-                                onBack = onBack,
-                                contentPadding = padding,
-                                clickContext = route.clickContext,
-                            )
+                            ProvideDpadFocusMemory {
+                                ItemListScreen(
+                                    title = route.title,
+                                    mediaType = route.itemList.mediaType,
+                                    sortContext = route.itemList.sortContext,
+                                    itemListViewModel = koinViewModel<ItemListViewModel> {
+                                        parametersOf(route.itemList)
+                                    },
+                                    viewModeViewModel = viewModeViewModel,
+                                    actionsViewModel = actionsViewModel,
+                                    onNavigateClick = ::navigateToItem,
+                                    onBack = onBack,
+                                    contentPadding = padding,
+                                    clickContext = route.clickContext,
+                                )
+                            }
                         }
                     },
                 )

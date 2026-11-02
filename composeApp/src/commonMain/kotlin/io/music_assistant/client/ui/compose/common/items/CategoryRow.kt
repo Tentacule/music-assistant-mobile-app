@@ -65,6 +65,7 @@ import io.music_assistant.client.data.model.client.items.RadioStation
 import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.ui.compose.common.DataState
 import io.music_assistant.client.ui.compose.common.DisplayString
+import io.music_assistant.client.ui.compose.common.DpadRememberedFocus
 import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
 import io.music_assistant.client.ui.compose.common.NoDpadStateLayer
 import io.music_assistant.client.ui.compose.common.dpadFocusOutline
@@ -246,101 +247,103 @@ fun CategoryRow(
                     else -> "Unknown"
                 }
             },
-        ) { _, item ->
-            when (item) {
-                is Artist -> ArtistWithMenu(
-                    item = item,
-                    onNavigateClick = onNavigateClick,
-                    onPlayOption = onPlayClick,
-                    libraryActions = libraryActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+        ) { index, item ->
+            DpadRememberedFocus(rowKey = rowTag ?: title, itemKey = itemKeys[index]) {
+                when (item) {
+                    is Artist -> ArtistWithMenu(
+                        item = item,
+                        onNavigateClick = onNavigateClick,
+                        onPlayOption = onPlayClick,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
 
-                is Album -> AlbumWithMenu(
-                    item = item,
-                    onNavigateClick = onNavigateClick,
-                    navigateToItem = onNavigateClick,
-                    containerItem = containerItem,
-                    onPlayOption = onPlayClick,
-                    playlistActions = playlistActions,
-                    libraryActions = libraryActions,
-                    providerIconFetcher = providerIconFetcher,
-                    // Inside an artist the artist name repeats on every album, so show the year.
-                    subtitle = if (containerItem is Artist) AlbumSubtitle.YEAR else AlbumSubtitle.ARTISTS,
-                )
+                    is Album -> AlbumWithMenu(
+                        item = item,
+                        onNavigateClick = onNavigateClick,
+                        navigateToItem = onNavigateClick,
+                        containerItem = containerItem,
+                        onPlayOption = onPlayClick,
+                        playlistActions = playlistActions,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                        // Inside an artist the artist name repeats on every album, so show the year.
+                        subtitle = if (containerItem is Artist) AlbumSubtitle.YEAR else AlbumSubtitle.ARTISTS,
+                    )
 
-                is Playlist -> PlaylistWithMenu(
-                    item = item,
-                    onNavigateClick = onNavigateClick,
-                    onPlayOption = onPlayClick,
-                    libraryActions = libraryActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+                    is Playlist -> PlaylistWithMenu(
+                        item = item,
+                        onNavigateClick = onNavigateClick,
+                        onPlayOption = onPlayClick,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
 
-                is Podcast -> PodcastWithMenu(
-                    item = item,
-                    onNavigateClick = onNavigateClick,
-                    onPlayOption = onPlayClick,
-                    libraryActions = libraryActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+                    is Podcast -> PodcastWithMenu(
+                        item = item,
+                        onNavigateClick = onNavigateClick,
+                        onPlayOption = onPlayClick,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
 
-                is Track -> TrackWithMenu(
-                    item = item,
-                    navigateToItem = onNavigateClick,
-                    containerItem = containerItem,
-                    onPlayOption = onPlayClick,
-                    playlistActions = playlistActions,
-                    libraryActions = libraryActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+                    is Track -> TrackWithMenu(
+                        item = item,
+                        navigateToItem = onNavigateClick,
+                        containerItem = containerItem,
+                        onPlayOption = onPlayClick,
+                        playlistActions = playlistActions,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
 
-                is PodcastEpisode -> PodcastEpisodeWithMenu(
-                    item = item,
-                    navigateToItem = onNavigateClick,
-                    containerItem = containerItem,
-                    onPlayOption = onPlayClick,
-                    playlistActions = playlistActions,
-                    libraryActions = libraryActions,
-                    progressActions = progressActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+                    is PodcastEpisode -> PodcastEpisodeWithMenu(
+                        item = item,
+                        navigateToItem = onNavigateClick,
+                        containerItem = containerItem,
+                        onPlayOption = onPlayClick,
+                        playlistActions = playlistActions,
+                        libraryActions = libraryActions,
+                        progressActions = progressActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
 
-                is Audiobook -> AudiobookWithMenu(
-                    item = item,
-                    onNavigateClick = onNavigateClick,
-                    onPlayOption = onPlayClick,
-                    playlistActions = playlistActions,
-                    libraryActions = libraryActions,
-                    progressActions = progressActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+                    is Audiobook -> AudiobookWithMenu(
+                        item = item,
+                        onNavigateClick = onNavigateClick,
+                        onPlayOption = onPlayClick,
+                        playlistActions = playlistActions,
+                        libraryActions = libraryActions,
+                        progressActions = progressActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
 
-                // Audiobookshelf "Continue series" / "Recent series" rows.
-                is MediaCollection -> MediaCollectionWithMenu(
-                    item = item,
-                    onNavigateClick = onNavigateClick,
-                    onPlayOption = onPlayClick,
-                    libraryActions = libraryActions,
-                )
+                    // Audiobookshelf "Continue series" / "Recent series" rows.
+                    is MediaCollection -> MediaCollectionWithMenu(
+                        item = item,
+                        onNavigateClick = onNavigateClick,
+                        onPlayOption = onPlayClick,
+                        libraryActions = libraryActions,
+                    )
 
-                is RadioStation -> RadioWithMenu(
-                    item = item,
-                    onPlayOption = onPlayClick,
-                    playlistActions = playlistActions,
-                    libraryActions = libraryActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+                    is RadioStation -> RadioWithMenu(
+                        item = item,
+                        onPlayOption = onPlayClick,
+                        playlistActions = playlistActions,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
 
-                is Genre -> GenreWithMenu(
-                    item = item,
-                    onNavigateClick = onNavigateClick,
-                    onPlayOption = onPlayClick,
-                    libraryActions = libraryActions,
-                    providerIconFetcher = providerIconFetcher,
-                )
+                    is Genre -> GenreWithMenu(
+                        item = item,
+                        onNavigateClick = onNavigateClick,
+                        onPlayOption = onPlayClick,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                    )
 
-                else -> {}
+                    else -> {}
+                }
             }
         }
     }
