@@ -9,7 +9,7 @@ import io.music_assistant.client.data.model.client.RepeatMode
 import io.music_assistant.client.ui.compose.home.HomeScreenViewModel
 import kotlinx.coroutines.flow.flowOf
 
-/** What the player bar and the Now playing mode show of the local player. */
+/** What the Now playing mode shows of the active player. */
 data class NowPlayingInfo(
     val title: String,
     val artist: String?,

@@ -76,5 +76,9 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.coil.compose)
     implementation(libs.kermit)
+    // For the JSON types of the shared API (kotlinx-serialization-json, which this brings along).
+    implementation(libs.ktor.client.json)
     debugImplementation(libs.compose.ui.tooling)
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlin.test.junit)
 }

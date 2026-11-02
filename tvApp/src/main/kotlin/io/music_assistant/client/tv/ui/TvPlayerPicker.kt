@@ -36,7 +36,7 @@ import androidx.tv.material3.Text as TvText
 
 /**
  * Where the TV app plays: this TV (first) or any other Music Assistant player. The choice drives
- * the player bar, Now playing, the queue and every play request; the app comes back to this TV on
+ * Now playing, the queue, the playback settings and every play request; the app comes back to this TV on
  * every launch.
  */
 @Composable

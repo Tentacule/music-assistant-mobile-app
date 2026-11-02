@@ -1,21 +1,30 @@
 package io.music_assistant.client.tv.ui
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.FilterChip
+import androidx.tv.material3.FilterChipDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.IconButton
 import androidx.tv.material3.IconButtonDefaults
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import androidx.tv.material3.Text
 
 /**
  * The Android TV focus, for the TV's own controls: the focused element turns light with dark
@@ -78,6 +87,51 @@ fun TvIconButton(
     ) {
         Icon(icon, contentDescription = label, modifier = Modifier.size(24.dp), tint = LocalContentColor.current)
     }
+}
+
+/**
+ * Keeps Left and Right inside a row of controls. Otherwise, at the end of a row, the focus jumps
+ * diagonally to any control further that way, in another row, and the next OK changes that one.
+ */
+fun Modifier.tvHorizontalFocusRow(): Modifier = focusProperties {
+    onExit = {
+        if (requestedFocusDirection == FocusDirection.Left || requestedFocusDirection == FocusDirection.Right) {
+            cancelFocusChange()
+        }
+    }
+}.focusGroup()
+
+/** One choice of a settings row. The active choice carries a check, to read from across the room. */
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+fun TvChoiceChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    val colors = MaterialTheme.colorScheme
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        // The light focus of every other control, also on the active choice.
+        colors = FilterChipDefaults.colors(
+            focusedContainerColor = colors.inverseSurface,
+            focusedContentColor = colors.inverseOnSurface,
+            pressedContainerColor = colors.inverseSurface,
+            pressedContentColor = colors.inverseOnSurface,
+            focusedSelectedContainerColor = colors.inverseSurface,
+            focusedSelectedContentColor = colors.inverseOnSurface,
+            pressedSelectedContainerColor = colors.inverseSurface,
+            pressedSelectedContentColor = colors.inverseOnSurface,
+        ),
+        leadingIcon = if (selected) {
+            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+        } else {
+            null
+        },
+    ) { Text(label) }
 }
 
 private const val FOCUSED_SCALE = 1.05f

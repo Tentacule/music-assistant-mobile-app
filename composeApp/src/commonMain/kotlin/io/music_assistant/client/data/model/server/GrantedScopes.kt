@@ -8,6 +8,7 @@ object Scope {
     const val QUEUES_CONTROL = "queues.control"
     const val CONFIG_PLAYERS_WRITE = "config.players.write"
     const val CONFIG_PROVIDERS_READ = "config.providers.read"
+    const val CONFIG_CORE_WRITE = "config.core.write"
 
     /** The server's wildcard scope, granted to `admin`. */
     internal const val ALL = "*"
@@ -31,6 +32,9 @@ data class GrantedScopes(private val scopes: Set<String>) {
 
     /** Player settings, DSP included. */
     val canConfigurePlayers: Boolean get() = has(Scope.CONFIG_PLAYERS_WRITE)
+
+    /** Server-wide settings: the defaults that every queue follows. */
+    val canConfigureCore: Boolean get() = has(Scope.CONFIG_CORE_WRITE)
 
     companion object {
         /** Nothing granted: the state before `auth/scopes` answers, and after it fails. */

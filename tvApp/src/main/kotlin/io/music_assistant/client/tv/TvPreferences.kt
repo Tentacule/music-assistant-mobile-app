@@ -36,6 +36,16 @@ class TvPreferences(context: Context) {
         _visualizer.value = style
     }
 
+    private val _menu = MutableStateFlow(parseTvMenu(prefs.getString(KEY_MENU, null)))
+
+    /** The entries of the menu, in their order, with the ones that the user hid. */
+    val menu: StateFlow<List<TvMenuItem>> = _menu.asStateFlow()
+
+    fun setMenu(menu: List<TvMenuItem>) {
+        prefs.edit().putString(KEY_MENU, menu.encodeTvMenu()).apply()
+        _menu.value = menu
+    }
+
     /**
      * The servers whose "unsupported installation" warning the user dismissed. The shared home
      * page forgets a dismissal with its ViewModel; on a TV, where the process restarts often, the
@@ -67,6 +77,7 @@ class TvPreferences(context: Context) {
     private companion object {
         const val KEY_AUDIO_DEFAULTS_APPLIED = "audio_defaults_applied"
         const val KEY_LYRICS_MODE = "lyrics_mode"
+        const val KEY_MENU = "menu"
         const val KEY_NOW_PLAYING_DELAY = "now_playing_delay"
         const val KEY_UNSUPPORTED_DISMISSED = "unsupported_install_dismissed"
         const val KEY_VISUALIZER = "visualizer"

@@ -14,6 +14,7 @@ import io.music_assistant.client.utils.myJson
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -1138,6 +1139,39 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
                 put("token", JsonPrimitive(token))
                 put("device_name", JsonPrimitive(deviceName))
                 locale?.let { put("locale", JsonPrimitive(it)) }
+            },
+        )
+    }
+
+    /**
+     * Server settings. Queue settings need `config.players.*`, and a server older than the move of
+     * these settings to the queue rejects them. Core settings need `config.core.*` (admin). A save
+     * changes the given keys only.
+     */
+    data object Config {
+        fun queue(queueId: String) = Request(
+            command = APICommands.CONFIG_PLAYER_QUEUES_GET,
+            args = buildJsonObject { put("queue_id", JsonPrimitive(queueId)) },
+        )
+
+        fun saveQueue(queueId: String, key: String, value: JsonElement) = Request(
+            command = APICommands.CONFIG_PLAYER_QUEUES_SAVE,
+            args = buildJsonObject {
+                put("queue_id", JsonPrimitive(queueId))
+                put("values", buildJsonObject { put(key, value) })
+            },
+        )
+
+        fun core(domain: String) = Request(
+            command = APICommands.CONFIG_CORE_GET,
+            args = buildJsonObject { put("domain", JsonPrimitive(domain)) },
+        )
+
+        fun saveCore(domain: String, key: String, value: JsonElement) = Request(
+            command = APICommands.CONFIG_CORE_SAVE,
+            args = buildJsonObject {
+                put("domain", JsonPrimitive(domain))
+                put("values", buildJsonObject { put(key, value) })
             },
         )
     }

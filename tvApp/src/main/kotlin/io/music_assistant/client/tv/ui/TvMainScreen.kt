@@ -4,19 +4,11 @@ import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +27,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
@@ -50,6 +43,7 @@ import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.RecommendationFolder
 import io.music_assistant.client.tv.R
+import io.music_assistant.client.tv.TvMenuEntry
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.TvUserActivity
 import io.music_assistant.client.ui.compose.common.ToastDuration
@@ -73,12 +67,8 @@ import io.music_assistant.client.ui.compose.library.AiRadioScreen
 import io.music_assistant.client.ui.compose.library.AiRadioViewModel
 import io.music_assistant.client.ui.compose.library.BrowseScreen
 import io.music_assistant.client.ui.compose.library.BrowseViewModel
-import io.music_assistant.client.ui.compose.library.LibraryCategoriesViewModel
-import io.music_assistant.client.ui.compose.library.LibraryCategory
 import io.music_assistant.client.ui.compose.library.LibraryListScreen
 import io.music_assistant.client.ui.compose.library.LibraryListViewModel
-import io.music_assistant.client.ui.compose.library.icon
-import io.music_assistant.client.ui.compose.library.stringResource
 import io.music_assistant.client.ui.compose.provider.ProviderViewModel
 import io.music_assistant.client.ui.compose.search.GlobalSearchRequest
 import io.music_assistant.client.ui.compose.search.SearchScreen
@@ -90,7 +80,6 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.util.concurrent.atomic.AtomicLong
-import org.jetbrains.compose.resources.stringResource as composeStringResource
 
 /** Where the content area of the TV app is. [id] keeps stacked pages of the same kind distinct. */
 private sealed interface TvRoute : NavKey {
@@ -119,7 +108,8 @@ private fun nextRouteId() = routeIds.incrementAndGet()
 
 /**
  * The main screen of the TV app: the collapsible menu, the pages of the phone app (home, search,
- * library, item details) in the content area, the player bar, and the Now playing mode over all of it.
+ * library, item details) in the content area, and the Now playing mode over all of it. Now playing
+ * holds the playback controls: there is no player bar, so the pages keep the whole height.
  *
  * The Now playing mode is drawn over the app, which stays composed underneath: closing it lands
  * exactly where the user left the app. Neither mode owns the playback, which runs in the playback
@@ -131,7 +121,6 @@ fun TvMainScreen(openSettings: () -> Unit) {
     val actionsViewModel: ActionsViewModel = koinViewModel()
     val viewModeViewModel: ViewModeViewModel = koinViewModel()
     val providerViewModel: ProviderViewModel = koinViewModel()
-    val libraryCategoriesViewModel: LibraryCategoriesViewModel = koinViewModel()
     val dataSource: MainDataSource = koinInject()
     val prefs: TvPreferences = koinInject()
     val userActivity: TvUserActivity = koinInject()
@@ -142,7 +131,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
 
     // The TV plays on itself by default: each launch starts on the local player. The player picker
     // can then send the music to any other player; the reused phone pages (which play on the
-    // selected player), the player bar, Now playing and the queue all follow the choice.
+    // selected player), Now playing and the queue all follow the choice.
     LaunchedEffect(playersState, localPlayer) {
         if (localPlayerSelectedThisLaunch) return@LaunchedEffect
         val local = localPlayer ?: return@LaunchedEffect
@@ -152,8 +141,7 @@ fun TvMainScreen(openSettings: () -> Unit) {
     }
     val playersData = playersState as? HomeScreenViewModel.PlayersState.Data
     val selectedPlayer = playersData?.selectedPlayer
-    // The local player's own state (optimistic, from the Sendspin adapter) when it is the one chosen.
-    val activePlayer = if (selectedPlayer == null || selectedPlayer.isLocal) localPlayer ?: selectedPlayer else selectedPlayer
+    val activePlayer = activePlayer(selectedPlayer, localPlayer)
     var pickingPlayer by remember { mutableStateOf(false) }
     // Traces the queue's size as playback goes, to see the server top a smart mix or autoplay queue
     // up (it does when fewer than 5 tracks remain after the current one).
@@ -198,14 +186,13 @@ fun TvMainScreen(openSettings: () -> Unit) {
     // to the element focused there before (back from Now playing) or to the first one of a new page.
     // The new page may still be loading, hence the retries until the content takes the focus.
     val contentFocus = remember { FocusRequester() }
-    val playerBarFocus = remember { FocusRequester() }
     var contentHasFocus by remember { mutableStateOf(false) }
     val currentRoute = backStack.lastOrNull()
     // Also bumped when the system, not the user, puts the focus in the menu (at start-up, or when
     // the focused element goes away).
     var focusContentRequest by remember { mutableIntStateOf(0) }
     // Now playing leaves the focus where it was (it reads the keys through [nowPlayingKeys]), so
-    // closing it returns to the element that had the focus, in the page, the player bar or the menu.
+    // closing it returns to the element that had the focus, in the page or the menu.
     val nowPlayingKeys = remember { NowPlayingKeys() }
     val closeNowPlaying: () -> Unit = { nowPlaying = false }
     LaunchedEffect(currentRoute, focusContentRequest) {
@@ -253,89 +240,50 @@ fun TvMainScreen(openSettings: () -> Unit) {
         userActivity.nowPlayingToggles.collect { if (nowPlaying) closeNowPlaying() else nowPlaying = true }
     }
 
-    val categories by libraryCategoriesViewModel.state.collectAsStateWithLifecycle()
+    val menu by prefs.menu.collectAsStateWithLifecycle()
+    val aiRadioAvailable by dataSource.aiRadioAvailable.collectAsStateWithLifecycle()
     val railItems = buildList {
-        add(TvRailItem("home", Icons.Default.Home, stringResource(R.string.tv_nav_home), 0) { goToRoot(TvRoute.Home) })
-        // Right under Home, so the player is two key presses away from any page.
-        add(
-            TvRailItem(
-                key = "now_playing",
-                icon = Icons.Default.MusicNote,
-                label = stringResource(R.string.tv_nav_now_playing),
-                group = 0,
-                artworkUrl = nowPlayingInfo?.imageUrl,
-            ) { nowPlaying = true },
-        )
-        // Jumps into the player bar at the bottom, however long the page above it is.
-        if (nowPlayingInfo != null) {
+        menu.filter { it.visible && it.entry.isOffered(aiRadioAvailable) }.forEach { (entry) ->
             add(
                 TvRailItem(
-                    key = "player_controls",
-                    icon = Icons.Default.PlayCircle,
-                    label = stringResource(R.string.tv_nav_player_controls),
+                    key = entry.name,
+                    icon = entry.icon(),
+                    label = entry.label(),
                     group = 0,
-                ) { runCatching { playerBarFocus.requestFocus() } },
-            )
-        }
-        add(
-            TvRailItem(
-                "search",
-                Icons.Default.Search,
-                stringResource(R.string.tv_nav_search),
-                0,
-            ) { goToRoot(TvRoute.Search) },
-        )
-        categories.categories.filter { it.enabled }.forEach { state ->
-            val category = state.libraryCategory
-            // On the TV, the Tracks entry is the queue: a whole-library track list is of little use
-            // with a remote, the tracks that play are.
-            if (category == LibraryCategory.TRACKS) {
-                add(
-                    TvRailItem(
-                        key = "queue",
-                        icon = Icons.AutoMirrored.Filled.QueueMusic,
-                        label = stringResource(R.string.tv_nav_queue),
-                        group = 1,
-                    ) { goToRoot(TvRoute.Queue) },
-                )
-                return@forEach
-            }
-            val route = when (category) {
-                LibraryCategory.BROWSE -> TvRoute.Browse(path = null, title = null)
-                LibraryCategory.AI_RADIO -> TvRoute.AiRadio
-                else -> category.mediaType?.let { TvRoute.Library(it) }
-            } ?: return@forEach
-            add(
-                TvRailItem(category.name, category.icon(), composeStringResource(category.stringResource()), 1) {
-                    goToRoot(route)
+                    // The artwork of what plays, on the way into Now playing.
+                    artworkUrl = nowPlayingInfo?.imageUrl?.takeIf { entry == TvMenuEntry.NOW_PLAYING },
+                ) {
+                    when (entry) {
+                        TvMenuEntry.NOW_PLAYING -> nowPlaying = true
+                        TvMenuEntry.PLAYER -> pickingPlayer = true
+                        TvMenuEntry.HOME -> goToRoot(TvRoute.Home)
+                        TvMenuEntry.SEARCH -> goToRoot(TvRoute.Search)
+                        TvMenuEntry.QUEUE -> goToRoot(TvRoute.Queue)
+                        TvMenuEntry.BROWSE -> goToRoot(TvRoute.Browse(path = null, title = null))
+                        TvMenuEntry.AI_RADIO -> goToRoot(TvRoute.AiRadio)
+                        else -> entry.category?.mediaType?.let { goToRoot(TvRoute.Library(it)) }
+                    }
                 },
             )
         }
+        // Always there and always last: it is the way back to the choice of the entries above.
         add(
             TvRailItem(
-                key = "player",
-                icon = Icons.Default.Speaker,
-                label = stringResource(R.string.tv_nav_player),
-                group = 2,
-            ) { pickingPlayer = true },
-        )
-        add(
-            TvRailItem(
-                "settings",
+                SETTINGS_RAIL_KEY,
                 Icons.Default.Settings,
                 stringResource(R.string.tv_nav_settings),
-                2,
+                1,
                 onClick = openSettings,
             ),
         )
     }
-    val selectedKey = when (val root = backStack.firstOrNull()) {
-        TvRoute.Home -> "home"
-        TvRoute.Search -> "search"
-        TvRoute.Queue -> "queue"
-        is TvRoute.Library -> LibraryCategory.entries.firstOrNull { it.mediaType == root.mediaType }?.name
-        TvRoute.AiRadio -> LibraryCategory.AI_RADIO.name
-        is TvRoute.Browse -> LibraryCategory.BROWSE.name
+    val selectedEntry = when (val root = backStack.firstOrNull()) {
+        TvRoute.Home -> TvMenuEntry.HOME
+        TvRoute.Search -> TvMenuEntry.SEARCH
+        TvRoute.Queue -> TvMenuEntry.QUEUE
+        is TvRoute.Library -> TvMenuEntry.entries.firstOrNull { it.category?.mediaType == root.mediaType }
+        TvRoute.AiRadio -> TvMenuEntry.AI_RADIO
+        is TvRoute.Browse -> TvMenuEntry.BROWSE
         else -> null
     }
 
@@ -345,11 +293,10 @@ fun TvMainScreen(openSettings: () -> Unit) {
             .onPreviewKeyEvent { event -> nowPlaying && (nowPlayingKeys.handler?.invoke(event) ?: false) },
     ) {
         Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().padding(start = TvRailCollapsedWidth)) {
             Box(
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxSize()
+                    .padding(start = TvRailCollapsedWidth)
                     .onFocusChanged { contentHasFocus = it.hasFocus }
                     .focusRequester(contentFocus)
                     .focusRestorer()
@@ -363,7 +310,8 @@ fun TvMainScreen(openSettings: () -> Unit) {
                         rememberViewModelStoreNavEntryDecorator(),
                     ),
                     entryProvider = entryProvider {
-                        val padding = PaddingValues()
+                        // With no bar below the pages, the end of a list stays inside the TV safe area.
+                        val padding = PaddingValues(bottom = 27.dp)
                         val onBack: () -> Unit = { backStack.removeLastOrNull() }
                         entry<TvRoute.Home> {
                             HomeScreen(
@@ -467,28 +415,18 @@ fun TvMainScreen(openSettings: () -> Unit) {
                     },
                 )
             }
-            TvPlayerBar(
-                playerData = activePlayer,
-                homeScreenViewModel = homeScreenViewModel,
-                onAction = onPlayerAction,
-                onOpenNowPlaying = { nowPlaying = true },
-                onPickPlayer = { pickingPlayer = true },
-                onOpenQueue = { goToRoot(TvRoute.Queue) },
-                playPauseFocus = playerBarFocus,
-            )
-        }
 
-        TvNavigationRail(
-            items = railItems,
-            selectedKey = selectedKey,
-            modifier = Modifier.align(Alignment.CenterStart),
-            acceptsFocus = {
-                // Only D-pad Left (from the edge of the content) opens the menu.
-                val asked = userActivity.lastKeyCode == KeyEvent.KEYCODE_DPAD_LEFT
-                if (!asked) focusContentRequest++
-                asked
-            },
-        )
+            TvNavigationRail(
+                items = railItems,
+                selectedKey = selectedEntry?.name,
+                modifier = Modifier.align(Alignment.CenterStart),
+                acceptsFocus = {
+                    // Only D-pad Left (from the edge of the content) opens the menu.
+                    val asked = userActivity.lastKeyCode == KeyEvent.KEYCODE_DPAD_LEFT
+                    if (!asked) focusContentRequest++
+                    asked
+                },
+            )
         }
 
         if (nowPlaying) {
@@ -553,6 +491,7 @@ private fun UnsupportedInstallDismissalKeeper(homeScreenViewModel: HomeScreenVie
 }
 
 private const val FOCUS_ATTEMPTS = 40
+private const val SETTINGS_RAIL_KEY = "settings"
 
 // Once per process: the app starts on this TV, and keeps the player chosen afterwards.
 private var localPlayerSelectedThisLaunch = false

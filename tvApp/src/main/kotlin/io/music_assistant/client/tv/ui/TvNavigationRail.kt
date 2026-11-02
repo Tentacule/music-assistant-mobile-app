@@ -32,6 +32,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -71,6 +74,7 @@ fun TvNavigationRail(
     acceptsFocus: () -> Boolean = { true },
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var hasFocus by remember { mutableStateOf(false) }
     val width by animateDpAsState(if (expanded) TvRailExpandedWidth else TvRailCollapsedWidth, label = "railWidth")
     val background = MaterialTheme.colorScheme.surfaceContainer
         .copy(alpha = if (expanded) 1f else COLLAPSED_ALPHA)
@@ -80,7 +84,16 @@ fun TvNavigationRail(
             .fillMaxHeight()
             .width(width)
             .background(background)
-            .onFocusChanged { expanded = it.hasFocus && (expanded || acceptsFocus()) }
+            .onFocusChanged {
+                hasFocus = it.hasFocus
+                expanded = it.hasFocus && (expanded || acceptsFocus())
+            }
+            // A page with nothing to focus leaves the focus here, refused and collapsed: the first
+            // key press shows the labels of the entries that the remote is now moving through.
+            .onPreviewKeyEvent { event ->
+                if (hasFocus && !expanded && event.type == KeyEventType.KeyDown) expanded = true
+                false
+            }
             .focusGroup()
             .verticalScroll(rememberScrollState())
             .padding(vertical = 24.dp, horizontal = 12.dp),

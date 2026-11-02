@@ -21,6 +21,10 @@ object APICommands {
     const val PLAYERS_CMD_PLAY_ANNOUNCEMENT = "$PLAYERS_CMD/play_announcement"
     const val PLAYERS_TTS_ENGINES = "players/tts_engines"
     const val CONFIG_PLAYERS_GET_VALUE = "config/players/get_value"
+    const val CONFIG_PLAYER_QUEUES_GET = "config/player_queues/get"
+    const val CONFIG_PLAYER_QUEUES_SAVE = "config/player_queues/save"
+    const val CONFIG_CORE_GET = "config/core/get"
+    const val CONFIG_CORE_SAVE = "config/core/save"
 
     // Player Queue commands
     const val PLAYER_QUEUES_ALL = "player_queues/all"
