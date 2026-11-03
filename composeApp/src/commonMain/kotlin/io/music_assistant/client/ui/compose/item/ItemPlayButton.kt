@@ -27,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -98,8 +99,9 @@ fun ItemPlayButton(
         action.toPlayMode()?.let(onPlayClick)
     }
 
-    // D-pad (Android TV): entering the button from any direction lands on the play action, never
-    // on the options chevron next to it, and the page opens with the focus on it (once per item).
+    // D-pad (Android TV): entering the button lands on the play action, and not on the options
+    // chevron next to it, except moving left from the controls after it: the chevron is the next
+    // control then. The page opens with the focus on the play action (once per item).
     val playFocus = remember { FocusRequester() }
     var initialFocusDone by rememberSaveable(item.itemId) { mutableStateOf(false) }
     if (dpad) {
@@ -113,7 +115,11 @@ fun ItemPlayButton(
     SplitButtonLayout(
         modifier = if (dpad) {
             modifier
-                .focusProperties { onEnter = { playFocus.requestFocus() } }
+                .focusProperties {
+                    onEnter = {
+                        if (requestedFocusDirection != FocusDirection.Left) playFocus.requestFocus()
+                    }
+                }
                 .focusGroup()
         } else {
             modifier
