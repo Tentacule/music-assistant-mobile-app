@@ -52,6 +52,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -143,8 +144,10 @@ fun NowPlayingScreen(
     val tvLyrics: TvLyrics = koinInject()
     val lyricsMode by prefs.lyricsMode.collectAsStateWithLifecycle()
     // The lyrics of the track or the transcript of the episode; null while loading and when none.
-    val trackLyrics by produceState<Lyrics?>(null, track?.provider, track?.itemId) {
-        value = track?.let { tvLyrics.lyrics(it) }
+    // key() and not produceState's own keys: those restart the load but keep the old value until it
+    // answers, which would show the lyrics of the previous track for as long as the server takes.
+    val trackLyrics by key(track?.provider, track?.itemId) {
+        produceState<Lyrics?>(null) { value = track?.let { tvLyrics.lyrics(it) } }
     }
     val episode = playerData?.queueInfo?.currentItem?.track as? PodcastEpisode
     val transcript = episode?.let {
@@ -156,8 +159,8 @@ fun NowPlayingScreen(
     val showLyrics = lyricsMode && lyrics != null
     // The artist's photo, the backdrop of the lyrics mode; loaded only in that mode.
     val leadArtist = artists.firstOrNull()?.takeIf { showLyrics }
-    val artistImage by produceState<String?>(null, leadArtist?.provider, leadArtist?.itemId) {
-        value = leadArtist?.let { tvLyrics.artistImageUrl(it) }
+    val artistImage by key(leadArtist?.provider, leadArtist?.itemId) {
+        produceState<String?>(null) { value = leadArtist?.let { tvLyrics.artistImageUrl(it) } }
     }
     val visualizer by prefs.visualizer.collectAsStateWithLifecycle()
     val frame by rememberAudioFrames(tap, enabled = visualizer != VisualizerStyle.NONE)
