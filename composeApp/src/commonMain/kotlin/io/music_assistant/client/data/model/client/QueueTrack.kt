@@ -18,6 +18,8 @@ data class QueueTrack(
     val audioProcessingChain: AudioProcessingChain? = null,
     /** The container the item was played from (album, playlist, folder...). */
     val origin: AppMediaItem? = null,
+    /** The id of what [provider] streams, which can differ from the id of [track] (a library track). */
+    val streamItemId: String? = null,
 )
 
 enum class QualityTier {

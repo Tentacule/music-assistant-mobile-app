@@ -89,9 +89,11 @@ import io.music_assistant.client.data.model.client.items.PodcastEpisode
 import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.play.PlayDispatcher
 import io.music_assistant.client.data.play.PlayRequest
+import io.music_assistant.client.tv.NowPlayingStyle
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvLyrics
 import io.music_assistant.client.tv.TvPreferences
+import io.music_assistant.client.tv.TvWaveform
 import io.music_assistant.client.tv.audio.VisualizerTap
 import io.music_assistant.client.tv.ui.visualizer.VisualizerBackdrop
 import io.music_assistant.client.tv.ui.visualizer.VisualizerStyle
@@ -142,6 +144,8 @@ fun NowPlayingScreen(
     val prefs: TvPreferences = koinInject()
     val tap: VisualizerTap = koinInject()
     val tvLyrics: TvLyrics = koinInject()
+    val tvWaveform: TvWaveform = koinInject()
+    val style by prefs.nowPlayingStyle.collectAsStateWithLifecycle()
     val lyricsMode by prefs.lyricsMode.collectAsStateWithLifecycle()
     // The lyrics of the track or the transcript of the episode; null while loading and when none.
     // key() and not produceState's own keys: those restart the load but keep the old value until it
@@ -157,10 +161,21 @@ fun NowPlayingScreen(
     }
     val lyrics = trackLyrics ?: transcript
     val showLyrics = lyricsMode && lyrics != null
-    // The artist's photo, the backdrop of the lyrics mode; loaded only in that mode.
-    val leadArtist = artists.firstOrNull()?.takeIf { showLyrics }
+    // The lyrics mode looks the same in every style, so the banner layout only applies without it.
+    val bannerLayout = style == NowPlayingStyle.BANNER && !showLyrics
+    // The artist's photo, the backdrop of the lyrics mode and of the banner layout; loaded only for those.
+    val leadArtist = artists.firstOrNull()?.takeIf { showLyrics || bannerLayout }
     val artistImage by key(leadArtist?.provider, leadArtist?.itemId) {
         produceState<String?>(null) { value = leadArtist?.let { tvLyrics.artistImageUrl(it) } }
+    }
+    // The timeline of the banner layout. The stream details of the item can arrive after the item.
+    val waveformItem = playerData?.queueInfo?.currentItem?.takeIf { bannerLayout && track != null }
+    val waveform by key(waveformItem?.id, waveformItem?.streamItemId, waveformItem?.provider) {
+        produceState<List<Float>?>(null) {
+            val itemId = waveformItem?.streamItemId
+            val provider = waveformItem?.provider
+            if (itemId != null && provider != null) value = tvWaveform.bins(itemId, provider)
+        }
     }
     val visualizer by prefs.visualizer.collectAsStateWithLifecycle()
     val frame by rememberAudioFrames(tap, enabled = visualizer != VisualizerStyle.NONE)
@@ -552,30 +567,43 @@ fun NowPlayingScreen(
     DisposableEffect(keys) { onDispose { keys.handler = null } }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        // The artwork (the artist's photo in the lyrics mode), dimmed, fills the screen behind everything.
-        (if (showLyrics) artistImage ?: info?.imageUrl else info?.imageUrl)?.let {
-            AsyncImage(
-                model = it,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alpha = BACKDROP_ALPHA,
-                modifier = Modifier.fillMaxSize(),
+        if (bannerLayout) {
+            BannerBackdrop(artistImage ?: info?.imageUrl, Modifier.fillMaxSize())
+        } else {
+            // The artwork (the artist's photo in the lyrics mode), dimmed, fills the screen behind everything.
+            (if (showLyrics) artistImage ?: info?.imageUrl else info?.imageUrl)?.let {
+                AsyncImage(
+                    model = it,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alpha = BACKDROP_ALPHA,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Black.copy(alpha = 0.9f))),
+                    ),
             )
         }
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Black.copy(alpha = 0.9f))),
-                ),
-        )
         VisualizerBackdrop(visualizer, frame, accent, Modifier.fillMaxSize())
 
         Column(Modifier.fillMaxSize().padding(horizontal = 96.dp, vertical = 56.dp)) {
-            if (showLyrics && lyrics != null) {
-                NowPlayingLyrics(lyrics, info, position, Modifier.weight(1f).fillMaxWidth())
-            } else {
-                Row(
+            when {
+                bannerLayout -> NowPlayingBanner(
+                    info = info,
+                    waveform = waveform,
+                    positionSec = position,
+                    artworkModifier = Modifier.artworkVisualizer(visualizer, frame, accent),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+
+                showLyrics && lyrics != null ->
+                    NowPlayingLyrics(lyrics, info, position, Modifier.weight(1f).fillMaxWidth())
+
+                else -> Row(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(64.dp),

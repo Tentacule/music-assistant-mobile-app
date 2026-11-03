@@ -47,12 +47,12 @@ class TvLyrics(private val items: MediaItemRepository) {
     private fun Artist.imageUrlOrNull(): String? =
         images[ImageType.FANART]?.url ?: images[ImageType.THUMB]?.url ?: image(ImageType.MAIN)?.url
 
-    private companion object {
-        const val CACHE_SIZE = 32
-        const val LOAD_FACTOR = 0.75f
-
-        fun <K, V> lruMap(): MutableMap<K, V> = object : LinkedHashMap<K, V>(CACHE_SIZE, LOAD_FACTOR, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, V>?) = size > CACHE_SIZE
-        }
-    }
 }
+
+/** A map that keeps the last [CACHE_SIZE] entries read or written. */
+internal fun <K, V> lruMap(): MutableMap<K, V> = object : LinkedHashMap<K, V>(CACHE_SIZE, LOAD_FACTOR, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, V>?) = size > CACHE_SIZE
+}
+
+private const val CACHE_SIZE = 32
+private const val LOAD_FACTOR = 0.75f

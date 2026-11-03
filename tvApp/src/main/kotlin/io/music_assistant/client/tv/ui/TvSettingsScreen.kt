@@ -44,6 +44,7 @@ import androidx.tv.material3.Tab
 import androidx.tv.material3.TabRow
 import io.music_assistant.client.api.Defaults
 import io.music_assistant.client.tv.NowPlayingDelay
+import io.music_assistant.client.tv.NowPlayingStyle
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.ui.visualizer.VisualizerStyle
@@ -138,6 +139,7 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                         TvSettingsTab.MENU -> TvMenuSettingsTab()
                         TvSettingsTab.DISPLAY -> {
                             NowPlayingDelayCard()
+                            NowPlayingStyleCard()
                             VisualizerCard()
                         }
                     }
@@ -280,6 +282,26 @@ private fun NowPlayingDelayCard() {
 }
 
 @Composable
+private fun NowPlayingStyleCard() {
+    val prefs: TvPreferences = koinInject()
+    val current by prefs.nowPlayingStyle.collectAsStateWithLifecycle()
+    SettingsCard(stringResource(R.string.tv_now_playing_style)) {
+        Row(
+            modifier = Modifier.tvHorizontalFocusRow(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            NowPlayingStyle.entries.forEach { style ->
+                TvChoiceChip(
+                    label = stringResource(style.label()),
+                    selected = style == current,
+                    onClick = { prefs.setNowPlayingStyle(style) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun VisualizerCard() {
     val prefs: TvPreferences = koinInject()
     val current by prefs.visualizer.collectAsStateWithLifecycle()
@@ -298,6 +320,11 @@ private fun VisualizerCard() {
             }
         }
     }
+}
+
+private fun NowPlayingStyle.label(): Int = when (this) {
+    NowPlayingStyle.CLASSIC -> R.string.tv_np_style_classic
+    NowPlayingStyle.BANNER -> R.string.tv_np_style_banner
 }
 
 private fun NowPlayingDelay.label(): Int = when (this) {

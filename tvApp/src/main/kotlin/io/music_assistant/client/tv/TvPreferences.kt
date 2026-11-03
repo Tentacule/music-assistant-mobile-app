@@ -23,6 +23,19 @@ class TvPreferences(context: Context) {
         _nowPlayingDelay.value = delay
     }
 
+    private val _nowPlayingStyle = MutableStateFlow(
+        NowPlayingStyle.entries.firstOrNull { it.name == prefs.getString(KEY_NOW_PLAYING_STYLE, null) }
+            ?: NowPlayingStyle.CLASSIC,
+    )
+
+    /** The layout of the Now playing mode. */
+    val nowPlayingStyle: StateFlow<NowPlayingStyle> = _nowPlayingStyle.asStateFlow()
+
+    fun setNowPlayingStyle(style: NowPlayingStyle) {
+        prefs.edit().putString(KEY_NOW_PLAYING_STYLE, style.name).apply()
+        _nowPlayingStyle.value = style
+    }
+
     private val _visualizer = MutableStateFlow(
         VisualizerStyle.entries.firstOrNull { it.name == prefs.getString(KEY_VISUALIZER, null) }
             ?: VisualizerStyle.PULSE,
@@ -79,10 +92,13 @@ class TvPreferences(context: Context) {
         const val KEY_LYRICS_MODE = "lyrics_mode"
         const val KEY_MENU = "menu"
         const val KEY_NOW_PLAYING_DELAY = "now_playing_delay"
+        const val KEY_NOW_PLAYING_STYLE = "now_playing_style"
         const val KEY_UNSUPPORTED_DISMISSED = "unsupported_install_dismissed"
         const val KEY_VISUALIZER = "visualizer"
     }
 }
+
+enum class NowPlayingStyle { CLASSIC, BANNER }
 
 enum class NowPlayingDelay(val millis: Long?) {
     OFF(null),

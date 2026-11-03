@@ -44,6 +44,9 @@
     <string name="tv_buffer_hint">Un tampon plus long absorbe les à-coups du réseau. Le changer redémarre le lecteur.</string>
     <string name="tv_buffer_seconds">%1$d s</string>
     <string name="tv_now_playing_delay">Ouvrir En lecture quand la télécommande est inactive</string>
+    <string name="tv_now_playing_style">Présentation de En lecture</string>
+    <string name="tv_np_style_classic">Classique</string>
+    <string name="tv_np_style_banner">Bannière</string>
     <string name="tv_delay_off">Jamais</string>
     <string name="tv_delay_30s">Après 30 secondes</string>
     <string name="tv_delay_1m">Après 1 minute</string>
