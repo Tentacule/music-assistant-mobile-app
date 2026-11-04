@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,8 +32,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import io.music_assistant.client.data.model.client.PlayerData
 import io.music_assistant.client.tv.R
+import androidx.tv.material3.Button as TvButton
 import androidx.tv.material3.Icon as TvIcon
 import androidx.tv.material3.LocalContentColor as TvLocalContentColor
+import androidx.tv.material3.OutlinedButton as TvOutlinedButton
 import androidx.tv.material3.Text as TvText
 
 /**
@@ -115,6 +119,56 @@ private fun PlayerRow(player: PlayerData, selected: Boolean) {
         }
         if (player.player.isPlaying) TvIcon(Icons.Default.GraphicEq, contentDescription = null)
         if (selected) TvIcon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(24.dp))
+    }
+}
+
+/**
+ * Asks whether the queue of the current player should be transferred to the new one.
+ * The default focus goes to "Don't transfer" to avoid an accidental move.
+ */
+@Composable
+fun TvTransferQueueDialog(
+    targetPlayerName: String,
+    onTransfer: () -> Unit,
+    onSkip: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val skipFocus = remember { FocusRequester() }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 480.dp)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(24.dp))
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            TvText(
+                stringResource(R.string.tv_transfer_queue_title),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            TvText(
+                stringResource(R.string.tv_transfer_queue_message, targetPlayerName),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.tvHorizontalFocusRow(),
+            ) {
+                TvButton(onClick = onTransfer) {
+                    TvText(stringResource(R.string.tv_transfer_yes))
+                }
+                TvOutlinedButton(
+                    onClick = onSkip,
+                    modifier = Modifier.focusRequester(skipFocus),
+                ) {
+                    TvText(stringResource(R.string.tv_transfer_no))
+                }
+            }
+            LaunchedEffect(Unit) { runCatching { skipFocus.requestFocus() } }
+        }
     }
 }
 

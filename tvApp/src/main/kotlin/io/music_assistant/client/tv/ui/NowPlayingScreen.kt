@@ -147,6 +147,7 @@ fun NowPlayingScreen(
     val tvWaveform: TvWaveform = koinInject()
     val style by prefs.nowPlayingStyle.collectAsStateWithLifecycle()
     val lyricsMode by prefs.lyricsMode.collectAsStateWithLifecycle()
+    val lyricsOffsetMs by prefs.lyricsOffsetMs.collectAsStateWithLifecycle()
     // The lyrics of the track or the transcript of the episode; null while loading and when none.
     // key() and not produceState's own keys: those restart the load but keep the old value until it
     // answers, which would show the lyrics of the previous track for as long as the server takes.
@@ -601,7 +602,7 @@ fun NowPlayingScreen(
                 )
 
                 showLyrics && lyrics != null ->
-                    NowPlayingLyrics(lyrics, info, position, Modifier.weight(1f).fillMaxWidth())
+                    NowPlayingLyrics(lyrics, info, position, lyricsOffsetMs / 1000.0, Modifier.weight(1f).fillMaxWidth())
 
                 else -> Row(
                     modifier = Modifier.weight(1f).fillMaxWidth(),

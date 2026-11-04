@@ -72,10 +72,12 @@ fun TvIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     tint: Color? = null,
+    enabled: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier,
         scale = IconButtonDefaults.scale(focusedScale = ICON_FOCUSED_SCALE),
         colors = IconButtonDefaults.colors(

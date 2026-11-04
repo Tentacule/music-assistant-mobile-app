@@ -41,6 +41,7 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard|navigation|smallestScreenSize|uiMode|density|fontScale|layoutDirection|locale"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"
+            android:theme="@style/Theme.MusicAssistantTv.Splash"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

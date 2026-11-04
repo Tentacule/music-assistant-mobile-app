@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +39,11 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -141,6 +150,7 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                             NowPlayingDelayCard()
                             NowPlayingStyleCard()
                             VisualizerCard()
+                            LyricsOffsetCard()
                         }
                     }
                 }
@@ -227,6 +237,10 @@ private fun ServerForm(
     connectEnabled: Boolean,
     onConnect: () -> Unit,
 ) {
+    // The first focus goes to the button, not to a text field: on a TV, a focused field opens the
+    // on-screen keyboard over the form.
+    val connectFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { connectFocus.requestFocus() } }
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         OutlinedTextField(
             value = host,
@@ -243,17 +257,25 @@ private fun ServerForm(
             label = { Text(stringResource(R.string.tv_server_port)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-            modifier = Modifier.width(140.dp),
+            keyboardActions = KeyboardActions(onDone = { connectFocus.requestFocus() }),
+            modifier = Modifier
+                .width(140.dp)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown &&
+                        (event.key == Key.DirectionUp || event.key == Key.DirectionDown)
+                    ) {
+                        connectFocus.requestFocus()
+                        true
+                    } else {
+                        false
+                    }
+                },
         )
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(stringResource(R.string.tv_server_tls), modifier = Modifier.weight(1f))
         Switch(checked = isTls, onCheckedChange = onTlsChange)
     }
-    // The first focus goes to the button, not to a text field: on a TV, a focused field opens the
-    // on-screen keyboard over the form.
-    val connectFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { connectFocus.requestFocus() } }
     TvButton(
         onClick = onConnect,
         enabled = connectEnabled,
@@ -321,6 +343,43 @@ private fun VisualizerCard() {
         }
     }
 }
+
+@Composable
+private fun LyricsOffsetCard() {
+    val prefs: TvPreferences = koinInject()
+    val offsetMs by prefs.lyricsOffsetMs.collectAsStateWithLifecycle()
+    SettingsCard(stringResource(R.string.tv_lyrics_offset)) {
+        Text(stringResource(R.string.tv_lyrics_offset_hint), style = MaterialTheme.typography.bodyMedium)
+        Row(
+            modifier = Modifier.tvHorizontalFocusRow(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TvIconButton(
+                icon = Icons.Default.Remove,
+                label = stringResource(R.string.tv_setting_less),
+                onClick = { prefs.setLyricsOffsetMs(offsetMs - LYRICS_OFFSET_STEP_MS) },
+                enabled = offsetMs > LYRICS_OFFSET_MIN_MS,
+            )
+            val label = when {
+                offsetMs > 0 -> "+$offsetMs ms"
+                offsetMs < 0 -> "$offsetMs ms"
+                else -> "0 ms"
+            }
+            Text(label, style = MaterialTheme.typography.titleMedium)
+            TvIconButton(
+                icon = Icons.Default.Add,
+                label = stringResource(R.string.tv_setting_more),
+                onClick = { prefs.setLyricsOffsetMs(offsetMs + LYRICS_OFFSET_STEP_MS) },
+                enabled = offsetMs < LYRICS_OFFSET_MAX_MS,
+            )
+        }
+    }
+}
+
+private const val LYRICS_OFFSET_STEP_MS = 100
+private const val LYRICS_OFFSET_MIN_MS = -1000
+private const val LYRICS_OFFSET_MAX_MS = 1000
 
 private fun NowPlayingStyle.label(): Int = when (this) {
     NowPlayingStyle.CLASSIC -> R.string.tv_np_style_classic

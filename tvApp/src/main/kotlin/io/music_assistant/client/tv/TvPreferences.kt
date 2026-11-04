@@ -72,6 +72,30 @@ class TvPreferences(context: Context) {
         prefs.edit().putStringSet(KEY_UNSUPPORTED_DISMISSED, ids).apply()
     }
 
+    private val _defaultPlayerId = MutableStateFlow<String?>(prefs.getString(KEY_DEFAULT_PLAYER_ID, null))
+
+    /** The player to select at startup when the last used player is unavailable. Null = last used. */
+    val defaultPlayerId: StateFlow<String?> = _defaultPlayerId.asStateFlow()
+
+    fun setDefaultPlayerId(id: String?) {
+        if (id == null) prefs.edit().remove(KEY_DEFAULT_PLAYER_ID).apply()
+        else prefs.edit().putString(KEY_DEFAULT_PLAYER_ID, id).apply()
+        _defaultPlayerId.value = id
+    }
+
+    private val _lyricsOffsetMs = MutableStateFlow(
+        prefs.getInt(KEY_LYRICS_OFFSET_MS, 0).coerceIn(LYRICS_OFFSET_MIN_MS, LYRICS_OFFSET_MAX_MS),
+    )
+
+    /** How many milliseconds to shift the lyrics display: negative = earlier, positive = later. */
+    val lyricsOffsetMs: StateFlow<Int> = _lyricsOffsetMs.asStateFlow()
+
+    fun setLyricsOffsetMs(ms: Int) {
+        val clamped = ms.coerceIn(LYRICS_OFFSET_MIN_MS, LYRICS_OFFSET_MAX_MS)
+        prefs.edit().putInt(KEY_LYRICS_OFFSET_MS, clamped).apply()
+        _lyricsOffsetMs.value = clamped
+    }
+
     private val _lyricsMode = MutableStateFlow(prefs.getBoolean(KEY_LYRICS_MODE, false))
 
     /** Whether Now playing shows the lyrics (when the track has some); kept across tracks. */
@@ -90,6 +114,10 @@ class TvPreferences(context: Context) {
     private companion object {
         const val KEY_AUDIO_DEFAULTS_APPLIED = "audio_defaults_applied"
         const val KEY_LYRICS_MODE = "lyrics_mode"
+        const val KEY_DEFAULT_PLAYER_ID = "default_player_id"
+        const val KEY_LYRICS_OFFSET_MS = "lyrics_offset_ms"
+        const val LYRICS_OFFSET_MIN_MS = -1000
+        const val LYRICS_OFFSET_MAX_MS = 1000
         const val KEY_MENU = "menu"
         const val KEY_NOW_PLAYING_DELAY = "now_playing_delay"
         const val KEY_NOW_PLAYING_STYLE = "now_playing_style"

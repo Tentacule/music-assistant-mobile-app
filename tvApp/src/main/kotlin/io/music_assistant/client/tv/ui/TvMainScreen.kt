@@ -49,7 +49,9 @@ import io.music_assistant.client.tv.TvUserActivity
 import io.music_assistant.client.ui.compose.common.ProvideDpadFocusMemory
 import io.music_assistant.client.ui.compose.common.ToastDuration
 import io.music_assistant.client.ui.compose.common.ToastHost
+import io.music_assistant.client.data.model.client.PlayerData
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
+import io.music_assistant.client.ui.compose.common.action.QueueAction
 import io.music_assistant.client.ui.compose.common.providers.providerIconFetcher
 import io.music_assistant.client.ui.compose.common.rememberToastState
 import io.music_assistant.client.ui.compose.common.viewmodel.ActionsViewModel
@@ -130,20 +132,26 @@ fun TvMainScreen(openSettings: () -> Unit) {
     val localPlayer by dataSource.localPlayer.collectAsStateWithLifecycle()
     val playersState by homeScreenViewModel.playersState.collectAsStateWithLifecycle()
 
-    // The TV plays on itself by default: each launch starts on the local player. The player picker
-    // can then send the music to any other player; the reused phone pages (which play on the
-    // selected player), Now playing and the queue all follow the choice.
+    // On first launch, restore the last used player if still available. Fall back to the TV default
+    // from prefs, then to the local player. The local player is no longer forced on every launch.
     LaunchedEffect(playersState, localPlayer) {
         if (localPlayerSelectedThisLaunch) return@LaunchedEffect
-        val local = localPlayer ?: return@LaunchedEffect
         val data = playersState as? HomeScreenViewModel.PlayersState.Data ?: return@LaunchedEffect
-        if (data.selectedPlayer?.playerId != local.playerId) homeScreenViewModel.selectPlayer(local.player)
         localPlayerSelectedThisLaunch = true
+        // MainDataSource already restores lastSelectedPlayerId; only override when nothing resolved.
+        if (data.selectedPlayer != null) return@LaunchedEffect
+        val defaultId = prefs.defaultPlayerId.value
+        val defaultPlayer = defaultId?.let { id ->
+            data.playerData.firstOrNull { it.playerId == id && it.player.isSelectable }
+        }
+        val target = defaultPlayer?.player ?: localPlayer?.player ?: return@LaunchedEffect
+        homeScreenViewModel.selectPlayer(target)
     }
     val playersData = playersState as? HomeScreenViewModel.PlayersState.Data
     val selectedPlayer = playersData?.selectedPlayer
     val activePlayer = activePlayer(selectedPlayer, localPlayer)
     var pickingPlayer by remember { mutableStateOf(false) }
+    var pendingPlayerSwitch by remember { mutableStateOf<PlayerData?>(null) }
     // Traces the queue's size as playback goes, to see the server top a smart mix or autoplay queue
     // up (it does when fewer than 5 tracks remain after the current one).
     val queueSize = activePlayer?.queueItems?.size
@@ -461,8 +469,40 @@ fun TvMainScreen(openSettings: () -> Unit) {
             TvPlayerPicker(
                 players = playersData?.playerData.orEmpty(),
                 selectedPlayerId = selectedPlayer?.playerId,
-                onPick = { homeScreenViewModel.selectPlayer(it.player) },
+                onPick = { newPlayer ->
+                    val queueNonEmpty = activePlayer?.queueItems?.isNotEmpty() == true
+                    val isNewPlayer = newPlayer.playerId != activePlayer?.playerId
+                    if (queueNonEmpty && isNewPlayer) {
+                        pendingPlayerSwitch = newPlayer
+                    } else {
+                        homeScreenViewModel.selectPlayer(newPlayer.player)
+                    }
+                },
                 onDismiss = { pickingPlayer = false },
+            )
+        }
+        pendingPlayerSwitch?.let { target ->
+            val targetName = if (target.isLocal) {
+                stringResource(R.string.tv_this_tv, target.player.name)
+            } else {
+                target.player.name
+            }
+            TvTransferQueueDialog(
+                targetPlayerName = targetName,
+                onTransfer = {
+                    activePlayer?.let { src ->
+                        homeScreenViewModel.queueAction(
+                            QueueAction.Transfer(src.queueOrPlayerId, target.queueOrPlayerId, autoplay = true),
+                        )
+                    }
+                    homeScreenViewModel.selectPlayer(target.player)
+                    pendingPlayerSwitch = null
+                },
+                onSkip = {
+                    homeScreenViewModel.selectPlayer(target.player)
+                    pendingPlayerSwitch = null
+                },
+                onDismiss = { pendingPlayerSwitch = null },
             )
         }
         ToastHost(toastState = toastState)

@@ -70,6 +70,15 @@
     <string name="tv_np_move_hint">Left/Right moves the track · OK drops it · Back cancels</string>
     <string name="tv_np_add_hint">Hold OK to add to the queue</string>
     <string name="tv_lyrics">Lyrics</string>
+    <string name="tv_lyrics_offset">Lyrics timing offset</string>
+    <string name="tv_lyrics_offset_hint">Advance or delay the display to match what you hear.</string>
+    <string name="tv_transfer_queue_title">Transfer the queue?</string>
+    <string name="tv_transfer_queue_message">Transfer the current queue to %1$s?</string>
+    <string name="tv_transfer_yes">Transfer</string>
+    <string name="tv_transfer_no">Don\'t transfer</string>
+    <string name="tv_default_player">Default player</string>
+    <string name="tv_default_player_hint">Selected at startup when the last used player is unavailable.</string>
+    <string name="tv_default_player_last_used">Last used</string>
     <string name="tv_tab_playback">Playback</string>
     <string name="tv_tab_menu">Menu</string>
     <string name="tv_tab_display">Display</string>

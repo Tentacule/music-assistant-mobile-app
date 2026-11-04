@@ -63,13 +63,15 @@ fun NowPlayingLyrics(
     lyrics: Lyrics,
     info: NowPlayingInfo?,
     positionSec: Double,
+    lyricsOffsetSec: Double = 0.0,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
         Box(Modifier.weight(1f).fillMaxWidth().fadeEdges()) {
+            val syncedPosition = positionSec + lyricsOffsetSec
             when (lyrics) {
-                is Lyrics.Synced -> SyncedLines(lyrics.lines, positionSec)
-                is Lyrics.Plain -> PlainText(lyrics.text, positionSec, info?.durationSec)
+                is Lyrics.Synced -> SyncedLines(lyrics.lines, syncedPosition)
+                is Lyrics.Plain -> PlainText(lyrics.text, syncedPosition, info?.durationSec)
             }
         }
         InfoBand(info, positionSec)

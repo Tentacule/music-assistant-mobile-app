@@ -9,6 +9,7 @@ import android.view.KeyEvent
 import android.view.ViewConfiguration
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.asLiveData
 import co.touchlab.kermit.Logger
 import io.music_assistant.client.data.MainDataSource
@@ -22,6 +23,7 @@ class TvMainActivity : ComponentActivity() {
     private val userActivity: TvUserActivity by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         // Playback lives in this foreground service and the shared local player, not in the UI,

@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,7 +23,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.music_assistant.client.data.MainDataSource
@@ -31,7 +41,9 @@ import io.music_assistant.client.data.model.server.ServerConfigOption
 import io.music_assistant.client.settings.SettingsRepository
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.ui.compose.common.LocalGrantedScopes
+import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
+import io.music_assistant.client.ui.compose.common.action.QueueAction
 import io.music_assistant.client.ui.compose.home.HomeScreenViewModel
 import io.music_assistant.client.ui.compose.home.selectedPlayer
 import io.music_assistant.client.ui.compose.settings.SendspinSettingsViewModel
@@ -121,6 +133,7 @@ fun TvPlaybackSettingsTab() {
     val player = activePlayer(playersData?.selectedPlayer, local)
     val queueSource = (player?.queueInfo?.id ?: player?.player?.queueId)?.let { TvConfigSource.Queue(it) }
     var pickingPlayer by remember { mutableStateOf(false) }
+    var pendingPlayerSwitch by remember { mutableStateOf<PlayerData?>(null) }
 
     LaunchedEffect(queueSource) { queueSource?.let(viewModel::load) }
     LaunchedEffect(scopes.canConfigureCore) {
@@ -176,14 +189,47 @@ fun TvPlaybackSettingsTab() {
         }
 
         ThisTvCard()
+        DefaultPlayerCard()
     }
 
     if (pickingPlayer) {
         TvPlayerPicker(
             players = playersData?.playerData.orEmpty(),
             selectedPlayerId = playersData?.selectedPlayer?.playerId,
-            onPick = { homeScreenViewModel.selectPlayer(it.player) },
+            onPick = { newPlayer ->
+                val queueNonEmpty = player?.queueItems?.isNotEmpty() == true
+                val isNewPlayer = newPlayer.playerId != player?.playerId
+                if (queueNonEmpty && isNewPlayer) {
+                    pendingPlayerSwitch = newPlayer
+                } else {
+                    homeScreenViewModel.selectPlayer(newPlayer.player)
+                }
+            },
             onDismiss = { pickingPlayer = false },
+        )
+    }
+    pendingPlayerSwitch?.let { target ->
+        val targetName = if (target.isLocal) {
+            stringResource(R.string.tv_this_tv, target.player.name)
+        } else {
+            target.player.name
+        }
+        TvTransferQueueDialog(
+            targetPlayerName = targetName,
+            onTransfer = {
+                player?.let { src ->
+                    homeScreenViewModel.queueAction(
+                        QueueAction.Transfer(src.queueOrPlayerId, target.queueOrPlayerId, autoplay = true),
+                    )
+                }
+                homeScreenViewModel.selectPlayer(target.player)
+                pendingPlayerSwitch = null
+            },
+            onSkip = {
+                homeScreenViewModel.selectPlayer(target.player)
+                pendingPlayerSwitch = null
+            },
+            onDismiss = { pendingPlayerSwitch = null },
         )
     }
 }
@@ -306,6 +352,7 @@ private fun ThisTvCard() {
 
     SettingsCard(stringResource(R.string.tv_player)) {
         Text(stringResource(R.string.tv_section_this_tv_hint), style = MaterialTheme.typography.bodyMedium)
+        val saveFocus = remember { FocusRequester() }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -315,9 +362,27 @@ private fun ThisTvCard() {
                 onValueChange = { name -> sendspin.update { it.copy(name = name) } },
                 label = { Text(stringResource(R.string.tv_player_name)) },
                 singleLine = true,
-                modifier = Modifier.weight(1f).widthIn(min = 200.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { saveFocus.requestFocus() }),
+                modifier = Modifier
+                    .weight(1f)
+                    .widthIn(min = 200.dp)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown &&
+                            (event.key == Key.DirectionUp || event.key == Key.DirectionDown)
+                        ) {
+                            saveFocus.requestFocus()
+                            true
+                        } else {
+                            false
+                        }
+                    },
             )
-            TvButton(onClick = sendspin::save, enabled = isSavable) { TvText(stringResource(R.string.tv_save)) }
+            TvButton(
+                onClick = sendspin::save,
+                enabled = isSavable,
+                modifier = Modifier.focusRequester(saveFocus),
+            ) { TvText(stringResource(R.string.tv_save)) }
         }
         // A format or buffer change reconnects the player, so it applies at once and not through Save.
         SettingLine(stringResource(R.string.tv_buffer)) {
@@ -357,6 +422,44 @@ private fun ThisTvCard() {
                         },
                     )
                 }
+            }
+        }
+    }
+}
+
+/** The player selected at startup when the last used one is unavailable. */
+@Composable
+private fun DefaultPlayerCard() {
+    val prefs: TvPreferences = koinInject()
+    val homeScreenViewModel: HomeScreenViewModel = koinViewModel()
+    val playersState by homeScreenViewModel.playersState.collectAsStateWithLifecycle()
+    val players = (playersState as? HomeScreenViewModel.PlayersState.Data)?.playerData.orEmpty()
+    val defaultPlayerId by prefs.defaultPlayerId.collectAsStateWithLifecycle()
+    val sorted = remember(players) { players.sortedByDescending { it.isLocal } }
+
+    SettingsCard(stringResource(R.string.tv_default_player)) {
+        Text(stringResource(R.string.tv_default_player_hint), style = MaterialTheme.typography.bodyMedium)
+        FlowRow(
+            modifier = Modifier.tvHorizontalFocusRow(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            TvChoiceChip(
+                label = stringResource(R.string.tv_default_player_last_used),
+                selected = defaultPlayerId == null,
+                onClick = { prefs.setDefaultPlayerId(null) },
+            )
+            sorted.forEach { player ->
+                TvChoiceChip(
+                    label = if (player.isLocal) {
+                        stringResource(R.string.tv_this_tv, player.player.name)
+                    } else {
+                        player.player.name
+                    },
+                    selected = player.playerId == defaultPlayerId,
+                    onClick = { prefs.setDefaultPlayerId(player.playerId) },
+                    enabled = player.player.isSelectable,
+                )
             }
         }
     }
