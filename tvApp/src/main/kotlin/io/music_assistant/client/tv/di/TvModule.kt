@@ -1,5 +1,6 @@
 package io.music_assistant.client.tv.di
 
+import android.media.AudioManager
 import io.music_assistant.client.data.CarConnectionMonitor
 import io.music_assistant.client.tv.TvLyrics
 import io.music_assistant.client.tv.TvPreferences
@@ -9,6 +10,7 @@ import io.music_assistant.client.tv.TvWaveform
 import io.music_assistant.client.tv.audio.TapAudioSink
 import io.music_assistant.client.tv.audio.VisualizerTap
 import io.music_assistant.client.tv.services.SharedMediaSessionManager
+import io.music_assistant.client.tv.services.TvVolumeProvider
 import io.music_assistant.client.tv.ui.TvPlaybackSettingsViewModel
 import io.music_assistant.client.utils.sendspinClock
 import io.music_assistant.sendspin.android.AudioTrackSink
@@ -20,14 +22,21 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 fun tvModule() = module {
-    single { SharedMediaSessionManager(androidContext(), get(), get()) }
+    single { TvVolumeController() }
+    single {
+        TvVolumeProvider(
+            androidContext().getSystemService(AudioManager::class.java),
+            get(),
+            get(),
+        )
+    }
+    single { SharedMediaSessionManager(androidContext(), get(), get(), get<TvVolumeProvider>()) }
     // A TV never connects to a car; the shared module still asks for the signal.
     single<CarConnectionMonitor> { NoCarConnectionMonitor }
     single { TvPreferences(androidContext()) }
     single { TvLyrics(get()) }
     single { TvWaveform(get()) }
     single { TvUserActivity() }
-    single { TvVolumeController() }
     viewModel { TvPlaybackSettingsViewModel(get()) }
     // The TV's audio output, with a copy for the Now playing visualizations. Replaces the shared
     // binding (this module loads after androidModule()).

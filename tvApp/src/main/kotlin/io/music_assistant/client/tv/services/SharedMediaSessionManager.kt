@@ -153,6 +153,7 @@ class SharedMediaSessionManager(
     private val applicationContext: Context,
     private val dataSource: MainDataSource,
     private val carConnection: CarConnectionMonitor,
+    private val volumeProvider: androidx.media.VolumeProviderCompat? = null,
     private val managerScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
     private var mediaSession: MediaSessionCompat? = null
@@ -318,7 +319,8 @@ class SharedMediaSessionManager(
         mediaSession?.let { return it }
         val session = MediaSessionCompat(applicationContext, "MusicAssistantSession").apply {
             setFlags(MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS)
-            setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+            if (volumeProvider != null) setPlaybackToRemote(volumeProvider)
+            else setPlaybackToLocal(AudioManager.STREAM_MUSIC)
             setCallback(createCallback())
             // Publish the action mask before activating: the playback writer only runs once a
             // player emits, so without this a cold process would present an active session that
