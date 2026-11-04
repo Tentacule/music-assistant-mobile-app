@@ -49,14 +49,17 @@ fun TvApp() {
     TvTheme {
         // A Surface, not a bare background: it also gives the text its on-background color.
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            ProvideGrantedScopes {
-                ProvideDislikeSupport {
-                    ProvidePlayMediaSupport {
-                        ProvideClickActionPrefs {
-                            TvRoot()
+            Box(Modifier.fillMaxSize()) {
+                ProvideGrantedScopes {
+                    ProvideDislikeSupport {
+                        ProvidePlayMediaSupport {
+                            ProvideClickActionPrefs {
+                                TvRoot()
+                            }
                         }
                     }
                 }
+                TvVolumeOverlay()
             }
         }
     }

@@ -1,7 +1,9 @@
 package io.music_assistant.client.tv
 
 import android.app.ForegroundServiceStartNotAllowedException
+import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -21,6 +23,7 @@ import org.koin.android.ext.android.inject
 class TvMainActivity : ComponentActivity() {
     private val dataSource: MainDataSource by inject()
     private val userActivity: TvUserActivity by inject()
+    private val volumeController: TvVolumeController by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -110,6 +113,25 @@ class TvMainActivity : ComponentActivity() {
         )
     }
 
+    // Volume keys: system audio for the local player, MA VolumeSet for a remote player.
+    private fun adjustVolume(delta: Int) {
+        val selected = dataSource.selectedPlayer
+        val local = dataSource.localPlayer.value
+        if (selected == null || local == null || selected.playerId == local.playerId) {
+            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val direction = if (delta > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
+            am.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
+            val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val current = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            volumeController.show(current.toFloat() / max.toFloat())
+        } else {
+            val current = selected.player.currentVolume ?: return
+            val newLevel = (current + delta).coerceIn(0f, 100f)
+            dataSource.playerAction(selected, PlayerAction.VolumeSet(newLevel.toDouble()))
+            volumeController.show(newLevel / 100f)
+        }
+    }
+
     // The remote's media keys drive the selected player (this TV by default) from any screen.
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         val action = when (keyCode) {
@@ -127,6 +149,10 @@ class TvMainActivity : ComponentActivity() {
             if (event?.repeatCount == 0) userActivity.toggleNowPlaying()
             return true
         }
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            adjustVolume(if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) VOLUME_STEP else -VOLUME_STEP)
+            return true
+        }
         val target = dataSource.selectedPlayer ?: dataSource.localPlayer.value
         if (action != null && target != null && event?.repeatCount == 0) {
             dataSource.playerAction(target, action)
@@ -140,5 +166,6 @@ class TvMainActivity : ComponentActivity() {
         const val NO_PRESS = -1L
         const val LONG_PRESS_MARGIN_MS = 150L
         const val SEEK_SECONDS = 10L
+        const val VOLUME_STEP = 5
     }
 }
