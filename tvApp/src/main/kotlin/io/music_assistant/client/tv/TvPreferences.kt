@@ -96,6 +96,16 @@ class TvPreferences(context: Context) {
         _lyricsOffsetMs.value = clamped
     }
 
+    private val _keepScreenOn = MutableStateFlow(prefs.getBoolean(KEY_KEEP_SCREEN_ON, true))
+
+    /** Keep the screen on during playback; enabled by default. */
+    val keepScreenOn: StateFlow<Boolean> = _keepScreenOn.asStateFlow()
+
+    fun setKeepScreenOn(on: Boolean) {
+        prefs.edit().putBoolean(KEY_KEEP_SCREEN_ON, on).apply()
+        _keepScreenOn.value = on
+    }
+
     private val _lyricsMode = MutableStateFlow(prefs.getBoolean(KEY_LYRICS_MODE, false))
 
     /** Whether Now playing shows the lyrics (when the track has some); kept across tracks. */
@@ -118,6 +128,7 @@ class TvPreferences(context: Context) {
         const val KEY_LYRICS_OFFSET_MS = "lyrics_offset_ms"
         const val LYRICS_OFFSET_MIN_MS = -1000
         const val LYRICS_OFFSET_MAX_MS = 1000
+        const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
         const val KEY_MENU = "menu"
         const val KEY_NOW_PLAYING_DELAY = "now_playing_delay"
         const val KEY_NOW_PLAYING_STYLE = "now_playing_style"

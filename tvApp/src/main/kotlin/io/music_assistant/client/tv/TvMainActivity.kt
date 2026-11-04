@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.ViewConfiguration
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -16,11 +17,13 @@ import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.tv.services.MainMediaPlaybackService
 import io.music_assistant.client.tv.ui.TvApp
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
+import kotlinx.coroutines.flow.combine
 import org.koin.android.ext.android.inject
 
 class TvMainActivity : ComponentActivity() {
     private val dataSource: MainDataSource by inject()
     private val userActivity: TvUserActivity by inject()
+    private val prefs: TvPreferences by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -31,6 +34,17 @@ class TvMainActivity : ComponentActivity() {
         dataSource.isAnythingPlaying.asLiveData().observe(this) { playing ->
             if (playing) startPlaybackService()
         }
+
+        combine(dataSource.isAnythingPlaying, prefs.keepScreenOn) { playing, keepOn ->
+            playing && keepOn
+        }.asLiveData().observe(this) { keepScreen ->
+            if (keepScreen) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+
         setContent { TvApp() }
     }
 

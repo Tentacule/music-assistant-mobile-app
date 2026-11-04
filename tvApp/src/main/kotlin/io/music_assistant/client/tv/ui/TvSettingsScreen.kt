@@ -147,6 +147,7 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                         TvSettingsTab.PLAYBACK -> TvPlaybackSettingsTab()
                         TvSettingsTab.MENU -> TvMenuSettingsTab()
                         TvSettingsTab.DISPLAY -> {
+                            KeepScreenOnCard()
                             NowPlayingDelayCard()
                             NowPlayingStyleCard()
                             VisualizerCard()
@@ -281,6 +282,23 @@ private fun ServerForm(
         enabled = connectEnabled,
         modifier = Modifier.focusRequester(connectFocus),
     ) { TvText(stringResource(R.string.tv_connect)) }
+}
+
+@Composable
+private fun KeepScreenOnCard() {
+    val prefs: TvPreferences = koinInject()
+    val keepOn by prefs.keepScreenOn.collectAsStateWithLifecycle()
+    SettingsCard(stringResource(R.string.tv_keep_screen_on)) {
+        Text(stringResource(R.string.tv_keep_screen_on_hint), style = MaterialTheme.typography.bodyMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(stringResource(if (keepOn) R.string.tv_keep_screen_on_enabled else R.string.tv_keep_screen_on_disabled))
+            Switch(checked = keepOn, onCheckedChange = { prefs.setKeepScreenOn(it) })
+        }
+    }
 }
 
 @Composable
