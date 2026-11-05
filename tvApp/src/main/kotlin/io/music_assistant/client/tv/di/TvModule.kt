@@ -30,7 +30,9 @@ fun tvModule() = module {
             get(),
         )
     }
-    single { SharedMediaSessionManager(androidContext(), get(), get(), get<TvVolumeProvider>()) }
+    // No VolumeProvider: the TV uses setPlaybackToLocal (default), so Android TV handles
+    // system volume natively. Volume keys are intercepted in TvMainActivity instead.
+    single { SharedMediaSessionManager(androidContext(), get(), get()) }
     // A TV never connects to a car; the shared module still asks for the signal.
     single<CarConnectionMonitor> { NoCarConnectionMonitor }
     single { TvPreferences(androidContext()) }

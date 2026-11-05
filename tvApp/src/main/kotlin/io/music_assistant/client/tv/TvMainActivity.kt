@@ -15,6 +15,7 @@ import androidx.lifecycle.asLiveData
 import co.touchlab.kermit.Logger
 import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.tv.services.MainMediaPlaybackService
+import io.music_assistant.client.tv.services.TvVolumeProvider
 import io.music_assistant.client.tv.ui.TvApp
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
 import kotlinx.coroutines.flow.combine
@@ -24,6 +25,7 @@ class TvMainActivity : ComponentActivity() {
     private val dataSource: MainDataSource by inject()
     private val userActivity: TvUserActivity by inject()
     private val prefs: TvPreferences by inject()
+    private val tvVolumeProvider: TvVolumeProvider by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -73,6 +75,20 @@ class TvMainActivity : ComponentActivity() {
         if (event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
             if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) onBackPressedDispatcher.onBackPressed()
             return true
+        }
+        // On phone, dispatchKeyEvent receives volume keys; on Android TV they never arrive here.
+        // Intercept only for a remote player: send VolumeSet to the server and consume the event
+        // so the native volume bar does not appear. For the local player, let the system handle.
+        if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            val selected = dataSource.selectedPlayer
+            val local = dataSource.localPlayer.value
+            val isRemote = selected != null && local != null && selected.playerId != local.playerId
+            if (isRemote) {
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    tvVolumeProvider.adjustVolume(if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) 1 else -1)
+                }
+                return true
+            }
         }
         if (event.action == KeyEvent.ACTION_DOWN) userActivity.onKey(event.keyCode)
         if (event.keyCode in SELECT_KEYS && !replayingSelect) return onSelectKey(event)

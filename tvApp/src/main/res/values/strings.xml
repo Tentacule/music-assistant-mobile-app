@@ -58,6 +58,7 @@
     <string name="tv_delay_5m">After 5 minutes</string>
     <string name="tv_back">Back</string>
     <string name="tv_loading">Connecting…</string>
+    <string name="tv_accessibility_volume_description">Lets the volume keys on the remote control the selected Music Assistant player instead of the TV\'s own volume.</string>
     <string name="tv_default_player_name">My TV</string>
     <string name="tv_player_default_name">%1$s (Music Assistant)</string>
     <string name="tv_nav_player">Player</string>
