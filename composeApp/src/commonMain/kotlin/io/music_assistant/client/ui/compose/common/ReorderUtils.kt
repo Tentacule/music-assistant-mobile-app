@@ -29,3 +29,8 @@ internal fun <T> moveWithinEnabled(
     if (from !in 0 until enabledCount || to !in 0 until enabledCount) return items
     return items.toMutableList().apply { add(to, removeAt(from)) }
 }
+
+// Stable partition: enabled items first, each section keeps its order. A reconciled config
+// appends a new item enabled after the disabled ones, and reordering needs one enabled block.
+internal fun <T> List<Pair<T, Boolean>>.enabledFirst(): List<Pair<T, Boolean>> =
+    sortedByDescending { it.second }
