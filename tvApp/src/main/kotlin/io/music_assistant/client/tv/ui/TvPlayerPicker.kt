@@ -21,7 +21,10 @@ import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -30,8 +33,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.music_assistant.client.data.model.client.PlayerData
 import io.music_assistant.client.tv.R
+import io.music_assistant.client.ui.compose.home.HomeScreenViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.tv.material3.Button as TvButton
 import androidx.tv.material3.Icon as TvIcon
 import androidx.tv.material3.LocalContentColor as TvLocalContentColor
@@ -52,6 +58,23 @@ fun TvPlayerPicker(
 ) {
     val ordered = remember(players) { players.sortedByDescending { it.isLocal } }
     val selectedFocus = remember { FocusRequester() }
+    val homeScreenViewModel: HomeScreenViewModel = koinViewModel()
+    val canLeaveGroup by homeScreenViewModel.leaderLeaveSupported.collectAsStateWithLifecycle()
+    val selectedPlayer = players.firstOrNull { it.playerId == selectedPlayerId }
+    var grouping by remember { mutableStateOf(false) }
+
+    // Grouping replaces the list; Back returns to it.
+    if (grouping && selectedPlayerId != null) {
+        TvGroupDialog(
+            leaderId = selectedPlayerId,
+            players = players,
+            canLeaveGroup = canLeaveGroup,
+            onAction = homeScreenViewModel::playerAction,
+            onDismiss = { grouping = false },
+        )
+        return
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -83,6 +106,18 @@ fun TvPlayerPicker(
                     PlayerRow(player, selected)
                 }
             }
+            if (canGroupFrom(selectedPlayer, players)) {
+                TvOutlinedButton(
+                    onClick = { grouping = true },
+                    modifier = Modifier.padding(top = 8.dp),
+                ) {
+                    TvIcon(Icons.Default.Speaker, contentDescription = null)
+                    TvText(
+                        stringResource(R.string.tv_group_open, selectedPlayer?.player?.name.orEmpty()),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
         }
         LaunchedEffect(Unit) { runCatching { selectedFocus.requestFocus() } }
     }
@@ -101,7 +136,8 @@ private fun PlayerRow(player: PlayerData, selected: Boolean) {
                 text = if (player.isLocal) {
                     stringResource(R.string.tv_this_tv, player.player.name)
                 } else {
-                    player.player.name
+                    // "+2" after a speaker that leads a group, as on the phone.
+                    player.player.nameAndSuffix
                 },
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,

@@ -68,6 +68,15 @@
     <string name="tv_nav_player">Lecteur</string>
     <string name="tv_pick_player">Lire sur</string>
     <string name="tv_this_tv">%1$s · cette TV</string>
+    <string name="tv_group_open">Grouper avec %1$s…</string>
+    <string name="tv_group_title">Grouper avec %1$s</string>
+    <string name="tv_group_hint">OK ajoute ou retire une enceinte ; elle joue alors en même temps que %1$s. Cette TV ne joue que pour elle-même et n’est pas listée.</string>
+    <string name="tv_group_volume">Volume du groupe</string>
+    <string name="tv_group_leader">%1$s · meneur</string>
+    <string name="tv_group_none">Aucune enceinte ne peut jouer en même temps que celle-ci.</string>
+    <string name="tv_group_leave">Sortir %1$s du groupe</string>
+    <string name="tv_group_volume_down">Baisser le volume</string>
+    <string name="tv_group_volume_up">Monter le volume</string>
     <string name="tv_queue_nothing_next">Rien ensuite dans la file</string>
     <string name="tv_np_play_next">Lire ensuite</string>
     <string name="tv_np_move">Déplacer</string>

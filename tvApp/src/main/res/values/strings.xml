@@ -73,6 +73,15 @@
     <string name="tv_nav_player">Player</string>
     <string name="tv_pick_player">Play on</string>
     <string name="tv_this_tv">%1$s · this TV</string>
+    <string name="tv_group_open">Group with %1$s…</string>
+    <string name="tv_group_title">Group with %1$s</string>
+    <string name="tv_group_hint">OK adds or removes a speaker; it then plays in sync with %1$s. This TV plays only for itself and is not listed.</string>
+    <string name="tv_group_volume">Group volume</string>
+    <string name="tv_group_leader">%1$s · leader</string>
+    <string name="tv_group_none">No speaker can play in sync with this one.</string>
+    <string name="tv_group_leave">Take %1$s out of the group</string>
+    <string name="tv_group_volume_down">Lower the volume</string>
+    <string name="tv_group_volume_up">Raise the volume</string>
     <string name="tv_queue_nothing_next">Nothing next in the queue</string>
     <string name="tv_np_play_next">Play next</string>
     <string name="tv_np_move">Move</string>
