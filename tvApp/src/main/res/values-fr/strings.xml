@@ -53,6 +53,16 @@
     <string name="tv_delay_5m">Après 5 minutes</string>
     <string name="tv_back">Retour</string>
     <string name="tv_loading">Connexion…</string>
+    <string name="tv_accessibility_volume_description">Permet aux touches de volume de la télécommande de régler le lecteur Music Assistant sélectionné plutôt que le volume de la TV.</string>
+    <string name="tv_remote_volume">Touches de volume à distance</string>
+    <string name="tv_remote_volume_hint">Par défaut, les touches de volume changent le volume de cet appareil. Activez cette option pour qu’elles règlent le lecteur Music Assistant sélectionné quand c’est un autre appareil.</string>
+    <string name="tv_remote_volume_switch">Régler le lecteur sélectionné</string>
+    <string name="tv_remote_volume_setup">Encore une étape : activez le service « %1$s » dans les réglages d’accessibilité de cet appareil. Android prévient qu’un service peut voir ce que vous faites ; celui-ci n’agit que sur les touches de volume. D’ici là, les touches continuent de changer le volume de cet appareil.</string>
+    <string name="tv_remote_volume_ready">Le service « %1$s » est activé. Les touches de volume règlent le lecteur sélectionné quand c’est un autre appareil.</string>
+    <string name="tv_remote_volume_service_unused">Le service « %1$s » reste activé mais ne fait rien tant que cette option est désactivée. Vous pouvez le désactiver dans les réglages d’accessibilité.</string>
+    <string name="tv_remote_volume_open">Ouvrir les réglages d’accessibilité</string>
+    <string name="tv_remote_volume_open_general">Cet appareil n’a pas de lien direct vers eux. Dans ses réglages, cherchez Accessibilité, souvent sous Préférences de l’appareil.</string>
+    <string name="tv_remote_volume_open_failed">Cet appareil ne les a pas ouverts. Cherchez Accessibilité dans ses réglages, souvent sous Préférences de l’appareil.</string>
     <string name="tv_default_player_name">Ma TV</string>
     <string name="tv_player_default_name">%1$s (Music Assistant)</string>
     <string name="tv_nav_player">Lecteur</string>

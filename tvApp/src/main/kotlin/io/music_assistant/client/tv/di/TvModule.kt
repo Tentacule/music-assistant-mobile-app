@@ -1,6 +1,5 @@
 package io.music_assistant.client.tv.di
 
-import android.media.AudioManager
 import io.music_assistant.client.data.CarConnectionMonitor
 import io.music_assistant.client.tv.TvLyrics
 import io.music_assistant.client.tv.TvPreferences
@@ -23,13 +22,7 @@ import org.koin.dsl.module
 
 fun tvModule() = module {
     single { TvVolumeController() }
-    single {
-        TvVolumeProvider(
-            androidContext().getSystemService(AudioManager::class.java),
-            get(),
-            get(),
-        )
-    }
+    single { TvVolumeProvider(get(), get(), get()) }
     // No VolumeProvider: the TV uses setPlaybackToLocal (default), so Android TV handles
     // system volume natively. Volume keys are intercepted in TvMainActivity instead.
     single { SharedMediaSessionManager(androidContext(), get(), get()) }

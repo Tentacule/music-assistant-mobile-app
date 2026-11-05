@@ -190,6 +190,7 @@ fun TvPlaybackSettingsTab() {
 
         ThisTvCard()
         DefaultPlayerCard()
+        VolumeKeysCard()
     }
 
     if (pickingPlayer) {

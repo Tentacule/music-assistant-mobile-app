@@ -17,6 +17,7 @@ class TvVolumeController {
         /** 0.0–1.0, used as the progress bar fill. */
         val level: Float,
         val isMuted: Boolean = false,
+        val playerName: String? = null,
     )
 
     private val _overlay = MutableStateFlow<VolumeInfo?>(null)
@@ -24,9 +25,9 @@ class TvVolumeController {
 
     private var hideJob: Job? = null
 
-    fun show(level: Float, isMuted: Boolean = false) {
+    fun show(level: Float, isMuted: Boolean = false, playerName: String? = null) {
         hideJob?.cancel()
-        _overlay.value = VolumeInfo(level.coerceIn(0f, 1f), isMuted)
+        _overlay.value = VolumeInfo(level.coerceIn(0f, 1f), isMuted, playerName)
         hideJob = scope.launch {
             delay(HIDE_DELAY_MS)
             _overlay.value = null

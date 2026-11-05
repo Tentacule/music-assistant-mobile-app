@@ -106,6 +106,16 @@ class TvPreferences(context: Context) {
         _keepScreenOn.value = on
     }
 
+    private val _remoteVolumeKeys = MutableStateFlow(prefs.getBoolean(KEY_REMOTE_VOLUME_KEYS, false))
+
+    /** Whether the volume keys control a selected remote player; off by default, they stay on this device. */
+    val remoteVolumeKeys: StateFlow<Boolean> = _remoteVolumeKeys.asStateFlow()
+
+    fun setRemoteVolumeKeys(on: Boolean) {
+        prefs.edit().putBoolean(KEY_REMOTE_VOLUME_KEYS, on).apply()
+        _remoteVolumeKeys.value = on
+    }
+
     private val _lyricsMode = MutableStateFlow(prefs.getBoolean(KEY_LYRICS_MODE, false))
 
     /** Whether Now playing shows the lyrics (when the track has some); kept across tracks. */
@@ -129,6 +139,7 @@ class TvPreferences(context: Context) {
         const val LYRICS_OFFSET_MIN_MS = -1000
         const val LYRICS_OFFSET_MAX_MS = 1000
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
+        const val KEY_REMOTE_VOLUME_KEYS = "remote_volume_keys"
         const val KEY_MENU = "menu"
         const val KEY_NOW_PLAYING_DELAY = "now_playing_delay"
         const val KEY_NOW_PLAYING_STYLE = "now_playing_style"
