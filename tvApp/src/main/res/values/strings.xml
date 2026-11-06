@@ -145,4 +145,13 @@
     <string name="tv_option_norm_fixed">Fixed gain</string>
     <string name="tv_option_norm_fallback_fixed">Measured, or else fixed gain</string>
     <string name="tv_option_norm_fallback_dynamic">Measured, or else dynamic</string>
+    <string name="tv_tab_app">App</string>
+    <string name="tv_exit_on_back">When leaving the app</string>
+    <string name="tv_exit_on_back_never_ask">Exit without asking</string>
+    <string name="tv_exit_on_back_ask_if_local">Ask when playing on this TV</string>
+    <string name="tv_exit_on_back_always_ask">Always ask</string>
+    <string name="tv_exit_title">Leave Music Assistant?</string>
+    <string name="tv_exit_message">The music is playing on this TV and will stop if you quit.</string>
+    <string name="tv_exit_keep_playing">Keep playing</string>
+    <string name="tv_exit_stop_and_quit">Stop and quit</string>
 </resources>

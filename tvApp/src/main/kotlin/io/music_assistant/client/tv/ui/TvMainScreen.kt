@@ -1,5 +1,6 @@
 package io.music_assistant.client.tv.ui
 
+import android.app.Activity
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.focusGroup
@@ -34,6 +35,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import androidx.compose.ui.platform.LocalContext
 import co.touchlab.kermit.Logger
 import io.music_assistant.client.api.ErrorMessageBus
 import io.music_assistant.client.api.ServiceClient
@@ -43,6 +45,7 @@ import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.RecommendationFolder
 import io.music_assistant.client.tv.R
+import io.music_assistant.client.tv.ExitOnBackBehavior
 import io.music_assistant.client.tv.TvMenuEntry
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.TvUserActivity
@@ -506,6 +509,37 @@ fun TvMainScreen(openSettings: () -> Unit) {
             )
         }
         ToastHost(toastState = toastState)
+    }
+
+    val exitBehavior by prefs.exitOnBackBehavior.collectAsStateWithLifecycle()
+    var showExitDialog by remember { mutableStateOf(false) }
+    val activity = LocalContext.current as? Activity
+
+    // Back on the root Home: check whether to show the exit dialog.
+    BackHandler(enabled = !nowPlaying && backStack.size == 1 && backStack.first() == TvRoute.Home) {
+        val localPlaying = localPlayer?.player?.isPlaying == true
+        val anyPlaying = activePlayer?.player?.isPlaying == true
+        val shouldAsk = when (exitBehavior) {
+            ExitOnBackBehavior.NEVER_ASK -> false
+            ExitOnBackBehavior.ASK_IF_LOCAL -> localPlaying
+            ExitOnBackBehavior.ALWAYS_ASK -> anyPlaying
+        }
+        if (shouldAsk) showExitDialog = true else activity?.finish()
+    }
+
+    if (showExitDialog) {
+        TvExitDialog(
+            onKeepPlaying = {
+                showExitDialog = false
+                activity?.finish()
+            },
+            onStopAndQuit = {
+                showExitDialog = false
+                activePlayer?.let { dataSource.playerAction(it, PlayerAction.Stop) }
+                activity?.finish()
+            },
+            onDismiss = { showExitDialog = false },
+        )
     }
 
     // Back on the root of a section returns to Home before leaving the app.

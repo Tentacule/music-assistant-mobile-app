@@ -96,6 +96,19 @@ class TvPreferences(context: Context) {
         _lyricsOffsetMs.value = clamped
     }
 
+    private val _exitOnBackBehavior = MutableStateFlow(
+        ExitOnBackBehavior.entries.firstOrNull { it.name == prefs.getString(KEY_EXIT_ON_BACK, null) }
+            ?: ExitOnBackBehavior.ASK_IF_LOCAL,
+    )
+
+    /** What to do when the user presses Back on the app's root screen. */
+    val exitOnBackBehavior: StateFlow<ExitOnBackBehavior> = _exitOnBackBehavior.asStateFlow()
+
+    fun setExitOnBackBehavior(behavior: ExitOnBackBehavior) {
+        prefs.edit().putString(KEY_EXIT_ON_BACK, behavior.name).apply()
+        _exitOnBackBehavior.value = behavior
+    }
+
     private val _keepScreenOn = MutableStateFlow(prefs.getBoolean(KEY_KEEP_SCREEN_ON, true))
 
     /** Keep the screen on during playback; enabled by default. */
@@ -132,6 +145,7 @@ class TvPreferences(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_AUDIO_DEFAULTS_APPLIED, value).apply()
 
     private companion object {
+        const val KEY_EXIT_ON_BACK = "exit_on_back"
         const val KEY_AUDIO_DEFAULTS_APPLIED = "audio_defaults_applied"
         const val KEY_LYRICS_MODE = "lyrics_mode"
         const val KEY_DEFAULT_PLAYER_ID = "default_player_id"
@@ -147,6 +161,8 @@ class TvPreferences(context: Context) {
         const val KEY_VISUALIZER = "visualizer"
     }
 }
+
+enum class ExitOnBackBehavior { NEVER_ASK, ASK_IF_LOCAL, ALWAYS_ASK }
 
 enum class NowPlayingStyle { CLASSIC, BANNER }
 

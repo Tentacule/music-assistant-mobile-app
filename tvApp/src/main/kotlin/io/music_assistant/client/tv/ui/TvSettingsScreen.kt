@@ -52,6 +52,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Tab
 import androidx.tv.material3.TabRow
 import io.music_assistant.client.api.Defaults
+import io.music_assistant.client.tv.ExitOnBackBehavior
 import io.music_assistant.client.tv.NowPlayingDelay
 import io.music_assistant.client.tv.NowPlayingStyle
 import io.music_assistant.client.tv.R
@@ -67,7 +68,7 @@ import androidx.tv.material3.Button as TvButton
 import androidx.tv.material3.OutlinedButton as TvOutlinedButton
 import androidx.tv.material3.Text as TvText
 
-private enum class TvSettingsTab { SERVER, PLAYBACK, MENU, DISPLAY }
+private enum class TvSettingsTab { SERVER, PLAYBACK, MENU, DISPLAY, APP }
 
 /**
  * The TV settings, in tabs. Before sign-in there is only the server tab. Built on the phone settings
@@ -147,11 +148,14 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                         TvSettingsTab.PLAYBACK -> TvPlaybackSettingsTab()
                         TvSettingsTab.MENU -> TvMenuSettingsTab()
                         TvSettingsTab.DISPLAY -> {
-                            KeepScreenOnCard()
                             NowPlayingDelayCard()
                             NowPlayingStyleCard()
                             VisualizerCard()
                             LyricsOffsetCard()
+                        }
+                        TvSettingsTab.APP -> {
+                            ExitOnBackCard()
+                            KeepScreenOnCard()
                         }
                     }
                 }
@@ -165,6 +169,7 @@ private fun TvSettingsTab.title(): Int = when (this) {
     TvSettingsTab.PLAYBACK -> R.string.tv_tab_playback
     TvSettingsTab.MENU -> R.string.tv_tab_menu
     TvSettingsTab.DISPLAY -> R.string.tv_tab_display
+    TvSettingsTab.APP -> R.string.tv_tab_app
 }
 
 @Composable
@@ -409,6 +414,32 @@ private fun NowPlayingDelay.label(): Int = when (this) {
     NowPlayingDelay.SECONDS_30 -> R.string.tv_delay_30s
     NowPlayingDelay.MINUTE_1 -> R.string.tv_delay_1m
     NowPlayingDelay.MINUTES_5 -> R.string.tv_delay_5m
+}
+
+@Composable
+private fun ExitOnBackCard() {
+    val prefs: TvPreferences = koinInject()
+    val current by prefs.exitOnBackBehavior.collectAsStateWithLifecycle()
+    SettingsCard(stringResource(R.string.tv_exit_on_back)) {
+        Row(
+            modifier = Modifier.tvHorizontalFocusRow(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            ExitOnBackBehavior.entries.forEach { option ->
+                TvChoiceChip(
+                    label = stringResource(option.label()),
+                    selected = option == current,
+                    onClick = { prefs.setExitOnBackBehavior(option) },
+                )
+            }
+        }
+    }
+}
+
+private fun ExitOnBackBehavior.label(): Int = when (this) {
+    ExitOnBackBehavior.NEVER_ASK -> R.string.tv_exit_on_back_never_ask
+    ExitOnBackBehavior.ASK_IF_LOCAL -> R.string.tv_exit_on_back_ask_if_local
+    ExitOnBackBehavior.ALWAYS_ASK -> R.string.tv_exit_on_back_always_ask
 }
 
 @Composable

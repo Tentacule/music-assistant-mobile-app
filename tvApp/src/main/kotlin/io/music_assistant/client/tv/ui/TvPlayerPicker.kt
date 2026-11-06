@@ -172,5 +172,54 @@ fun TvTransferQueueDialog(
     }
 }
 
+/**
+ * Asks whether the user wants to keep the music playing in the background or stop it and quit.
+ * The default focus goes to "Keep playing" to avoid an accidental stop.
+ */
+@Composable
+fun TvExitDialog(
+    onKeepPlaying: () -> Unit,
+    onStopAndQuit: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val keepFocus = remember { FocusRequester() }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 480.dp)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(24.dp))
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            TvText(
+                stringResource(R.string.tv_exit_title),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            TvText(
+                stringResource(R.string.tv_exit_message),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.tvHorizontalFocusRow(),
+            ) {
+                TvButton(
+                    onClick = onKeepPlaying,
+                    modifier = Modifier.focusRequester(keepFocus),
+                ) {
+                    TvText(stringResource(R.string.tv_exit_keep_playing))
+                }
+                TvOutlinedButton(onClick = onStopAndQuit) {
+                    TvText(stringResource(R.string.tv_exit_stop_and_quit))
+                }
+            }
+            LaunchedEffect(Unit) { runCatching { keepFocus.requestFocus() } }
+        }
+    }
+}
+
 private const val PICKER_FOCUSED_SCALE = 1.03f
 private const val SECONDARY_ALPHA = 0.75f
