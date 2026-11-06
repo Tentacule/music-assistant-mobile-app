@@ -135,3 +135,26 @@ private fun Context.openIfReal(page: Intent): Boolean {
 }
 
 private const val SETTINGS_STUB_PACKAGE = "com.google.android.tv.frameworkpackagestubs"
+
+/**
+ * Fallback for devices (e.g. some Xiaomi TV boxes) where the firmware intercepts volume keys
+ * before the accessibility service. Listens to system volume changes via VOLUME_CHANGED_ACTION
+ * instead of intercepting key events directly.
+ */
+@Composable
+fun VolumeBroadcastFallbackCard() {
+    val prefs: TvPreferences = koinInject()
+    val enabled by prefs.volumeBroadcastFallback.collectAsStateWithLifecycle()
+
+    SettingsCard(stringResource(R.string.tv_volume_broadcast_fallback)) {
+        Text(stringResource(R.string.tv_volume_broadcast_fallback_hint), style = MaterialTheme.typography.bodyMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(stringResource(R.string.tv_volume_broadcast_fallback))
+            Switch(checked = enabled, onCheckedChange = { prefs.setVolumeBroadcastFallback(it) })
+        }
+    }
+}

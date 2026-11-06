@@ -157,6 +157,7 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                             NowPlayingControlsCard()
                             ExitOnBackCard()
                             KeepScreenOnCard()
+                            VolumeBroadcastFallbackCard()
                         }
                     }
                 }

@@ -10,6 +10,9 @@ import io.music_assistant.client.ui.compose.common.action.PlayerAction
  * Sends volume commands to the selected remote player and shows the overlay, when the user asked for
  * it ([TvPreferences.remoteVolumeKeys]). Otherwise the system changes the volume of this device.
  * On Android TV the volume keys never reach the Activity: they come from [TvVolumeAccessibilityService].
+ * On devices where the firmware intercepts volume keys before the accessibility service (e.g. some
+ * Xiaomi boxes), [TvMainActivity] registers a VOLUME_CHANGED_ACTION receiver as a fallback when
+ * [TvPreferences.volumeBroadcastFallback] is on.
  */
 class TvVolumeProvider(
     private val dataSource: MainDataSource,
@@ -21,15 +24,35 @@ class TvVolumeProvider(
         get() {
             if (!prefs.remoteVolumeKeys.value) return false
             val selected = dataSource.selectedPlayer ?: return false
-            val local = dataSource.localPlayer.value ?: return false
-            return selected.playerId != local.playerId
+            val local = dataSource.localPlayer.value
+            // If no local player is set up, any selected player is remote by definition.
+            return local == null || selected.playerId != local.playerId
         }
+
+    /** True while the volume overlay is showing (used to route D-pad left/right to volume). */
+    val isVolumeOverlayVisible: Boolean get() = volumeController.isVisible
 
     private class SentLevel(val playerId: String, val level: Float, val at: Long)
 
     // The server reports a new volume only after the command, so a quick second press would start
     // from the old value and the step would be lost: for a moment, it starts from the level sent.
     private var lastSent: SentLevel? = null
+
+    /**
+     * Opens the volume overlay at the current player level without sending a command.
+     * Used on devices where volume keys cannot be intercepted: the broadcast opens the overlay,
+     * and D-pad left/right then calls [adjustVolume] to actually change the remote volume.
+     */
+    fun openOverlay() {
+        val selected = dataSource.selectedPlayer ?: return
+        val now = SystemClock.uptimeMillis()
+        val level = lastSent
+            ?.takeIf { it.playerId == selected.playerId && now - it.at < SENT_LEVEL_VALID_MS }
+            ?.level
+            ?: selected.player.currentVolume
+            ?: 50f
+        volumeController.show(level / 100f, playerName = selected.player.name)
+    }
 
     fun adjustVolume(direction: Int) {
         if (direction == 0 || !controlsRemotePlayer) return

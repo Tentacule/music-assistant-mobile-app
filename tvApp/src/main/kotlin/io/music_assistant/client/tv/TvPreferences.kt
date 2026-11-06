@@ -139,6 +139,20 @@ class TvPreferences(context: Context) {
         _remoteVolumeKeys.value = on
     }
 
+    private val _volumeBroadcastFallback = MutableStateFlow(prefs.getBoolean(KEY_VOLUME_BROADCAST_FALLBACK, false))
+
+    /**
+     * On devices where the firmware intercepts volume keys before the accessibility service
+     * (e.g. some Xiaomi TV boxes), the app falls back to listening to VOLUME_CHANGED_ACTION
+     * broadcasts to detect key presses and control the remote player.
+     */
+    val volumeBroadcastFallback: StateFlow<Boolean> = _volumeBroadcastFallback.asStateFlow()
+
+    fun setVolumeBroadcastFallback(on: Boolean) {
+        prefs.edit().putBoolean(KEY_VOLUME_BROADCAST_FALLBACK, on).apply()
+        _volumeBroadcastFallback.value = on
+    }
+
     private val _lyricsMode = MutableStateFlow(prefs.getBoolean(KEY_LYRICS_MODE, false))
 
     /** Whether Now playing shows the lyrics (when the track has some); kept across tracks. */
@@ -165,6 +179,7 @@ class TvPreferences(context: Context) {
         const val LYRICS_OFFSET_MAX_MS = 1000
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
         const val KEY_REMOTE_VOLUME_KEYS = "remote_volume_keys"
+        const val KEY_VOLUME_BROADCAST_FALLBACK = "volume_broadcast_fallback"
         const val KEY_MENU = "menu"
         const val KEY_NOW_PLAYING_DELAY = "now_playing_delay"
         const val KEY_NOW_PLAYING_STYLE = "now_playing_style"

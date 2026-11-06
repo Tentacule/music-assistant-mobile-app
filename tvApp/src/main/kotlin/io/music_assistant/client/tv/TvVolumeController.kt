@@ -25,6 +25,8 @@ class TvVolumeController {
 
     private var hideJob: Job? = null
 
+    val isVisible: Boolean get() = overlay.value != null
+
     fun show(level: Float, isMuted: Boolean = false, playerName: String? = null) {
         hideJob?.cancel()
         _overlay.value = VolumeInfo(level.coerceIn(0f, 1f), isMuted, playerName)

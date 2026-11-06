@@ -1,7 +1,11 @@
 package io.music_assistant.client.tv
 
 import android.app.ForegroundServiceStartNotAllowedException
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -27,6 +31,12 @@ class TvMainActivity : ComponentActivity() {
     private val prefs: TvPreferences by inject()
     private val tvVolumeProvider: TvVolumeProvider by inject()
 
+    // Fallback for devices (e.g. some Xiaomi TV boxes) where the firmware intercepts volume keys
+    // before the accessibility service. Listens to system volume changes and forwards them to the
+    // remote player. Registered only while the Activity is started, and only when the pref is on.
+    private var volumeBroadcastReceiver: BroadcastReceiver? = null
+    private var lastVolumeFallbackMs = 0L
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -47,7 +57,49 @@ class TvMainActivity : ComponentActivity() {
             }
         }
 
+        prefs.volumeBroadcastFallback.asLiveData().observe(this) { enabled ->
+            if (enabled) registerVolumeFallback() else unregisterVolumeFallback()
+        }
+
         setContent { TvApp() }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterVolumeFallback()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (prefs.volumeBroadcastFallback.value) registerVolumeFallback()
+    }
+
+    private fun registerVolumeFallback() {
+        if (volumeBroadcastReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action != ACTION_VOLUME_CHANGED) return
+                // The firmware on some TV boxes fires several cascading broadcasts per key press.
+                // A cooldown ensures only the first one triggers a command.
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastVolumeFallbackMs < VOLUME_FALLBACK_COOLDOWN_MS) return
+                if (!tvVolumeProvider.controlsRemotePlayer) return
+                val streamType = intent.getIntExtra(EXTRA_STREAM_TYPE, -1)
+                if (streamType != AudioManager.STREAM_MUSIC) return
+                val newVal = intent.getIntExtra(EXTRA_STREAM_VALUE, -1)
+                val prevVal = intent.getIntExtra(EXTRA_PREV_STREAM_VALUE, -1)
+                if (newVal < 0 || prevVal < 0 || newVal == prevVal) return
+                lastVolumeFallbackMs = now
+                tvVolumeProvider.openOverlay()
+            }
+        }
+        registerReceiver(receiver, IntentFilter(ACTION_VOLUME_CHANGED))
+        volumeBroadcastReceiver = receiver
+    }
+
+    private fun unregisterVolumeFallback() {
+        volumeBroadcastReceiver?.let { unregisterReceiver(it) }
+        volumeBroadcastReceiver = null
     }
 
     private fun startPlaybackService() {
@@ -74,6 +126,21 @@ class TvMainActivity : ComponentActivity() {
         // real one through OnBackInvokedDispatcher), so the release presses Back directly.
         if (event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
             if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) onBackPressedDispatcher.onBackPressed()
+            return true
+        }
+        // When the volume overlay is open and a remote player is selected, the left/right D-pad
+        // keys adjust the remote player's volume instead of navigating the UI. This pairs with the
+        // volume broadcast fallback: on devices (e.g. Xiaomi TV boxes) where volume keys cannot be
+        // intercepted, a volume key press opens the overlay via a system broadcast, and the user
+        // then uses the D-pad to adjust precisely.
+        if (
+            tvVolumeProvider.isVolumeOverlayVisible &&
+            tvVolumeProvider.controlsRemotePlayer &&
+            (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+        ) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                tvVolumeProvider.adjustVolume(if (event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1)
+            }
             return true
         }
         // On phone, dispatchKeyEvent receives volume keys; on Android TV they never arrive here.
@@ -168,5 +235,11 @@ class TvMainActivity : ComponentActivity() {
         const val NO_PRESS = -1L
         const val LONG_PRESS_MARGIN_MS = 150L
         const val SEEK_SECONDS = 10L
+        // AudioManager hidden API strings for the volume broadcast fallback.
+        const val ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION"
+        const val EXTRA_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE"
+        const val EXTRA_STREAM_VALUE = "android.media.EXTRA_VOLUME_STREAM_VALUE"
+        const val EXTRA_PREV_STREAM_VALUE = "android.media.EXTRA_PREV_VOLUME_STREAM_VALUE"
+        const val VOLUME_FALLBACK_COOLDOWN_MS = 400L
     }
 }

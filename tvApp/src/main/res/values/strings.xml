@@ -159,4 +159,6 @@
     <string name="tv_np_controls_hint">OK shows or hides a control. The arrows move it.</string>
     <string name="tv_np_controls_reset">Restore the default controls</string>
     <string name="tv_np_contextual_note">when available</string>
+    <string name="tv_volume_broadcast_fallback">Volume keys fallback</string>
+    <string name="tv_volume_broadcast_fallback_hint">On some TV boxes (e.g. Xiaomi), the firmware handles volume keys before Music Assistant can see them. With this option on, pressing a volume key opens the volume overlay. While the overlay is open, use the left and right arrow keys on the D-pad to adjust the volume of the selected player.</string>
 </resources>
