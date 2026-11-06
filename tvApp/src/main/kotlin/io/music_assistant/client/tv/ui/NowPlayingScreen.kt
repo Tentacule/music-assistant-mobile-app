@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -89,6 +90,7 @@ import io.music_assistant.client.data.model.client.items.PodcastEpisode
 import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.play.PlayDispatcher
 import io.music_assistant.client.data.play.PlayRequest
+import io.music_assistant.client.tv.NpControlEntry
 import io.music_assistant.client.tv.NowPlayingStyle
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvLyrics
@@ -271,106 +273,104 @@ fun NowPlayingScreen(
     }
 
     val playing = info?.isPlaying == true
+    val npControls by prefs.npControls.collectAsStateWithLifecycle()
     val controls = buildList {
-        add(
-            NpControl(
-                KEY_SHUFFLE,
-                Icons.Default.Shuffle,
-                stringResource(R.string.tv_shuffle),
-                info?.shuffle == true || info?.isDynamic == true,
-            ) {
-                onAction(PlayerAction.ToggleShuffle(current = info?.shuffle == true))
-            },
-        )
-        add(
-            NpControl(KEY_PREVIOUS, Icons.Default.SkipPrevious, stringResource(R.string.tv_previous)) {
-            onAction(PlayerAction.Previous)
-        },
-        )
-        add(
-            NpControl(
-                KEY_PLAY_PAUSE,
-                if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                stringResource(if (playing) R.string.tv_pause else R.string.tv_play),
-            ) { onAction(PlayerAction.TogglePlayPause) },
-        )
-        add(
-            NpControl(
-                KEY_NEXT,
-                Icons.Default.SkipNext,
-                stringResource(R.string.tv_next),
-            ) { onAction(PlayerAction.Next) },
-        )
-        add(
-            NpControl(
-                KEY_REPEAT,
-                if (info?.repeatMode == RepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
-                stringResource(R.string.tv_repeat),
-                info?.repeatMode.let { it != null && it != RepeatMode.OFF },
-            ) { onAction(PlayerAction.ToggleRepeatMode(current = info?.repeatMode ?: RepeatMode.OFF)) },
-        )
-        info?.autoplay?.let { autoplay ->
-            add(
-                NpControl(
-                    KEY_AUTOPLAY,
-                    Icons.Default.AllInclusive,
-                    stringResource(R.string.tv_autoplay),
-                    autoplay || info.isDynamic,
-                ) {
-                    onAction(PlayerAction.ToggleDontStopTheMusic(current = autoplay))
-                },
-            )
-        }
-        info?.crossfade?.let { crossfade ->
-            add(
-                NpControl(KEY_CROSSFADE, CrossfadeIcon, stringResource(R.string.tv_crossfade), crossfade) {
-                    onAction(PlayerAction.ToggleCrossfade(current = crossfade))
-                },
-            )
-        }
-        add(
-            NpControl(
-                KEY_QUEUE,
-                Icons.AutoMirrored.Filled.QueueMusic,
-                stringResource(R.string.tv_nav_queue),
-            ) { onOpenQueue() },
-        )
-        add(
-            NpControl(
-                KEY_VISUALIZER,
-                Icons.Default.GraphicEq,
-                stringResource(R.string.tv_visualizer),
-                visualizer != VisualizerStyle.NONE,
-            ) {
-                prefs.setVisualizer(visualizer.next())
-                visualizerLabelShown = true
-            },
-        )
-        if (lyrics != null) {
-            add(
-                NpControl(KEY_LYRICS, Icons.Outlined.Lyrics, stringResource(R.string.tv_lyrics), lyricsMode) {
-                    prefs.setLyricsMode(!lyricsMode)
-                },
-            )
-        }
-        if (artists.isNotEmpty()) {
-            add(
-                NpControl(KEY_ARTIST, Icons.Default.Person, stringResource(R.string.tv_go_to_artist)) {
-                    if (artists.size == 1) {
-                        onNavigate(artists.first())
-                    } else {
-                        artistIndex = 0
-                        choosingArtist = true
-                    }
-                },
-            )
-        }
-        album?.let {
-            add(NpControl(KEY_ALBUM, Icons.Default.Album, stringResource(R.string.tv_go_to_album)) { onNavigate(it) })
+        npControls.filter { it.visible }.forEach { item ->
+            when (item.entry) {
+                NpControlEntry.SHUFFLE -> add(
+                    NpControl(
+                        KEY_SHUFFLE,
+                        Icons.Default.Shuffle,
+                        stringResource(R.string.tv_shuffle),
+                        info?.shuffle == true || info?.isDynamic == true,
+                    ) { onAction(PlayerAction.ToggleShuffle(current = info?.shuffle == true)) },
+                )
+                NpControlEntry.PREVIOUS -> add(
+                    NpControl(KEY_PREVIOUS, Icons.Default.SkipPrevious, stringResource(R.string.tv_previous)) {
+                        onAction(PlayerAction.Previous)
+                    },
+                )
+                NpControlEntry.PLAY_PAUSE -> add(
+                    NpControl(
+                        KEY_PLAY_PAUSE,
+                        if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        stringResource(if (playing) R.string.tv_pause else R.string.tv_play),
+                    ) { onAction(PlayerAction.TogglePlayPause) },
+                )
+                NpControlEntry.NEXT -> add(
+                    NpControl(KEY_NEXT, Icons.Default.SkipNext, stringResource(R.string.tv_next)) {
+                        onAction(PlayerAction.Next)
+                    },
+                )
+                NpControlEntry.REPEAT -> add(
+                    NpControl(
+                        KEY_REPEAT,
+                        if (info?.repeatMode == RepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                        stringResource(R.string.tv_repeat),
+                        info?.repeatMode.let { it != null && it != RepeatMode.OFF },
+                    ) { onAction(PlayerAction.ToggleRepeatMode(current = info?.repeatMode ?: RepeatMode.OFF)) },
+                )
+                NpControlEntry.AUTOPLAY -> info?.autoplay?.let { autoplay ->
+                    add(
+                        NpControl(
+                            KEY_AUTOPLAY,
+                            Icons.Default.AllInclusive,
+                            stringResource(R.string.tv_autoplay),
+                            autoplay || info.isDynamic,
+                        ) { onAction(PlayerAction.ToggleDontStopTheMusic(current = autoplay)) },
+                    )
+                }
+                NpControlEntry.CROSSFADE -> info?.crossfade?.let { crossfade ->
+                    add(
+                        NpControl(KEY_CROSSFADE, CrossfadeIcon, stringResource(R.string.tv_crossfade), crossfade) {
+                            onAction(PlayerAction.ToggleCrossfade(current = crossfade))
+                        },
+                    )
+                }
+                NpControlEntry.QUEUE -> add(
+                    NpControl(KEY_QUEUE, Icons.AutoMirrored.Filled.QueueMusic, stringResource(R.string.tv_nav_queue)) {
+                        onOpenQueue()
+                    },
+                )
+                NpControlEntry.VISUALIZER -> add(
+                    NpControl(
+                        KEY_VISUALIZER,
+                        Icons.Default.GraphicEq,
+                        stringResource(R.string.tv_visualizer),
+                        visualizer != VisualizerStyle.NONE,
+                    ) {
+                        prefs.setVisualizer(visualizer.next())
+                        visualizerLabelShown = true
+                    },
+                )
+                NpControlEntry.LYRICS -> if (lyrics != null) add(
+                    NpControl(KEY_LYRICS, Icons.Outlined.Lyrics, stringResource(R.string.tv_lyrics), lyricsMode) {
+                        prefs.setLyricsMode(!lyricsMode)
+                    },
+                )
+                NpControlEntry.ARTIST -> if (artists.isNotEmpty()) add(
+                    NpControl(KEY_ARTIST, Icons.Default.Person, stringResource(R.string.tv_go_to_artist)) {
+                        if (artists.size == 1) {
+                            onNavigate(artists.first())
+                        } else {
+                            artistIndex = 0
+                            choosingArtist = true
+                        }
+                    },
+                )
+                NpControlEntry.ALBUM -> album?.let {
+                    add(
+                        NpControl(KEY_ALBUM, Icons.Default.Album, stringResource(R.string.tv_go_to_album)) {
+                            onNavigate(it)
+                        },
+                    )
+                }
+            }
         }
     }
     val selectedIndex = controls.indexOfFirst { it.key == selectedKey }.takeIf { it >= 0 }
-        ?: controls.indexOfFirst { it.key == KEY_PLAY_PAUSE }
+        ?: controls.indexOfFirst { it.key == KEY_PLAY_PAUSE }.takeIf { it >= 0 }
+        ?: 0
 
     // Now playing never takes the focus: it stays on the element of the app underneath, so closing
     // the mode lands exactly there. The screen hands the remote's keys to [keys] meanwhile; every
@@ -658,21 +658,18 @@ fun NowPlayingScreen(
                             ChoiceChip(artist.displayName, selected = index == artistIndex)
                         }
                     } else {
-                        // The row holds up to a dozen controls (artist, album, lyrics come and go): they
-                        // shrink to fit the width rather than run off the screen.
-                        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            val count = controls.size.coerceAtLeast(1)
-                            val size = ((maxWidth - CONTROL_GAP * (count - 1)) / count).coerceAtMost(CONTROL_SIZE)
-                            Row(horizontalArrangement = Arrangement.spacedBy(CONTROL_GAP)) {
-                                controls.forEachIndexed { index, control ->
-                                    ControlButton(
-                                        control.icon,
-                                        control.label,
-                                        index == selectedIndex && !queueOpen,
-                                        control.active,
-                                        size,
-                                    )
-                                }
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(CONTROL_GAP, Alignment.CenterHorizontally),
+                            verticalArrangement = Arrangement.spacedBy(CONTROL_GAP),
+                        ) {
+                            controls.forEachIndexed { index, control ->
+                                ControlButton(
+                                    icon = control.icon,
+                                    label = control.label,
+                                    selected = index == selectedIndex && !queueOpen,
+                                    active = control.active,
+                                )
                             }
                         }
                     }
@@ -689,11 +686,11 @@ fun NowPlayingScreen(
                 }
             }
             AnimatedVisibility(
-                visible = controlsVisible && !queueOpen && !choosingArtist && menu == null && canAdd,
+                visible = controlsVisible && !queueOpen && !choosingArtist && menu == null,
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {
-                HintText(stringResource(R.string.tv_np_add_hint))
+                HintText(controls.getOrNull(selectedIndex)?.label ?: "")
             }
         }
     }

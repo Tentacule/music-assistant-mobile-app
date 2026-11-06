@@ -96,6 +96,16 @@ class TvPreferences(context: Context) {
         _lyricsOffsetMs.value = clamped
     }
 
+    private val _npControls = MutableStateFlow(parseNpControls(prefs.getString(KEY_NP_CONTROLS, null)))
+
+    /** The controls shown in the Now playing mode, in their display order. */
+    val npControls: StateFlow<List<NpControlItem>> = _npControls.asStateFlow()
+
+    fun setNpControls(controls: List<NpControlItem>) {
+        prefs.edit().putString(KEY_NP_CONTROLS, controls.encodeNpControls()).apply()
+        _npControls.value = controls
+    }
+
     private val _exitOnBackBehavior = MutableStateFlow(
         ExitOnBackBehavior.entries.firstOrNull { it.name == prefs.getString(KEY_EXIT_ON_BACK, null) }
             ?: ExitOnBackBehavior.ASK_IF_LOCAL,
@@ -145,6 +155,7 @@ class TvPreferences(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_AUDIO_DEFAULTS_APPLIED, value).apply()
 
     private companion object {
+        const val KEY_NP_CONTROLS = "np_controls"
         const val KEY_EXIT_ON_BACK = "exit_on_back"
         const val KEY_AUDIO_DEFAULTS_APPLIED = "audio_defaults_applied"
         const val KEY_LYRICS_MODE = "lyrics_mode"

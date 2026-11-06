@@ -154,4 +154,9 @@
     <string name="tv_exit_message">The music is playing on this TV and will stop if you quit.</string>
     <string name="tv_exit_keep_playing">Keep playing</string>
     <string name="tv_exit_stop_and_quit">Stop and quit</string>
+    <string name="tv_play_pause">Play / Pause</string>
+    <string name="tv_np_controls">Now playing controls</string>
+    <string name="tv_np_controls_hint">OK shows or hides a control. The arrows move it.</string>
+    <string name="tv_np_controls_reset">Restore the default controls</string>
+    <string name="tv_np_contextual_note">when available</string>
 </resources>

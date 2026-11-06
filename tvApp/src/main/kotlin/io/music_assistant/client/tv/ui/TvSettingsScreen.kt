@@ -154,6 +154,7 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                             LyricsOffsetCard()
                         }
                         TvSettingsTab.APP -> {
+                            NowPlayingControlsCard()
                             ExitOnBackCard()
                             KeepScreenOnCard()
                         }
