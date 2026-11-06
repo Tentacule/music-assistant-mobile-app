@@ -12,9 +12,7 @@ enum class TvMenuEntry(val category: LibraryCategory? = null) {
     SEARCH,
     ARTISTS(LibraryCategory.ARTISTS),
     ALBUMS(LibraryCategory.ALBUMS),
-
-    // On the TV, the queue takes the place of the Tracks list, because a whole-library track list
-    // is of little use with a remote.
+    TRACKS(LibraryCategory.TRACKS),
     QUEUE,
     PLAYLISTS(LibraryCategory.PLAYLISTS),
     AUDIOBOOKS(LibraryCategory.AUDIOBOOKS),
