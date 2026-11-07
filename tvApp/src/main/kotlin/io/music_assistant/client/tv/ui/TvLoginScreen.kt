@@ -33,13 +33,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -61,7 +70,8 @@ import io.music_assistant.client.tv.accounts.TvAccount
 import io.music_assistant.client.tv.accounts.TvAccountManager
 import io.music_assistant.client.tv.discovery.DiscoveredServer
 import io.music_assistant.client.tv.discovery.TvServerDiscovery
-import io.music_assistant.client.tv.discovery.localIpv4Addresses
+import io.music_assistant.client.tv.discovery.lanAddressFor
+import io.music_assistant.client.tv.login.HomeAssistantTvLogin
 import io.music_assistant.client.tv.login.LoginPageTexts
 import io.music_assistant.client.tv.login.QrCodeImage
 import io.music_assistant.client.tv.login.TvLoginWebServer
@@ -265,7 +275,7 @@ private fun ManualServerForm(onConnect: (ConnectionInfo) -> Unit) {
             placeholder = { Text(Defaults.URI) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).tvTextFieldFocus(),
         )
         OutlinedTextField(
             value = port,
@@ -274,7 +284,7 @@ private fun ManualServerForm(onConnect: (ConnectionInfo) -> Unit) {
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { connectFocus.requestFocus() }),
-            modifier = Modifier.width(140.dp),
+            modifier = Modifier.width(140.dp).tvTextFieldFocus(),
         )
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -319,11 +329,13 @@ private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
     // The page that the phone opens, for this server, while the sign-in shows.
     val texts = loginPageTexts()
     val scope = rememberCoroutineScope()
-    val webServer = remember(serverKey, haProvider) {
+    // One page for the whole sign-in: the provider list, which loads after it, does not restart it.
+    val currentHaProvider by rememberUpdatedState(haProvider)
+    val webServer = remember(serverKey) {
         TvLoginWebServer(
             texts = texts,
             serverName = serverName,
-            homeAssistant = haProvider != null,
+            homeAssistant = { currentHaProvider != null },
             onCredentials = { username, password ->
                 withContext(Dispatchers.Main) {
                     authManager.loginWithCredentials(BUILTIN_PROVIDER, username, password)
@@ -338,17 +350,22 @@ private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
             },
             homeAssistantUrl = { returnUrl ->
                 withContext(Dispatchers.Main) {
-                    haProvider?.let { authManager.getOAuthUrl(it, returnUrl).getOrNull() }
+                    currentHaProvider?.let { authManager.getOAuthUrl(it, returnUrl).getOrNull() }
                 }
             },
             onHomeAssistantToken = { token -> scope.launch { authManager.handleOAuthCallback(token) } },
         )
     }
     var pageBase by remember(webServer) { mutableStateOf<String?>(null) }
+    val serverHost = state.connectionInfo?.host
     DisposableEffect(webServer) {
-        val ip = localIpv4Addresses().firstOrNull()
         val port = webServer.start()
-        pageBase = if (ip != null && port != null) "http://$ip:$port" else null
+        // The address must be one that a phone next to the server reaches: the TV address on the
+        // network of the server, not the address of another interface (a VPN, an emulator NAT).
+        scope.launch {
+            val ip = lanAddressFor(serverHost)
+            pageBase = if (ip != null && port != null) "http://$ip:$port" else null
+        }
         onDispose { webServer.stop() }
     }
 
@@ -362,7 +379,8 @@ private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
             icon = Icons.Default.Person,
             title = stringResource(R.string.tv_login_method_account),
             selected = method != LoginMethod.HOME_ASSISTANT,
-            onClick = { method = LoginMethod.ACCOUNT },
+            // The token form belongs to this method: coming back to the card keeps it.
+            onClick = { if (method == LoginMethod.HOME_ASSISTANT) method = LoginMethod.ACCOUNT },
             modifier = Modifier.focusRequester(methodFocus),
         )
         if (haProvider != null) {
@@ -376,7 +394,8 @@ private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
     }
 
     when (method) {
-        LoginMethod.ACCOUNT, LoginMethod.TOKEN -> Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        // The phone first, then the TV keyboard, one under the other.
+        LoginMethod.ACCOUNT, LoginMethod.TOKEN -> Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
             pageBase?.let { base ->
                 PhoneCard(
                     url = "$base/?k=${webServer.secret}",
@@ -384,8 +403,8 @@ private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
                     hint = stringResource(R.string.tv_login_phone_hint),
                 )
             }
-            Card(modifier = Modifier.weight(1f)) {
-                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(24.dp).widthIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(stringResource(R.string.tv_login_on_tv), style = MaterialTheme.typography.titleMedium)
                     if (method == LoginMethod.TOKEN) {
                         TokenForm(enabled = !loading, onSubmit = { scope.launch { authManager.loginWithToken(it) } })
@@ -407,13 +426,30 @@ private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
             }
         }
 
-        LoginMethod.HOME_ASSISTANT -> pageBase?.let { base ->
-            PhoneCard(
-                url = "$base/ha?k=${webServer.secret}",
-                title = stringResource(R.string.tv_login_ha_title),
-                hint = stringResource(R.string.tv_login_ha_hint),
-            )
-        } ?: Text(stringResource(R.string.tv_login_no_network))
+        LoginMethod.HOME_ASSISTANT -> Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            pageBase?.let { base ->
+                PhoneCard(
+                    url = "$base/ha?k=${webServer.secret}",
+                    title = stringResource(R.string.tv_login_ha_title),
+                    hint = stringResource(R.string.tv_login_ha_hint),
+                )
+            }
+            haProvider?.let { provider ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(24.dp).widthIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(stringResource(R.string.tv_login_on_tv), style = MaterialTheme.typography.titleMedium)
+                        HomeAssistantTvForm(
+                            enabled = !loading,
+                            authorizationUrl = {
+                                authManager.getOAuthUrl(provider, pageBase?.let { "$it/ha/done" } ?: "http://localhost/")
+                                    .getOrNull()
+                            },
+                            onToken = authManager::handleOAuthCallback,
+                        )
+                    }
+                }
+            }
+        }
     }
 
     if (loading) {
@@ -435,10 +471,11 @@ private fun MethodCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // A method opens on focus, as the settings tabs do: the remote needs no extra OK.
     TvFocusSurface(
         onClick = onClick,
         selected = selected,
-        modifier = modifier.width(320.dp),
+        modifier = modifier.width(320.dp).onFocusChanged { if (it.isFocused) onClick() },
         shape = RoundedCornerShape(16.dp),
         containerColor = if (selected) null else MaterialTheme.colorScheme.surfaceContainer,
     ) {
@@ -456,14 +493,14 @@ private fun MethodCard(
 /** A QR code that the phone scans, with its address for a phone that cannot. */
 @Composable
 private fun PhoneCard(url: String, title: String, hint: String) {
-    Card {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(24.dp),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             QrCodeImage(content = url, size = 200.dp, description = title)
-            Column(Modifier.widthIn(max = 320.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.widthIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(hint, style = MaterialTheme.typography.bodyMedium)
                 Text(url.substringBefore("?"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
@@ -484,7 +521,7 @@ private fun CredentialsForm(enabled: Boolean, onSubmit: (String, String) -> Unit
         singleLine = true,
         enabled = enabled,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().tvTextFieldFocus(),
     )
     OutlinedTextField(
         value = password,
@@ -495,13 +532,123 @@ private fun CredentialsForm(enabled: Boolean, onSubmit: (String, String) -> Unit
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { submitFocus.requestFocus() }),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().tvTextFieldFocus(),
     )
     TvButton(
         onClick = { onSubmit(username.trim(), password) },
         enabled = enabled && username.isNotBlank() && password.isNotEmpty(),
         modifier = Modifier.focusRequester(submitFocus),
     ) { TvText(stringResource(R.string.tv_login)) }
+}
+
+/** Home Assistant on the TV: its username and password, then its two-factor code if it asks. */
+@Composable
+private fun HomeAssistantTvForm(
+    enabled: Boolean,
+    authorizationUrl: suspend () -> String?,
+    onToken: (String) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var username by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var login by remember { mutableStateOf<HomeAssistantTvLogin?>(null) }
+    var step by remember { mutableStateOf<HomeAssistantTvLogin.Step>(HomeAssistantTvLogin.Step.Credentials()) }
+    var busy by remember { mutableStateOf(false) }
+    val submitFocus = remember { FocusRequester() }
+
+    fun run(block: suspend () -> HomeAssistantTvLogin.Step) {
+        busy = true
+        scope.launch {
+            val next = block()
+            busy = false
+            when (next) {
+                is HomeAssistantTvLogin.Step.Done -> onToken(next.token)
+                is HomeAssistantTvLogin.Step.Failed -> login = null
+                else -> Unit
+            }
+            step = next
+        }
+    }
+
+    fun signIn() = run {
+        // A new sign-in each time: the server accepts the state of a sign-in once.
+        val url = authorizationUrl() ?: return@run HomeAssistantTvLogin.Step.Failed(null)
+        val started = HomeAssistantTvLogin(url).also { login = it }
+        when (val first = started.start()) {
+            is HomeAssistantTvLogin.Step.Credentials -> started.submitCredentials(username.trim(), password)
+            else -> first
+        }
+    }
+
+    val inputsEnabled = enabled && !busy
+    val current = step
+    if (current is HomeAssistantTvLogin.Step.Code) {
+        Text(stringResource(R.string.tv_login_ha_code_hint), style = MaterialTheme.typography.bodyMedium)
+        OutlinedTextField(
+            value = code,
+            onValueChange = { code = it },
+            label = { Text(stringResource(R.string.tv_login_ha_code)) },
+            singleLine = true,
+            enabled = inputsEnabled,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { submitFocus.requestFocus() }),
+            modifier = Modifier.fillMaxWidth().tvTextFieldFocus(),
+        )
+        TvButton(
+            onClick = { login?.let { flow -> run { flow.submitCode(code) } } },
+            enabled = inputsEnabled && code.isNotBlank(),
+            modifier = Modifier.focusRequester(submitFocus),
+        ) { TvText(stringResource(R.string.tv_login)) }
+    } else {
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text(stringResource(R.string.tv_login_username)) },
+            singleLine = true,
+            enabled = inputsEnabled,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+            modifier = Modifier.fillMaxWidth().tvTextFieldFocus(),
+        )
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text(stringResource(R.string.tv_login_password)) },
+            singleLine = true,
+            enabled = inputsEnabled,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { submitFocus.requestFocus() }),
+            modifier = Modifier.fillMaxWidth().tvTextFieldFocus(),
+        )
+        TvButton(
+            onClick = ::signIn,
+            enabled = inputsEnabled && username.isNotBlank() && password.isNotEmpty(),
+            modifier = Modifier.focusRequester(submitFocus),
+        ) { TvText(stringResource(R.string.tv_login_ha_sign_in)) }
+    }
+    if (busy) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+            Text(stringResource(R.string.tv_login_signing_in))
+        }
+    }
+    val error = when (current) {
+        is HomeAssistantTvLogin.Step.Credentials -> current.error?.let {
+            stringResource(
+                if (it == HomeAssistantTvLogin.Error.INVALID_CREDENTIALS) R.string.tv_login_ha_invalid else R.string.tv_login_ha_failed,
+            )
+        }
+        is HomeAssistantTvLogin.Step.Code -> current.error?.let {
+            stringResource(
+                if (it == HomeAssistantTvLogin.Error.INVALID_CODE) R.string.tv_login_ha_invalid_code else R.string.tv_login_ha_failed,
+            )
+        }
+        is HomeAssistantTvLogin.Step.Failed ->
+            listOfNotNull(stringResource(R.string.tv_login_ha_failed), current.message).joinToString(" ")
+        is HomeAssistantTvLogin.Step.Done -> null
+    }
+    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 }
 
 @Composable
@@ -513,7 +660,7 @@ private fun TokenForm(enabled: Boolean, onSubmit: (String) -> Unit) {
         label = { Text(stringResource(R.string.tv_login_token)) },
         singleLine = true,
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().tvTextFieldFocus(),
     )
     TvButton(onClick = { onSubmit(token) }, enabled = enabled && token.isNotBlank()) {
         TvText(stringResource(R.string.tv_login))
@@ -536,3 +683,20 @@ private fun loginPageTexts() = LoginPageTexts(
 
 private const val BUILTIN_PROVIDER = "builtin"
 private const val HOME_ASSISTANT_PROVIDER = "homeassistant"
+
+/**
+ * Up and Down leave a text field, as they leave any other control: a text field keeps them for its
+ * cursor, which traps the remote in it.
+ */
+@Composable
+private fun Modifier.tvTextFieldFocus(): Modifier {
+    val focusManager = LocalFocusManager.current
+    return onPreviewKeyEvent { event ->
+        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+        when (event.key) {
+            Key.DirectionUp -> focusManager.moveFocus(FocusDirection.Up)
+            Key.DirectionDown -> focusManager.moveFocus(FocusDirection.Down)
+            else -> false
+        }
+    }
+}

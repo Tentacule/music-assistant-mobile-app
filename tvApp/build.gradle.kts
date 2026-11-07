@@ -84,4 +84,7 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.test.junit)
+    // The real org.json: the android.jar of the unit tests only has stubs.
+    testImplementation("org.json:json:20240303")
+    testImplementation(libs.kotlinx.coroutines.test)
 }

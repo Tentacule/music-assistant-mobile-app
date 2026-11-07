@@ -223,4 +223,10 @@
     <string name="tv_pin_mismatch">The two PINs differ. Start again.</string>
     <string name="tv_pin_erase">Erase</string>
     <string name="tv_pin_protected">Protected by a PIN</string>
+    <string name="tv_login_ha_sign_in">Sign in with Home Assistant</string>
+    <string name="tv_login_ha_code">Verification code</string>
+    <string name="tv_login_ha_code_hint">Home Assistant asks for the code of your authenticator app.</string>
+    <string name="tv_login_ha_invalid">Wrong Home Assistant username or password.</string>
+    <string name="tv_login_ha_invalid_code">Wrong verification code.</string>
+    <string name="tv_login_ha_failed">The Home Assistant sign-in failed.</string>
 </resources>

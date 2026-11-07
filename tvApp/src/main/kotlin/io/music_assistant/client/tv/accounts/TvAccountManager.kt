@@ -86,6 +86,9 @@ class TvAccountManager(
 
     private var switchTimeout: Job? = null
 
+    /** Whether the first sign-in state of this app run was checked (see [onSessionState]). */
+    private var launchChecked = false
+
     init {
         migrateSharedTokens()
         scope.launch { serviceClient.sessionState.collect(::onSessionState) }
@@ -130,11 +133,28 @@ class TvAccountManager(
         val connected = state as? SessionState.Connected.Direct ?: return
         when (val data = connected.dataConnectionState) {
             is DataConnectionState.Authenticated -> {
+                launchChecked = true
                 val user = connected.user ?: return
                 onSignedIn(connected.connectionInfo, data, user)
             }
 
             is DataConnectionState.AwaitingAuth -> {
+                if (!launchChecked) {
+                    launchChecked = true
+                    // The app closed during the sign-in of another account: it starts on the server
+                    // of that sign-in, without a token. Open the account in use instead.
+                    val current = active.value
+                    val serverId = data.serverInfo.serverId
+                    if (data.authProcessState == AuthProcessState.NotStarted && _returnTo.value == null &&
+                        settings.getTokenForServer(serverId) == null && current?.token != null
+                    ) {
+                        log.i { "Started on a sign-in to $serverId: back to ${current.id}" }
+                        val wasLocked = _locked.value
+                        switchTo(current)
+                        _locked.value = wasLocked
+                        return
+                    }
+                }
                 val failed = data.authProcessState as? AuthProcessState.Failed ?: return
                 // The server refused the saved token: the account stays, and asks for a sign-in.
                 val target = _switching.value ?: active.value

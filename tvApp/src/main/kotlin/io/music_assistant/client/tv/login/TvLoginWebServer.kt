@@ -39,7 +39,7 @@ data class LoginPageTexts(
 class TvLoginWebServer(
     private val texts: LoginPageTexts,
     private val serverName: String,
-    private val homeAssistant: Boolean,
+    private val homeAssistant: () -> Boolean,
     private val onCredentials: suspend (username: String, password: String) -> String?,
     private val homeAssistantUrl: suspend (returnUrl: String) -> String?,
     private val onHomeAssistantToken: (String) -> Unit,
@@ -53,7 +53,7 @@ class TvLoginWebServer(
 
     /** Starts the page and returns its port, or null when no port is free. */
     fun start(): Int? {
-        val server = PORTS.firstNotNullOfOrNull { port -> runCatching { ServerSocket(port) }.getOrNull() }
+        val server = PORTS.firstNotNullOfOrNull { port -> runCatching { ServerSocket().apply { reuseAddress = true; bind(java.net.InetSocketAddress(port)) } }.getOrNull() }
             ?: return null
         socket = server
         scope.launch {
@@ -110,7 +110,7 @@ class TvLoginWebServer(
                 out.respond(200, error?.let { form(it) } ?: page(texts.success))
             }
 
-            method == "GET" && path == "/ha" && homeAssistant -> {
+            method == "GET" && path == "/ha" && homeAssistant() -> {
                 val host = headers["host"] ?: return out.respond(400, page(texts.failure))
                 val url = runBlocking { homeAssistantUrl("http://$host/ha/done?k=$secret") }
                 url?.let { out.redirect(it) } ?: out.respond(200, page(texts.failure))
@@ -141,7 +141,7 @@ class TvLoginWebServer(
           <button type="submit">${texts.signIn.html()}</button>
         </form>
         ${
-            if (homeAssistant) {
+            if (homeAssistant()) {
                 "<p class=\"or\">${texts.or.html()}</p><a class=\"button ha\" href=\"/ha?k=$secret\">${texts.homeAssistant.html()}</a>"
             } else {
                 ""

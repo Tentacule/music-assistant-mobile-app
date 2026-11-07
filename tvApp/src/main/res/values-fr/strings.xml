@@ -193,4 +193,10 @@
     <string name="tv_pin_mismatch">Les deux codes diffèrent. Recommencez.</string>
     <string name="tv_pin_erase">Effacer</string>
     <string name="tv_pin_protected">Protégé par un code PIN</string>
+    <string name="tv_login_ha_sign_in">Se connecter avec Home Assistant</string>
+    <string name="tv_login_ha_code">Code de vérification</string>
+    <string name="tv_login_ha_code_hint">Home Assistant demande le code de votre application d\'authentification.</string>
+    <string name="tv_login_ha_invalid">Nom d\'utilisateur ou mot de passe Home Assistant incorrect.</string>
+    <string name="tv_login_ha_invalid_code">Code de vérification incorrect.</string>
+    <string name="tv_login_ha_failed">La connexion à Home Assistant a échoué.</string>
 </resources>

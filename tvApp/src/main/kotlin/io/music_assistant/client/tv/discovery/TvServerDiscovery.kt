@@ -202,4 +202,27 @@ fun localIpv4Addresses(): List<String> = runCatching {
         .mapNotNull { it.hostAddress }
 }.getOrDefault(emptyList())
 
+/**
+ * The address of the TV that a phone on the network of the server can reach: the local address in
+ * the same /24 as the server. When no interface is on that network (an emulator behind its NAT, a
+ * VPN), the system property `debug.ma.tv.lan_host` gives the address to show, for a development
+ * setup that relays the page; otherwise the first local address.
+ */
+suspend fun lanAddressFor(serverHost: String?): String? = withContext(Dispatchers.IO) {
+    val local = localIpv4Addresses()
+    val serverIp = serverHost?.let { host ->
+        runCatching { java.net.InetAddress.getAllByName(host).filterIsInstance<Inet4Address>().firstOrNull()?.hostAddress }
+            .getOrNull()
+    }
+    val prefix = serverIp?.substringBeforeLast('.')
+    local.firstOrNull { prefix != null && it.substringBeforeLast('.') == prefix }
+        ?: systemProperty(LAN_HOST_PROPERTY)?.takeIf { it.isNotBlank() }
+        ?: local.firstOrNull()
+}
+
+private fun systemProperty(name: String): String? = runCatching {
+    Runtime.getRuntime().exec(arrayOf("getprop", name)).inputStream.bufferedReader().use { it.readText().trim() }
+}.getOrNull()
+
+private const val LAN_HOST_PROPERTY = "debug.ma.tv.lan_host"
 private const val PROBE_TIMEOUT_MS = 2_000
