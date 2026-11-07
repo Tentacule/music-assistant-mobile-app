@@ -157,6 +157,14 @@ actual class PlatformFeature {
   instead (`PlaylistAccess`, `ownerLine`): "Personal" or the owner, who sees it, and "Collaborative".
   The name of another owner comes from `config/providers/share_candidates`, which needs
   `library.write`. The car surfaces show none of this.
+- **Album groups**: the artist page shows one row for each album type (`AlbumGroup`, `ui/compose/item/artist/`):
+  Albums, EPs, Singles, Live, Compilations, Soundtracks, then Other. `AlbumGrouping` gives the shown groups and
+  their order. Other holds the albums with no known type and the albums of a type whose group is not shown. The
+  grouping is fixed for now (`AlbumGrouping.Default`), and a later setting will give it. A library artist gets
+  grouped library rows and one "Discography" row. A provider artist gets grouped discography rows, and the first
+  row shows the provider filter, which changes every row. An author or a narrator is not grouped. The server sends
+  every album of the artist, so "View all" of a group is `ItemList.ArtistLibrary` or `ArtistAlbums` with
+  `albumGroup`, and `ItemList.shownItems` keeps the albums of the group on the client.
 - **Library sort**: get the sort choices of a library list from `LibrarySortRepository.menu(mediaType)`, on the
   phone and in Android Auto. From server 2.11 (`sortWireFor`), the menu holds the fields of `music/sort_options`
   and the request sends `sort_field` and `sort_direction`. An older server gets the static `SortConfig` table and

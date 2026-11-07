@@ -20,6 +20,7 @@ import io.music_assistant.client.ui.compose.common.mapData
 import io.music_assistant.client.ui.compose.item.ItemDetailsViewModel.Companion.ARTIST_SECTION_LIMIT
 import io.music_assistant.client.ui.compose.item.ItemList
 import io.music_assistant.client.ui.compose.item.toRequests
+import io.music_assistant.client.ui.compose.item.withAlbumGroup
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -38,17 +39,21 @@ class ArtistDetailsViewModel(
     // An author or a narrator has audiobooks where a singer has albums, and no top tracks.
     private val audiobookType = artist.artistType?.takeIf { artist.isAudiobookArtist }
 
+    // Albums only: an author or a narrator has one row of audiobooks.
+    private val albumGrouping = AlbumGrouping.Default.takeIf { it.enabled && audiobookType == null }
+
     private fun List<AppMediaItem>.sectionItems(): List<AppMediaItem> =
         filter { if (audiobookType != null) it is Audiobook else it is Album }.take(ARTIST_SECTION_LIMIT)
 
     private val libraryItems = itemList(mediaItemRepository)
     val library = libraryItems.asFlow()
         .mapData {
-            Section(
-                items = it.sectionItems(),
+            sections(
+                items = it,
                 itemList = audiobookType
                     ?.let { type -> ItemList.ArtistLibraryAudiobooks(artist.itemId, type) }
                     ?: ItemList.ArtistLibrary(artist.itemId),
+                grouping = albumGrouping,
             )
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, DataState.Loading())
@@ -58,14 +63,35 @@ class ArtistDetailsViewModel(
     val all = allItems.asFlow()
         .combine(allProviderFilter) { items, providerFilter ->
             items.map {
-                Section(
-                    items = it.sectionItems(),
+                sections(
+                    items = it,
                     itemList = providerFilter?.current,
                     providerFilter = providerFilter,
+                    // A library artist has its albums grouped in the library rows. Its discography stays one row.
+                    grouping = albumGrouping?.takeUnless { artist.isInLibrary },
                 )
             }
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, DataState.Loading())
+
+    /**
+     * The rows of an album list: one row for each album group, or one row of every item without
+     * [grouping]. The provider filter changes every row, and only the first row shows it.
+     */
+    private fun sections(
+        items: List<AppMediaItem>,
+        itemList: ItemList?,
+        grouping: AlbumGrouping?,
+        providerFilter: Section.ProviderFilter? = null,
+    ): List<Section<AppMediaItem>> =
+        grouping?.group(items)?.mapIndexed { index, (group, albums) ->
+            Section(
+                items = albums.take(ARTIST_SECTION_LIMIT),
+                itemList = itemList?.withAlbumGroup(group),
+                providerFilter = providerFilter.takeIf { index == 0 },
+                albumGroup = group,
+            )
+        } ?: listOf(Section(items.sectionItems(), itemList, providerFilter))
 
     private val topTrackItems = itemList(mediaItemRepository)
     private val topTracksFilter = MutableStateFlow<Section.ProviderFilter?>(null)
@@ -173,6 +199,7 @@ class ArtistDetailsViewModel(
         val items: List<T>,
         val itemList: ItemList?,
         val providerFilter: ProviderFilter? = null,
+        val albumGroup: AlbumGroup? = null,
     ) {
         data class ProviderFilter(
             val current: ItemList,

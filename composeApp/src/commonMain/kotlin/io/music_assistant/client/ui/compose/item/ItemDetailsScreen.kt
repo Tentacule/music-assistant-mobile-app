@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
@@ -117,7 +118,9 @@ import io.music_assistant.client.ui.compose.common.viewmodel.ActionsViewModel
 import io.music_assistant.client.ui.compose.grid.gridItemMinSize
 import io.music_assistant.client.ui.compose.home.players.LyricsSheet
 import io.music_assistant.client.ui.compose.home.players.LyricsSheetKind
+import io.music_assistant.client.ui.compose.item.artist.AlbumGroup
 import io.music_assistant.client.ui.compose.item.artist.ArtistDetailsViewModel
+import io.music_assistant.client.ui.compose.item.artist.title
 import io.music_assistant.client.ui.compose.item.artist.ArtistDetailsViewModel.Section
 import io.music_assistant.client.ui.compose.nav.TopBarLayout
 import io.music_assistant.client.ui.compose.provider.ProviderViewModel
@@ -1146,12 +1149,13 @@ private fun ArtistContent(
             contentPadding = contentPadding,
         ) {
             item { heroSlot() }
-            item {
+            sectionRows(id = "library", sections = librarySection) { id, sectionData, group ->
                 SectionRow(
                     artist = artist,
-                    sectionData = librarySection,
-                    id = "library",
-                    title = Res.string.artist_section_in_library.toDisplayString(),
+                    sectionData = sectionData,
+                    id = id,
+                    title = group?.title()?.toDisplayString()
+                        ?: Res.string.artist_section_in_library.toDisplayString(),
                     onNavigateClick = onNavigateClick,
                     onNavigateToList = onNavigateToList,
                     onPlayChildClick = onPlayChildClick,
@@ -1163,15 +1167,15 @@ private fun ArtistContent(
                 )
             }
 
-            item {
+            sectionRows(id = "all", sections = allSection) { id, sectionData, group ->
                 SectionRow(
                     artist = artist,
-                    sectionData = allSection,
-                    id = "all",
-                    title = if (artist.isAudiobookArtist) {
-                        Res.string.artist_section_all_audiobooks.toDisplayString()
-                    } else {
-                        Res.string.artist_section_all.toDisplayString()
+                    sectionData = sectionData,
+                    id = id,
+                    title = when {
+                        group != null -> group.title().toDisplayString()
+                        artist.isAudiobookArtist -> Res.string.artist_section_all_audiobooks.toDisplayString()
+                        else -> Res.string.artist_section_all.toDisplayString()
                     },
                     onNavigateClick = onNavigateClick,
                     onNavigateToList = onNavigateToList,
@@ -1203,6 +1207,23 @@ private fun ArtistContent(
                 )
             }
         }
+    }
+}
+
+/**
+ * The rows of one artist section: one row for each album group, or one row. While the section
+ * loads, one placeholder row stands for it.
+ */
+private fun <T : AppMediaItem> LazyListScope.sectionRows(
+    id: String,
+    sections: DataState<List<Section<T>>>,
+    row: @Composable (id: String, sectionData: DataState<Section<T>>, group: AlbumGroup?) -> Unit,
+) {
+    sections.dataOrNull?.forEach { section ->
+        val rowId = section.albumGroup?.let { "$id-${it.name.lowercase()}" } ?: id
+        item(key = rowId) { row(rowId, DataState.Data(section), section.albumGroup) }
+    } ?: run {
+        if (sections is DataState.Loading) item(key = id) { row(id, DataState.Loading(), null) }
     }
 }
 

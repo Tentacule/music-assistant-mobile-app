@@ -4,6 +4,10 @@ import io.music_assistant.client.api.Request
 import io.music_assistant.client.data.model.client.ArtistType
 import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.SubItemContext
+import io.music_assistant.client.data.model.client.items.Album
+import io.music_assistant.client.data.model.client.items.AppMediaItem
+import io.music_assistant.client.ui.compose.item.artist.AlbumGroup
+import io.music_assistant.client.ui.compose.item.artist.AlbumGrouping
 import io.music_assistant.client.data.model.server.ProviderMapping
 import io.music_assistant.client.data.model.server.ServerMediaItem
 import kotlinx.serialization.Serializable
@@ -17,7 +21,10 @@ sealed interface ItemList {
     val sortContext: SubItemContext
 
     @Serializable
-    data class ArtistAlbums(val providerMappings: List<ProviderMapping>) : ItemList {
+    data class ArtistAlbums(
+        val providerMappings: List<ProviderMapping>,
+        val albumGroup: AlbumGroup? = null,
+    ) : ItemList {
         override val mediaType: MediaType = MediaType.ALBUM
         override val providerDomain: String = providerMappings.first().providerDomain
         override val sortContext: SubItemContext get() = SubItemContext.ARTIST_ALL_ALBUMS
@@ -44,7 +51,7 @@ sealed interface ItemList {
     }
 
     @Serializable
-    data class ArtistLibrary(val artistId: String) : ItemList {
+    data class ArtistLibrary(val artistId: String, val albumGroup: AlbumGroup? = null) : ItemList {
         override val mediaType: MediaType = MediaType.ALBUM
         override val providerDomain: String = ServerMediaItem.LIBRARY_PROVIDER
         override val sortContext: SubItemContext get() = SubItemContext.ARTIST_LIBRARY_ALBUMS
@@ -66,6 +73,30 @@ sealed interface ItemList {
         override val sortContext: SubItemContext get() = SubItemContext.ARTIST_AUDIOBOOKS
     }
 }
+
+/** The album group of an artist album list, or null for a list of every item. */
+val ItemList.albumGroup: AlbumGroup?
+    get() = when (this) {
+        is ItemList.ArtistAlbums -> albumGroup
+        is ItemList.ArtistLibrary -> albumGroup
+        else -> null
+    }
+
+/** This list narrowed to the albums of [group]. A list that is not an artist album list stays as it is. */
+fun ItemList.withAlbumGroup(group: AlbumGroup): ItemList = when (this) {
+    is ItemList.ArtistAlbums -> copy(albumGroup = group)
+    is ItemList.ArtistLibrary -> copy(albumGroup = group)
+    else -> this
+}
+
+/**
+ * The items of this list to show. The server sends every album of the artist, so the client
+ * keeps the albums of the [albumGroup].
+ */
+fun ItemList.shownItems(items: List<AppMediaItem>): List<AppMediaItem> =
+    albumGroup?.let { group ->
+        items.filter { it is Album && AlbumGrouping.Default.groupOf(it) == group }
+    } ?: items
 
 fun ItemList.toRequests(): List<Request> {
     return when (this) {
