@@ -1,6 +1,9 @@
 package io.music_assistant.client.tv.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,14 +12,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,9 +34,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -62,9 +74,11 @@ import io.music_assistant.client.ui.compose.auth.AuthenticationPanel
 import io.music_assistant.client.ui.compose.settings.SettingsViewModel
 import io.music_assistant.client.utils.DataConnectionState
 import io.music_assistant.client.utils.SessionState
+import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.tv.material3.Button as TvButton
+import androidx.tv.material3.Icon as TvIcon
 import androidx.tv.material3.OutlinedButton as TvOutlinedButton
 import androidx.tv.material3.Text as TvText
 
@@ -92,6 +106,9 @@ fun TvSettingsScreen(
     val tabs = if (signedIn) TvSettingsTab.entries else listOf(TvSettingsTab.ACCOUNT)
     var selectedTab by rememberSaveable { mutableStateOf(TvSettingsTab.ACCOUNT) }
     val currentTab = selectedTab.takeIf { it in tabs } ?: TvSettingsTab.ACCOUNT
+
+    // The open card of each tab, kept while the user moves between the tabs. All are closed at first.
+    val openCards = remember { mutableStateMapOf<TvSettingsTab, String>() }
 
     // Signed in, the first focus goes to the tab. Before that, the server form takes it itself.
     val currentTabFocus = remember { FocusRequester() }
@@ -140,30 +157,35 @@ fun TvSettingsScreen(
                 }
             }
             // Each tab scrolls on its own, and opens at its top.
+            val accordion = SettingsAccordion(open = openCards[currentTab]) { title ->
+                if (openCards[currentTab] == title) openCards.remove(currentTab) else openCards[currentTab] = title
+            }
             key(currentTab) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(bottom = 27.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
-                    when (currentTab) {
-                        TvSettingsTab.ACCOUNT -> TvAccountSettingsTab(openAccounts = openAccounts, onAddAccount = onAddAccount)
-                        TvSettingsTab.PLAYBACK -> TvPlaybackSettingsTab()
-                        TvSettingsTab.MENU -> TvMenuSettingsTab()
-                        TvSettingsTab.DISPLAY -> {
-                            NowPlayingDelayCard()
-                            NowPlayingStyleCard()
-                            VisualizerCard()
-                            LyricsOffsetCard()
-                            AlbumGroupingCard()
-                        }
-                        TvSettingsTab.APP -> {
-                            NowPlayingControlsCard()
-                            ExitOnBackCard()
-                            KeepScreenOnCard()
-                            VolumeBroadcastFallbackCard()
+                CompositionLocalProvider(LocalSettingsAccordion provides accordion) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(bottom = 27.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        when (currentTab) {
+                            TvSettingsTab.ACCOUNT -> TvAccountSettingsTab(openAccounts = openAccounts, onAddAccount = onAddAccount)
+                            TvSettingsTab.PLAYBACK -> TvPlaybackSettingsTab()
+                            TvSettingsTab.MENU -> TvMenuSettingsTab()
+                            TvSettingsTab.DISPLAY -> {
+                                NowPlayingDelayCard()
+                                NowPlayingStyleCard()
+                                VisualizerCard()
+                                LyricsOffsetCard()
+                                AlbumGroupingCard()
+                            }
+                            TvSettingsTab.APP -> {
+                                NowPlayingControlsCard()
+                                ExitOnBackCard()
+                                KeepScreenOnCard()
+                                VolumeBroadcastFallbackCard()
+                            }
                         }
                     }
                 }
@@ -333,15 +355,67 @@ private fun ExitOnBackBehavior.label(): Int = when (this) {
     ExitOnBackBehavior.ALWAYS_ASK -> R.string.tv_exit_on_back_always_ask
 }
 
+// After the expand animation, so the content has its full height.
+private const val OPEN_SCROLL_DELAY_MS = 300L
+
+/**
+ * The open card of a settings tab. A tab opens one card at a time, so its titles fit on one screen
+ * and the remote reaches each of them without scrolling past the others.
+ */
+class SettingsAccordion(val open: String?, val toggle: (String) -> Unit)
+
+/** Set by a settings tab: there a [SettingsCard] is an accordion section. */
+val LocalSettingsAccordion = compositionLocalOf<SettingsAccordion?> { null }
+
+/**
+ * A card of settings. In a settings tab ([LocalSettingsAccordion]) its title is a header that OK
+ * opens or closes, and the content shows while it is open. Elsewhere it is always open.
+ */
 @Composable
 fun SettingsCard(title: String, content: @Composable () -> Unit) {
+    val accordion = LocalSettingsAccordion.current
+    val expanded = accordion?.open?.let { it == title } ?: (accordion == null)
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            content()
+        Column {
+            accordion?.let {
+                TvFocusSurface(
+                    onClick = { it.toggle(title) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TvText(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                        TvIcon(
+                            if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                }
+            } ?: Text(
+                title,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
+            )
+            AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
+                // An opened card scrolls up as far as needed to show its content.
+                val bringIntoView = remember { BringIntoViewRequester() }
+                LaunchedEffect(Unit) {
+                    delay(OPEN_SCROLL_DELAY_MS)
+                    bringIntoView.bringIntoView()
+                }
+                Column(
+                    modifier = Modifier
+                        .bringIntoViewRequester(bringIntoView)
+                        .padding(start = 24.dp, end = 24.dp, bottom = 24.dp, top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    content()
+                }
+            }
         }
     }
 }

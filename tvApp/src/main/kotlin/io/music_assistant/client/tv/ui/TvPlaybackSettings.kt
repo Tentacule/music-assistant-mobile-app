@@ -143,7 +143,7 @@ fun TvPlaybackSettingsTab() {
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (saveFailed) {
             Text(
                 stringResource(R.string.tv_settings_save_failed),
