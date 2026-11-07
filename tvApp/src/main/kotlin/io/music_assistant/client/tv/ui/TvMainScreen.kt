@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +50,7 @@ import io.music_assistant.client.tv.ExitOnBackBehavior
 import io.music_assistant.client.tv.TvMenuEntry
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.TvUserActivity
+import io.music_assistant.client.tv.accounts.TvAccountManager
 import io.music_assistant.client.ui.compose.common.ProvideDpadFocusMemory
 import io.music_assistant.client.ui.compose.common.ToastDuration
 import io.music_assistant.client.ui.compose.common.ToastHost
@@ -122,7 +124,7 @@ private fun nextRouteId() = routeIds.incrementAndGet()
  * service and the shared local player, so switching never interrupts the music.
  */
 @Composable
-fun TvMainScreen(openSettings: () -> Unit) {
+fun TvMainScreen(openSettings: () -> Unit, openAccounts: () -> Unit) {
     val homeScreenViewModel: HomeScreenViewModel = koinViewModel()
     val actionsViewModel: ActionsViewModel = koinViewModel()
     val viewModeViewModel: ViewModeViewModel = koinViewModel()
@@ -253,6 +255,8 @@ fun TvMainScreen(openSettings: () -> Unit) {
     }
 
     val menu by prefs.menu.collectAsStateWithLifecycle()
+    val accountManager: TvAccountManager = koinInject()
+    val activeAccount by accountManager.active.collectAsStateWithLifecycle()
     val aiRadioAvailable by dataSource.aiRadioAvailable.collectAsStateWithLifecycle()
     val railItems = buildList {
         menu.filter { it.visible && it.entry.isOffered(aiRadioAvailable) }.forEach { (entry) ->
@@ -278,6 +282,16 @@ fun TvMainScreen(openSettings: () -> Unit) {
                 },
             )
         }
+        // The user of the app, which opens the quick switch between the saved accounts.
+        add(
+            TvRailItem(
+                ACCOUNT_RAIL_KEY,
+                Icons.Default.AccountCircle,
+                activeAccount?.label ?: stringResource(R.string.tv_accounts_title),
+                1,
+                onClick = openAccounts,
+            ),
+        )
         // Always there and always last: it is the way back to the choice of the entries above.
         add(
             TvRailItem(
@@ -577,6 +591,7 @@ private fun UnsupportedInstallDismissalKeeper(homeScreenViewModel: HomeScreenVie
 
 private const val FOCUS_ATTEMPTS = 40
 private const val SETTINGS_RAIL_KEY = "settings"
+private const val ACCOUNT_RAIL_KEY = "account"
 
 // Once per process: the app starts on this TV, and keeps the player chosen afterwards.
 private var localPlayerSelectedThisLaunch = false

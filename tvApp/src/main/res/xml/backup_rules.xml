@@ -10,4 +10,5 @@
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="AppSecrets.xml" />
+    <exclude domain="sharedpref" path="tv_accounts.xml" />
 </full-backup-content>

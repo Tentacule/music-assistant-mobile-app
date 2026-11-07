@@ -528,6 +528,14 @@ class AuthenticationManager(
         }
     }
 
+    /**
+     * Lift the block that a logout puts on the saved-token auto-login. The TV app calls it before it
+     * connects with the saved token of another account; the phone app never calls it.
+     */
+    fun allowAutoLogin() {
+        _isLoggingOut.value = false
+    }
+
     fun close() {
         scope.cancel()
     }

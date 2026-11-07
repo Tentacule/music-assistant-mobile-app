@@ -28,6 +28,14 @@ import io.music_assistant.client.api.ServiceClient
 import io.music_assistant.client.auth.AuthenticationManager
 import io.music_assistant.client.settings.SettingsRepository
 import io.music_assistant.client.tv.R
+import io.music_assistant.client.tv.accounts.TvAccountManager
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.tv.material3.OutlinedButton as TvOutlinedButton
+import androidx.tv.material3.Text as TvText
 import io.music_assistant.client.ui.compose.common.ProvideDislikeSupport
 import io.music_assistant.client.ui.compose.common.ProvideGrantedScopes
 import io.music_assistant.client.ui.compose.common.ProvidePlayMediaSupport
@@ -65,16 +73,22 @@ fun TvApp() {
     }
 }
 
-private enum class TvScreen { LOADING, SETTINGS, MAIN }
+private enum class TvScreen { LOADING, LOCKED, SWITCHING, LOGIN, ACCOUNTS, SETTINGS, MAIN }
 
 @Composable
 private fun TvRoot() {
     val serviceClient: ServiceClient = koinInject()
     val authManager: AuthenticationManager = koinInject()
+    val accounts: TvAccountManager = koinInject()
     val sessionState by serviceClient.sessionState.collectAsStateWithLifecycle()
+    val locked by accounts.locked.collectAsStateWithLifecycle()
+    val switching by accounts.switching.collectAsStateWithLifecycle()
+    val generation by accounts.generation.collectAsStateWithLifecycle()
+    val active by accounts.active.collectAsStateWithLifecycle()
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var accountsOpen by rememberSaveable { mutableStateOf(false) }
     // Once signed in, a reconnection or a trip to the background keeps the main screen (and so
-    // the browsing position and the Now playing mode) instead of falling back to settings.
+    // the browsing position and the Now playing mode) instead of falling back to the sign-in.
     var wasAuthenticated by remember { mutableStateOf(false) }
     var autoLoginSettled by remember { mutableStateOf(!authManager.willAutoLoginOnLaunch) }
 
@@ -90,43 +104,104 @@ private fun TvRoot() {
             else -> false
         }
         if (terminal) autoLoginSettled = true
-        // A sign-out or a disconnection by the user goes back to the server settings.
+        // A sign-out or a disconnection by the user goes back to the sign-in.
         if (sessionState is SessionState.Disconnected && sessionState !is SessionState.Disconnected.Backgrounded) {
             wasAuthenticated = false
         }
     }
+    // A new user opens on the main screen, not on the settings or the account picker of the last one.
+    LaunchedEffect(generation) {
+        settingsOpen = false
+        accountsOpen = false
+    }
 
-    val keepsMain = wasAuthenticated && when (sessionState) {
+    val keepsMain = wasAuthenticated && when (val s = sessionState) {
         is SessionState.Reconnecting, SessionState.Connecting, is SessionState.Disconnected.Backgrounded -> true
-        is SessionState.Connected -> (sessionState as SessionState.Connected).authProcessState !is AuthProcessState.Failed
+        is SessionState.Connected -> s.authProcessState !is AuthProcessState.Failed &&
+            s.authProcessState != AuthProcessState.LoggedOut
         else -> false
     }
     val screen = when {
+        locked && accountsOpen -> TvScreen.ACCOUNTS
+        locked -> TvScreen.LOCKED
+        switching != null -> TvScreen.SWITCHING
         !autoLoginSettled -> TvScreen.LOADING
+        accountsOpen && authenticated -> TvScreen.ACCOUNTS
         settingsOpen && authenticated -> TvScreen.SETTINGS
         authenticated || keepsMain -> TvScreen.MAIN
-        else -> TvScreen.SETTINGS
+        else -> TvScreen.LOGIN
     }
 
-    when (screen) {
-        TvScreen.LOADING -> LoadingScreen()
-        TvScreen.SETTINGS -> TvSettingsScreen(
-            canGoBack = authenticated,
-            onBack = { settingsOpen = false },
-        )
-        TvScreen.MAIN -> TvMainScreen(openSettings = { settingsOpen = true })
+    // The screens keep their ViewModels for one user only: a switch drops everything they loaded.
+    key(generation) {
+        UserScopedViewModels {
+            when (screen) {
+                TvScreen.LOADING -> LoadingScreen(stringResource(R.string.tv_loading))
+                TvScreen.SWITCHING -> LoadingScreen(
+                    stringResource(R.string.tv_accounts_switching, switching?.label.orEmpty()),
+                )
+                TvScreen.LOCKED -> active?.let { account ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        TvPinCheck(
+                            account = account,
+                            title = stringResource(R.string.tv_pin_unlock),
+                            onSuccess = accounts::unlock,
+                            actions = {
+                                TvOutlinedButton(onClick = { accountsOpen = true }) {
+                                    TvText(stringResource(R.string.tv_account_switch))
+                                }
+                            },
+                        )
+                    }
+                } ?: LaunchedEffect(Unit) { accounts.unlock() }
+                TvScreen.LOGIN -> TvLoginScreen()
+                TvScreen.ACCOUNTS -> TvAccountsScreen(
+                    onBack = { accountsOpen = false },
+                    onAddAccount = {
+                        accountsOpen = false
+                        accounts.unlock()
+                        accounts.startAddAccount()
+                    },
+                )
+                TvScreen.SETTINGS -> TvSettingsScreen(
+                    canGoBack = authenticated,
+                    onBack = { settingsOpen = false },
+                    openAccounts = { accountsOpen = true },
+                    onAddAccount = accounts::startAddAccount,
+                )
+                TvScreen.MAIN -> TvMainScreen(
+                    openSettings = { settingsOpen = true },
+                    openAccounts = { accountsOpen = true },
+                )
+            }
+        }
     }
 }
 
+/**
+ * Gives the screens below a ViewModel store of their own, cleared when they leave the composition,
+ * so a ViewModel never outlives the user it loaded data for.
+ */
 @Composable
-private fun LoadingScreen() {
+private fun UserScopedViewModels(content: @Composable () -> Unit) {
+    val owner = remember {
+        object : ViewModelStoreOwner {
+            override val viewModelStore = ViewModelStore()
+        }
+    }
+    DisposableEffect(owner) { onDispose { owner.viewModelStore.clear() } }
+    CompositionLocalProvider(LocalViewModelStoreOwner provides owner) { content() }
+}
+
+@Composable
+private fun LoadingScreen(label: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             CircularProgressIndicator()
-            Text(stringResource(R.string.tv_loading), style = MaterialTheme.typography.titleMedium)
+            Text(label, style = MaterialTheme.typography.titleMedium)
         }
     }
 }

@@ -35,4 +35,9 @@ class TvWaveform(private val client: ServiceClient) {
         synchronized(cache) { cache[key] = bins }
         return bins
     }
+
+    /** Forgets what the previous account or server loaded. */
+    fun clear() {
+        synchronized(cache) { cache.clear() }
+    }
 }

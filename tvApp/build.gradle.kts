@@ -77,6 +77,8 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.coil.compose)
     implementation(libs.kermit)
+    // QR codes of the sign-in screen (encoder only).
+    implementation("com.google.zxing:core:3.5.3")
     // For the JSON types of the shared API (kotlinx-serialization-json, which this brings along).
     implementation(libs.ktor.client.json)
     debugImplementation(libs.compose.ui.tooling)

@@ -43,6 +43,12 @@ class TvLyrics(private val items: MediaItemRepository) {
         return url
     }
 
+    /** Forgets what the previous account or server loaded. */
+    fun clear() {
+        synchronized(lyricsCache) { lyricsCache.clear() }
+        synchronized(artistImageCache) { artistImageCache.clear() }
+    }
+
     // A wide fan art fills a TV screen best; the square photo comes next.
     private fun Artist.imageUrlOrNull(): String? =
         images[ImageType.FANART]?.url ?: images[ImageType.THUMB]?.url ?: image(ImageType.MAIN)?.url

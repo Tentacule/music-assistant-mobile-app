@@ -68,15 +68,20 @@ import androidx.tv.material3.Button as TvButton
 import androidx.tv.material3.OutlinedButton as TvOutlinedButton
 import androidx.tv.material3.Text as TvText
 
-private enum class TvSettingsTab { SERVER, PLAYBACK, MENU, DISPLAY, APP }
+private enum class TvSettingsTab { ACCOUNT, PLAYBACK, MENU, DISPLAY, APP }
 
 /**
- * The TV settings, in tabs. Before sign-in there is only the server tab. Built on the phone settings
- * ViewModels; no QR code or OAuth sign-in (no camera, often no browser).
+ * The TV settings, in tabs, for the signed-in user. The sign-in itself is [TvLoginScreen]; the first
+ * tab manages the accounts.
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
+fun TvSettingsScreen(
+    canGoBack: Boolean,
+    onBack: () -> Unit,
+    openAccounts: () -> Unit,
+    onAddAccount: () -> Unit,
+) {
     val viewModel = koinViewModel<SettingsViewModel>()
     val sessionState by viewModel.sessionState.collectAsStateWithLifecycle()
 
@@ -84,9 +89,9 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
 
     val signedIn = (sessionState as? SessionState.Connected)
         ?.dataConnectionState is DataConnectionState.Authenticated
-    val tabs = if (signedIn) TvSettingsTab.entries else listOf(TvSettingsTab.SERVER)
-    var selectedTab by rememberSaveable { mutableStateOf(TvSettingsTab.SERVER) }
-    val currentTab = selectedTab.takeIf { it in tabs } ?: TvSettingsTab.SERVER
+    val tabs = if (signedIn) TvSettingsTab.entries else listOf(TvSettingsTab.ACCOUNT)
+    var selectedTab by rememberSaveable { mutableStateOf(TvSettingsTab.ACCOUNT) }
+    val currentTab = selectedTab.takeIf { it in tabs } ?: TvSettingsTab.ACCOUNT
 
     // Signed in, the first focus goes to the tab. Before that, the server form takes it itself.
     val currentTabFocus = remember { FocusRequester() }
@@ -144,7 +149,7 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
                     when (currentTab) {
-                        TvSettingsTab.SERVER -> ServerTab(viewModel)
+                        TvSettingsTab.ACCOUNT -> TvAccountSettingsTab(openAccounts = openAccounts, onAddAccount = onAddAccount)
                         TvSettingsTab.PLAYBACK -> TvPlaybackSettingsTab()
                         TvSettingsTab.MENU -> TvMenuSettingsTab()
                         TvSettingsTab.DISPLAY -> {
@@ -167,128 +172,11 @@ fun TvSettingsScreen(canGoBack: Boolean, onBack: () -> Unit) {
 }
 
 private fun TvSettingsTab.title(): Int = when (this) {
-    TvSettingsTab.SERVER -> R.string.tv_server
+    TvSettingsTab.ACCOUNT -> R.string.tv_tab_account
     TvSettingsTab.PLAYBACK -> R.string.tv_tab_playback
     TvSettingsTab.MENU -> R.string.tv_tab_menu
     TvSettingsTab.DISPLAY -> R.string.tv_tab_display
     TvSettingsTab.APP -> R.string.tv_tab_app
-}
-
-@Composable
-private fun ServerTab(viewModel: SettingsViewModel) {
-    val sessionState by viewModel.sessionState.collectAsStateWithLifecycle()
-    val savedConnectionInfo by viewModel.savedConnectionInfo.collectAsStateWithLifecycle()
-    val connectAttemptInFlight by viewModel.connectAttemptInFlight.collectAsStateWithLifecycle()
-
-    var host by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf(Defaults.PORT.toString()) }
-    var isTls by remember { mutableStateOf(false) }
-    LaunchedEffect(savedConnectionInfo) {
-        savedConnectionInfo?.let {
-            host = it.host
-            port = it.port.toString()
-            isTls = it.isTls
-        }
-    }
-
-    SettingsCard(stringResource(R.string.tv_server)) {
-        when (val state = sessionState) {
-            is SessionState.Disconnected -> ServerForm(
-                host = host,
-                port = port,
-                isTls = isTls,
-                onHostChange = { host = it },
-                onPortChange = { port = it },
-                onTlsChange = { isTls = it },
-                // An empty address means the default one, as on the phone, so the button stays focusable.
-                connectEnabled = port.toIntOrNull() != null && !connectAttemptInFlight,
-                onConnect = {
-                    viewModel.attemptConnection(host.trim().ifBlank { Defaults.URI }, port.trim(), isTls, "")
-                },
-            )
-
-            SessionState.Connecting, is SessionState.Reconnecting -> Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                CircularProgressIndicator()
-                Text(stringResource(R.string.tv_connecting, host), modifier = Modifier.weight(1f))
-                TvOutlinedButton(onClick = viewModel::disconnect) { TvText(stringResource(R.string.tv_cancel)) }
-            }
-
-            is SessionState.Connected -> {
-                val serverName = state.serverInfo?.name?.takeIf { it.isNotBlank() }
-                    ?: savedConnectionInfo?.let { "${it.host}:${it.port}" }.orEmpty()
-                Text(stringResource(R.string.tv_connected_to, serverName))
-                TvOutlinedButton(onClick = viewModel::disconnect) {
-                    TvText(stringResource(R.string.tv_disconnect))
-                }
-            }
-        }
-    }
-
-    (sessionState as? SessionState.Connected)?.let { connected ->
-        SettingsCard(stringResource(R.string.tv_login)) {
-            AuthenticationPanel(modifier = Modifier.fillMaxWidth(), user = connected.user)
-        }
-    }
-}
-
-@Composable
-private fun ServerForm(
-    host: String,
-    port: String,
-    isTls: Boolean,
-    onHostChange: (String) -> Unit,
-    onPortChange: (String) -> Unit,
-    onTlsChange: (Boolean) -> Unit,
-    connectEnabled: Boolean,
-    onConnect: () -> Unit,
-) {
-    // The first focus goes to the button, not to a text field: on a TV, a focused field opens the
-    // on-screen keyboard over the form.
-    val connectFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { connectFocus.requestFocus() } }
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        OutlinedTextField(
-            value = host,
-            onValueChange = onHostChange,
-            label = { Text(stringResource(R.string.tv_server_host)) },
-            placeholder = { Text(Defaults.URI) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
-            modifier = Modifier.weight(1f),
-        )
-        OutlinedTextField(
-            value = port,
-            onValueChange = onPortChange,
-            label = { Text(stringResource(R.string.tv_server_port)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { connectFocus.requestFocus() }),
-            modifier = Modifier
-                .width(140.dp)
-                .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown &&
-                        (event.key == Key.DirectionUp || event.key == Key.DirectionDown)
-                    ) {
-                        connectFocus.requestFocus()
-                        true
-                    } else {
-                        false
-                    }
-                },
-        )
-    }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.tv_server_tls), modifier = Modifier.weight(1f))
-        Switch(checked = isTls, onCheckedChange = onTlsChange)
-    }
-    TvButton(
-        onClick = onConnect,
-        enabled = connectEnabled,
-        modifier = Modifier.focusRequester(connectFocus),
-    ) { TvText(stringResource(R.string.tv_connect)) }
 }
 
 @Composable

@@ -6,6 +6,7 @@ import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.TvUserActivity
 import io.music_assistant.client.tv.TvVolumeController
 import io.music_assistant.client.tv.TvWaveform
+import io.music_assistant.client.tv.accounts.TvAccountManager
 import io.music_assistant.client.tv.audio.TapAudioSink
 import io.music_assistant.client.tv.audio.VisualizerTap
 import io.music_assistant.client.tv.services.SharedMediaSessionManager
@@ -32,6 +33,7 @@ fun tvModule() = module {
     single { TvLyrics(get()) }
     single { TvWaveform(get()) }
     single { TvUserActivity() }
+    single(createdAtStart = true) { TvAccountManager(androidContext(), get(), get(), get(), get(), get()) }
     viewModel { TvPlaybackSettingsViewModel(get()) }
     // The TV's audio output, with a copy for the Now playing visualizations. Replaces the shared
     // binding (this module loads after androidModule()).
