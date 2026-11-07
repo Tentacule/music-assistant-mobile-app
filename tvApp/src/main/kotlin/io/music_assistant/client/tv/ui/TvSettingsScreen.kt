@@ -157,6 +157,7 @@ fun TvSettingsScreen(
                             NowPlayingStyleCard()
                             VisualizerCard()
                             LyricsOffsetCard()
+                            AlbumGroupingCard()
                         }
                         TvSettingsTab.APP -> {
                             NowPlayingControlsCard()

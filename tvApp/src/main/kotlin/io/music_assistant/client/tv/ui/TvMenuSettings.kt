@@ -31,7 +31,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvMenuEntry
-import io.music_assistant.client.tv.TvMenuItem
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.defaultTvMenu
 import io.music_assistant.client.tv.moved
@@ -88,8 +87,10 @@ fun TvMenuSettingsTab() {
         menu.filter { isListed(it.entry) }.forEach { item ->
             // Keyed by entry, so that the focus travels with the row when it moves.
             key(item.entry) {
-                MenuRow(
-                    item = item,
+                TvOrderRow(
+                    icon = item.entry.icon(),
+                    label = item.entry.label(),
+                    visible = item.visible,
                     onToggle = { prefs.setMenu(menu.toggled(item.entry)) },
                     onMoveUp = { prefs.setMenu(menu.moved(item.entry, -1, isListed)) },
                     onMoveDown = { prefs.setMenu(menu.moved(item.entry, 1, isListed)) },
@@ -103,8 +104,20 @@ fun TvMenuSettingsTab() {
     }
 }
 
+/**
+ * A row of an ordered list that the remote edits: OK on the row shows or hides it, unless
+ * [canHide] is false, and the arrows beside it move it.
+ */
 @Composable
-private fun MenuRow(item: TvMenuItem, onToggle: () -> Unit, onMoveUp: () -> Unit, onMoveDown: () -> Unit) {
+fun TvOrderRow(
+    icon: ImageVector?,
+    label: String,
+    visible: Boolean,
+    onToggle: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    canHide: Boolean = true,
+) {
     Row(
         modifier = Modifier.tvHorizontalFocusRow(),
         verticalAlignment = Alignment.CenterVertically,
@@ -121,24 +134,24 @@ private fun MenuRow(item: TvMenuItem, onToggle: () -> Unit, onMoveUp: () -> Unit
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                val contentAlpha = if (item.visible) 1f else HIDDEN_ALPHA
-                TvIcon(
-                    item.entry.icon(),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp).alpha(contentAlpha),
-                )
+                val contentAlpha = if (visible) 1f else HIDDEN_ALPHA
+                icon?.let {
+                    TvIcon(it, contentDescription = null, modifier = Modifier.size(24.dp).alpha(contentAlpha))
+                }
                 TvText(
-                    item.entry.label(),
+                    label,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f).alpha(contentAlpha),
                 )
-                TvIcon(
-                    if (item.visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                    contentDescription = stringResource(
-                        if (item.visible) R.string.tv_menu_shown else R.string.tv_menu_hidden,
-                    ),
-                    modifier = Modifier.size(24.dp),
-                )
+                if (canHide) {
+                    TvIcon(
+                        if (visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = stringResource(
+                            if (visible) R.string.tv_menu_shown else R.string.tv_menu_hidden,
+                        ),
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
             }
         }
         TvIconButton(Icons.Default.ArrowUpward, stringResource(R.string.tv_menu_move_up), onMoveUp)

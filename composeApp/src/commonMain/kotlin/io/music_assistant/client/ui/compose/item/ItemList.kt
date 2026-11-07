@@ -1,13 +1,13 @@
 package io.music_assistant.client.ui.compose.item
 
 import io.music_assistant.client.api.Request
+import io.music_assistant.client.data.model.client.AlbumGroup
+import io.music_assistant.client.data.model.client.AlbumGrouping
 import io.music_assistant.client.data.model.client.ArtistType
 import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.SubItemContext
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
-import io.music_assistant.client.ui.compose.item.artist.AlbumGroup
-import io.music_assistant.client.ui.compose.item.artist.AlbumGrouping
 import io.music_assistant.client.data.model.server.ProviderMapping
 import io.music_assistant.client.data.model.server.ServerMediaItem
 import kotlinx.serialization.Serializable
@@ -91,11 +91,11 @@ fun ItemList.withAlbumGroup(group: AlbumGroup): ItemList = when (this) {
 
 /**
  * The items of this list to show. The server sends every album of the artist, so the client
- * keeps the albums of the [albumGroup].
+ * keeps the albums that [grouping] puts in the [albumGroup].
  */
-fun ItemList.shownItems(items: List<AppMediaItem>): List<AppMediaItem> =
+fun ItemList.shownItems(items: List<AppMediaItem>, grouping: AlbumGrouping): List<AppMediaItem> =
     albumGroup?.let { group ->
-        items.filter { it is Album && AlbumGrouping.Default.groupOf(it) == group }
+        items.filter { it is Album && grouping.groupOf(it) == group }
     } ?: items
 
 fun ItemList.toRequests(): List<Request> {

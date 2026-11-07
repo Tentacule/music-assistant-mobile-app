@@ -37,9 +37,14 @@ class ItemListViewModel(
     private val _query = MutableStateFlow<String?>(null)
     val query: StateFlow<String?> = _query.asStateFlow()
 
-    val state = combine(items.asFlow(), sortOption, _query) { items, sortOption, query ->
+    val state = combine(
+        items.asFlow(),
+        sortOption,
+        _query,
+        settingsRepository.albumGrouping,
+    ) { items, sortOption, query, grouping ->
         State(
-            items = items.map { itemList.shownItems(it).clientFiltered(query.orEmpty()).clientSorted(sortOption, itemList.sortContext) },
+            items = items.map { itemList.shownItems(it, grouping).clientFiltered(query.orEmpty()).clientSorted(sortOption, itemList.sortContext) },
             sortOption = sortOption,
         )
     }.flowOn(Dispatchers.Default) // filter + sort per keystroke and per list change

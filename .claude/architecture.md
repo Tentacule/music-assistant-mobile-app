@@ -157,10 +157,11 @@ actual class PlatformFeature {
   instead (`PlaylistAccess`, `ownerLine`): "Personal" or the owner, who sees it, and "Collaborative".
   The name of another owner comes from `config/providers/share_candidates`, which needs
   `library.write`. The car surfaces show none of this.
-- **Album groups**: the artist page shows one row for each album type (`AlbumGroup`, `ui/compose/item/artist/`):
-  Albums, EPs, Singles, Live, Compilations, Soundtracks, then Other. `AlbumGrouping` gives the shown groups and
-  their order. Other holds the albums with no known type and the albums of a type whose group is not shown. The
-  grouping is fixed for now (`AlbumGrouping.Default`), and a later setting will give it. A library artist gets
+- **Album groups**: the artist page shows one row for each album type (`AlbumGroup`, `data/model/client/`):
+  by default Albums, EPs, Singles, Live, Compilations, Soundtracks, then Other. `AlbumGrouping` holds the setting
+  (`SettingsRepository.albumGrouping`): on or off, and every group in display order with its shown state. Other
+  holds the albums with no known type and the albums of a hidden group, so Other cannot be hidden. The TV edits
+  the setting in Settings → Display (`AlbumGroupingCard`). The phone has no editor yet. A library artist gets
   grouped library rows and one "Discography" row. A provider artist gets grouped discography rows, and the first
   row shows the provider filter, which changes every row. An author or a narrator is not grouped. The server sends
   every album of the artist, so "View all" of a group is `ItemList.ArtistLibrary` or `ArtistAlbums` with

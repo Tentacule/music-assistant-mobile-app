@@ -88,6 +88,11 @@
     <string name="tv_menu_move_up">Monter</string>
     <string name="tv_menu_move_down">Descendre</string>
     <string name="tv_menu_reset">Rétablir le menu par défaut</string>
+    <string name="tv_album_groups">Albums sur la page artiste</string>
+    <string name="tv_album_groups_hint">Une rangée par type d\'album. OK affiche ou masque un type et les flèches le déplacent. Les albums d\'un type masqué vont dans Autre.</string>
+    <string name="tv_album_groups_enabled">Groupés par type</string>
+    <string name="tv_album_groups_disabled">Une seule rangée</string>
+    <string name="tv_album_groups_reset">Rétablir les types par défaut</string>
     <string name="tv_settings_save_failed">Le serveur n’a pas enregistré ce réglage.</string>
     <string name="tv_section_this_player">Ce lecteur</string>
     <string name="tv_section_this_player_hint">Ces réglages s’appliquent à la file de ce lecteur seulement. Défaut du serveur suit les réglages de tous les lecteurs. Changer le type de fondu ou la normalisation du volume redémarre la lecture sur ce lecteur.</string>

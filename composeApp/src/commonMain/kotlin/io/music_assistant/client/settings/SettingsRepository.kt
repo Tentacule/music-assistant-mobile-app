@@ -1,5 +1,6 @@
 package io.music_assistant.client.settings
 
+import io.music_assistant.client.data.model.client.AlbumGrouping
 import com.russhwolf.settings.Settings
 import io.music_assistant.client.api.ConnectionInfo
 import io.music_assistant.client.data.model.client.ClickContext
@@ -191,6 +192,21 @@ class SettingsRepository(
     fun setHideUnavailablePlayers(hide: Boolean) {
         settings.putBoolean("hide_unavailable_players", hide)
         _hideUnavailablePlayers.update { hide }
+    }
+
+    // Album rows of the artist page: on or off, and the shown groups in their order.
+    private val _albumGrouping = MutableStateFlow(
+        AlbumGrouping.parse(
+            enabled = settings.getBoolean("artist_album_grouping", true),
+            storedGroups = settings.getStringOrNull("artist_album_groups"),
+        ),
+    )
+    val albumGrouping = _albumGrouping.asStateFlow()
+
+    fun setAlbumGrouping(grouping: AlbumGrouping) {
+        settings.putBoolean("artist_album_grouping", grouping.enabled)
+        settings.putString("artist_album_groups", grouping.encodeGroups())
+        _albumGrouping.update { grouping }
     }
 
     // Home-screen rows: visibility + user-defined order in a single ordered list.

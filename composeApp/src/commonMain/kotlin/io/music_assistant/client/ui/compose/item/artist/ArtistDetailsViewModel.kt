@@ -3,6 +3,8 @@ package io.music_assistant.client.ui.compose.item.artist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.music_assistant.client.api.Request
+import io.music_assistant.client.data.model.client.AlbumGroup
+import io.music_assistant.client.data.model.client.AlbumGrouping
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.Artist
@@ -14,13 +16,14 @@ import io.music_assistant.client.data.model.client.items.set
 import io.music_assistant.client.data.repository.MediaItemChange
 import io.music_assistant.client.data.repository.MediaItemRepository
 import io.music_assistant.client.data.repository.ProviderRepository
+import io.music_assistant.client.settings.SettingsRepository
 import io.music_assistant.client.ui.compose.common.DataState
 import io.music_assistant.client.ui.compose.common.map
-import io.music_assistant.client.ui.compose.common.mapData
 import io.music_assistant.client.ui.compose.item.ItemDetailsViewModel.Companion.ARTIST_SECTION_LIMIT
 import io.music_assistant.client.ui.compose.item.ItemList
 import io.music_assistant.client.ui.compose.item.toRequests
 import io.music_assistant.client.ui.compose.item.withAlbumGroup
+import io.music_assistant.client.utils.mapState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -33,6 +36,7 @@ class ArtistDetailsViewModel(
     private val artist: Artist,
     mediaItemRepository: MediaItemRepository,
     private val providerRepository: ProviderRepository,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
     private val fetchArtistItemsUseCase = FetchArtistItemsUseCase(mediaItemRepository)
 
@@ -40,35 +44,38 @@ class ArtistDetailsViewModel(
     private val audiobookType = artist.artistType?.takeIf { artist.isAudiobookArtist }
 
     // Albums only: an author or a narrator has one row of audiobooks.
-    private val albumGrouping = AlbumGrouping.Default.takeIf { it.enabled && audiobookType == null }
+    private val albumGrouping = settingsRepository.albumGrouping.mapState { grouping ->
+        grouping.takeIf { it.enabled && audiobookType == null }
+    }
 
     private fun List<AppMediaItem>.sectionItems(): List<AppMediaItem> =
         filter { if (audiobookType != null) it is Audiobook else it is Album }.take(ARTIST_SECTION_LIMIT)
 
     private val libraryItems = itemList(mediaItemRepository)
     val library = libraryItems.asFlow()
-        .mapData {
-            sections(
-                items = it,
-                itemList = audiobookType
-                    ?.let { type -> ItemList.ArtistLibraryAudiobooks(artist.itemId, type) }
-                    ?: ItemList.ArtistLibrary(artist.itemId),
-                grouping = albumGrouping,
-            )
+        .combine(albumGrouping) { items, grouping ->
+            items.map {
+                sections(
+                    items = it,
+                    itemList = audiobookType
+                        ?.let { type -> ItemList.ArtistLibraryAudiobooks(artist.itemId, type) }
+                        ?: ItemList.ArtistLibrary(artist.itemId),
+                    grouping = grouping,
+                )
+            }
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, DataState.Loading())
 
     private val allItems = itemList(mediaItemRepository)
     private val allProviderFilter = MutableStateFlow<Section.ProviderFilter?>(null)
-    val all = allItems.asFlow()
-        .combine(allProviderFilter) { items, providerFilter ->
+    val all = combine(allItems.asFlow(), allProviderFilter, albumGrouping) { items, providerFilter, grouping ->
             items.map {
                 sections(
                     items = it,
                     itemList = providerFilter?.current,
                     providerFilter = providerFilter,
                     // A library artist has its albums grouped in the library rows. Its discography stays one row.
-                    grouping = albumGrouping?.takeUnless { artist.isInLibrary },
+                    grouping = grouping?.takeUnless { artist.isInLibrary },
                 )
             }
         }

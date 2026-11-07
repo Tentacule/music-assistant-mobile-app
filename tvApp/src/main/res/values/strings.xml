@@ -102,6 +102,11 @@
     <string name="tv_menu_move_up">Move up</string>
     <string name="tv_menu_move_down">Move down</string>
     <string name="tv_menu_reset">Restore the default menu</string>
+    <string name="tv_album_groups">Albums on the artist page</string>
+    <string name="tv_album_groups_hint">One row for each album type. OK shows or hides a type and the arrows move it. The albums of a hidden type go to Other.</string>
+    <string name="tv_album_groups_enabled">Grouped by type</string>
+    <string name="tv_album_groups_disabled">One row</string>
+    <string name="tv_album_groups_reset">Restore the default types</string>
     <string name="tv_settings_save_failed">The server did not save this setting.</string>
     <string name="tv_section_this_player">This player</string>
     <string name="tv_section_this_player_hint">These settings apply to the queue of this player only. Server default follows the settings for all players. Changing a crossfade type or the volume normalization restarts playback on this player.</string>
