@@ -145,9 +145,9 @@
     <string name="tv_login_method_account">Compte Music Assistant</string>
     <string name="tv_login_method_ha">Home Assistant</string>
     <string name="tv_login_phone_title">Se connecter avec son téléphone</string>
-    <string name="tv_login_phone_hint">Scannez ce code, ou ouvrez cette adresse sur un téléphone ou un ordinateur du même réseau, puis saisissez-y votre nom d\'utilisateur et votre mot de passe.</string>
+    <string name="tv_login_phone_hint">Scannez ce code, ou ouvrez cette adresse sur un téléphone ou un ordinateur du même réseau, puis saisissez-y votre nom d\'utilisateur et votre mot de passe. Si la page ne s\'ouvre pas, essayez un autre navigateur : un VPN ou un économiseur de données fait passer la page par un serveur qui ne peut pas joindre votre réseau local.</string>
     <string name="tv_login_ha_title">Se connecter avec Home Assistant</string>
-    <string name="tv_login_ha_hint">Scannez ce code avec votre téléphone et connectez-vous à Home Assistant : la TV continue toute seule.</string>
+    <string name="tv_login_ha_hint">Scannez ce code avec votre téléphone et connectez-vous à Home Assistant : la TV continue toute seule. Si la page ne s\'ouvre pas, essayez un autre navigateur : un VPN ou un économiseur de données fait passer la page par un serveur qui ne peut pas joindre votre réseau local.</string>
     <string name="tv_login_no_network">La TV n\'a pas d\'adresse sur le réseau local : un téléphone ne peut pas la joindre.</string>
     <string name="tv_login_on_tv">Ou sur la TV</string>
     <string name="tv_login_username">Nom d\'utilisateur</string>

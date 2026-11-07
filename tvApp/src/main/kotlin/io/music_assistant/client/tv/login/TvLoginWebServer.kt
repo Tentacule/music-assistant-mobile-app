@@ -97,6 +97,22 @@ class TvLoginWebServer(
         }.orEmpty()
         val out = client.getOutputStream()
         val key = query["k"] ?: body["k"]
+        // Never the key, the password or the token: the path, the caller and whether the key matched.
+        log.i {
+            val keyState = when (key) {
+                secret -> "ok"
+                null -> "none"
+                else -> "wrong"
+            }
+            "$method $path from ${client.inetAddress?.hostAddress} key=$keyState " +
+                "ua=${headers["user-agent"]?.take(UA_LOG_LENGTH)}"
+        }
+        // The browser asks for an icon without the key: nothing to refuse.
+        if (path == "/favicon.ico") {
+            out.write("HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
+            out.flush()
+            return
+        }
         if (key != secret) {
             out.respond(403, page(texts.expired))
             return
@@ -170,6 +186,7 @@ class TvLoginWebServer(
     """.trimIndent()
 
     private fun OutputStream.respond(status: Int, html: String) {
+        log.i { "-> $status" }
         val bytes = html.toByteArray(Charsets.UTF_8)
         write(
             ("HTTP/1.1 $status ${statusText(status)}\r\nContent-Type: text/html; charset=utf-8\r\n" +
@@ -181,6 +198,7 @@ class TvLoginWebServer(
     }
 
     private fun OutputStream.redirect(location: String) {
+        log.i { "-> 302 ${location.substringBefore('?')}" }
         write(
             ("HTTP/1.1 302 Found\r\nLocation: $location\r\nCache-Control: no-store\r\n" +
                 "Content-Length: 0\r\nConnection: close\r\n\r\n").toByteArray(),
@@ -199,6 +217,7 @@ class TvLoginWebServer(
         const val SECRET_BYTES = 16
         const val READ_TIMEOUT_MS = 15_000
         const val MAX_BODY = 8_192
+        const val UA_LOG_LENGTH = 120
 
         // A fixed port first, so the address stays the same from one sign-in to the next.
         val PORTS = listOf(8766, 8767, 8768, 0)
