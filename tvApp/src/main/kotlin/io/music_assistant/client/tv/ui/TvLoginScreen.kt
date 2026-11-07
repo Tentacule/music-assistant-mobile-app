@@ -1,6 +1,13 @@
 package io.music_assistant.client.tv.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -110,8 +117,8 @@ fun TvLoginScreen() {
                 .widthIn(max = 1100.dp)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 48.dp, end = 48.dp, top = 27.dp, bottom = 27.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+                .padding(start = 48.dp, end = 48.dp, top = 20.dp, bottom = 27.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -306,6 +313,8 @@ private fun ManualServerForm(onConnect: (ConnectionInfo) -> Unit) {
 
 private enum class LoginMethod { ACCOUNT, HOME_ASSISTANT, TOKEN }
 
+private enum class LoginWay { PHONE, TV }
+
 @Composable
 private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
     val authManager: AuthenticationManager = koinInject()
@@ -369,7 +378,7 @@ private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
         onDispose { webServer.stop() }
     }
 
-    Text(stringResource(R.string.tv_login_server, serverName), style = MaterialTheme.typography.titleLarge)
+    Text(stringResource(R.string.tv_login_server, serverName), style = MaterialTheme.typography.bodyLarge)
 
     // The method: a Music Assistant account, or Home Assistant on a server that offers it.
     val methodFocus = remember { FocusRequester() }
@@ -393,25 +402,49 @@ private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
         }
     }
 
-    when (method) {
-        // The phone first, then the TV keyboard, one under the other.
-        LoginMethod.ACCOUNT, LoginMethod.TOKEN -> Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            pageBase?.let { base ->
-                PhoneCard(
-                    url = "$base/?k=${webServer.secret}",
-                    title = stringResource(R.string.tv_login_phone_title),
-                    hint = stringResource(R.string.tv_login_phone_hint),
+    // Two ways to sign in, both always listed: from a phone through a QR code, or on the TV with the
+    // remote. One is open at a time; the phone comes first, as it needs no typing on the TV.
+    var way by rememberSaveable(serverKey) { mutableStateOf(LoginWay.PHONE) }
+    val phoneUrl = pageBase?.let { base ->
+        if (method == LoginMethod.HOME_ASSISTANT) "$base/ha?k=${webServer.secret}" else "$base/?k=${webServer.secret}"
+    }
+    val openWay = if (phoneUrl == null) LoginWay.TV else way
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        phoneUrl?.let { url ->
+            AccordionSection(
+                icon = Icons.Default.QrCode2,
+                title = stringResource(R.string.tv_login_way_phone),
+                subtitle = stringResource(R.string.tv_login_way_phone_hint),
+                expanded = openWay == LoginWay.PHONE,
+                onClick = { way = LoginWay.PHONE },
+            ) {
+                PhoneCode(
+                    url = url,
+                    hint = stringResource(
+                        if (method == LoginMethod.HOME_ASSISTANT) R.string.tv_login_ha_hint else R.string.tv_login_phone_hint,
+                    ),
                 )
             }
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(24.dp).widthIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(R.string.tv_login_on_tv), style = MaterialTheme.typography.titleMedium)
-                    if (method == LoginMethod.TOKEN) {
+        }
+        AccordionSection(
+            icon = Icons.Default.Keyboard,
+            title = stringResource(R.string.tv_login_way_tv),
+            subtitle = stringResource(
+                if (method == LoginMethod.HOME_ASSISTANT) R.string.tv_login_way_tv_ha_hint else R.string.tv_login_way_tv_hint,
+            ),
+            expanded = openWay == LoginWay.TV,
+            onClick = { way = LoginWay.TV },
+        ) {
+            Column(Modifier.widthIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                when (method) {
+                    LoginMethod.TOKEN -> {
                         TokenForm(enabled = !loading, onSubmit = { scope.launch { authManager.loginWithToken(it) } })
                         TvOutlinedButton(onClick = { method = LoginMethod.ACCOUNT }) {
                             TvText(stringResource(R.string.tv_login_use_password))
                         }
-                    } else {
+                    }
+
+                    LoginMethod.ACCOUNT -> {
                         CredentialsForm(
                             enabled = !loading,
                             onSubmit = { username, password ->
@@ -422,22 +455,8 @@ private fun SignIn(state: SessionState.Connected, onChangeServer: () -> Unit) {
                             TvText(stringResource(R.string.tv_login_use_token))
                         }
                     }
-                }
-            }
-        }
 
-        LoginMethod.HOME_ASSISTANT -> Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            pageBase?.let { base ->
-                PhoneCard(
-                    url = "$base/ha?k=${webServer.secret}",
-                    title = stringResource(R.string.tv_login_ha_title),
-                    hint = stringResource(R.string.tv_login_ha_hint),
-                )
-            }
-            haProvider?.let { provider ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(24.dp).widthIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text(stringResource(R.string.tv_login_on_tv), style = MaterialTheme.typography.titleMedium)
+                    LoginMethod.HOME_ASSISTANT -> haProvider?.let { provider ->
                         HomeAssistantTvForm(
                             enabled = !loading,
                             authorizationUrl = {
@@ -480,11 +499,11 @@ private fun MethodCard(
         containerColor = if (selected) null else MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            TvIcon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
+            TvIcon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
             TvText(title, style = MaterialTheme.typography.titleMedium)
         }
     }
@@ -492,18 +511,56 @@ private fun MethodCard(
 
 /** A QR code that the phone scans, with its address for a phone that cannot. */
 @Composable
-private fun PhoneCard(url: String, title: String, hint: String) {
+private fun PhoneCode(url: String, hint: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+        QrCodeImage(content = url, size = 110.dp, description = stringResource(R.string.tv_login_way_phone))
+        Column(Modifier.widthIn(max = 720.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(hint, style = MaterialTheme.typography.bodyMedium)
+            Text(url.substringBefore("?"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.tv_login_browser_tip), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+/**
+ * One way to sign in: a header that the remote focuses and opens, then its content while open.
+ * Every header stays on screen, so each way can be found without scrolling past the other.
+ */
+@Composable
+private fun AccordionSection(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    expanded: Boolean,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(24.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            QrCodeImage(content = url, size = 200.dp, description = title)
-            Column(Modifier.widthIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(hint, style = MaterialTheme.typography.bodyMedium)
-                Text(url.substringBefore("?"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+        Column {
+            TvFocusSurface(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    TvIcon(icon, contentDescription = null, modifier = Modifier.size(28.dp))
+                    Column(Modifier.weight(1f)) {
+                        TvText(title, style = MaterialTheme.typography.titleMedium)
+                        TvText(subtitle, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    TvIcon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+            AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
+                Box(Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp, top = 4.dp)) { content() }
             }
         }
     }

@@ -174,12 +174,9 @@
     <string name="tv_login_server">Sign in to %1$s</string>
     <string name="tv_login_method_account">Music Assistant account</string>
     <string name="tv_login_method_ha">Home Assistant</string>
-    <string name="tv_login_phone_title">Sign in with your phone</string>
-    <string name="tv_login_phone_hint">Scan this code, or open this address on a phone or a computer of the same network, then type your username and password there. If the page does not open, try another browser: a VPN or a data saver sends the page through a server that cannot reach your home network.</string>
-    <string name="tv_login_ha_title">Sign in with Home Assistant</string>
-    <string name="tv_login_ha_hint">Scan this code with your phone and sign in to Home Assistant: the TV continues on its own. If the page does not open, try another browser: a VPN or a data saver sends the page through a server that cannot reach your home network.</string>
+    <string name="tv_login_phone_hint">Scan this code with your phone, or open this address on the same network, then type your username and password there.</string>
+    <string name="tv_login_ha_hint">Scan this code with your phone and sign in to Home Assistant: the TV continues on its own.</string>
     <string name="tv_login_no_network">The TV has no address on the local network, so a phone cannot reach it.</string>
-    <string name="tv_login_on_tv">Or on the TV</string>
     <string name="tv_login_username">Username</string>
     <string name="tv_login_password">Password</string>
     <string name="tv_login_token">Long-lived token</string>
@@ -229,4 +226,10 @@
     <string name="tv_login_ha_invalid">Wrong Home Assistant username or password.</string>
     <string name="tv_login_ha_invalid_code">Wrong verification code.</string>
     <string name="tv_login_ha_failed">The Home Assistant sign-in failed.</string>
+    <string name="tv_login_way_phone">With your phone</string>
+    <string name="tv_login_way_phone_hint">Scan a QR code: nothing to type on the TV</string>
+    <string name="tv_login_way_tv">On the TV</string>
+    <string name="tv_login_way_tv_hint">Username and password, with the remote</string>
+    <string name="tv_login_way_tv_ha_hint">Home Assistant username and password, with the remote</string>
+    <string name="tv_login_browser_tip">Page does not open? Try another browser: a VPN or a data saver cannot reach your home network.</string>
 </resources>
