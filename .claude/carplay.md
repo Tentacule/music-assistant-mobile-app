@@ -12,14 +12,14 @@ The iOS app exposes Music Assistant as both a CarPlay audio app and a Siri media
 
 ```
 Root: CPListTemplate ("Library")
-├── Section 1: Browse → CPGridTemplate (7 categories)
+├── Section 1: Browse → CPGridTemplate (up to 7 categories, order and visibility from Settings → Car → Tabs)
 │   ├── Artists    (mic.fill)                          → push CPListTemplate
 │   ├── Albums     (opticaldisc.fill)                  → push CPListTemplate
-│   ├── Tracks     (music.note)                        → push CPListTemplate
 │   ├── Playlists  (list.bullet.rectangle.fill)        → push CPListTemplate
 │   ├── Audiobooks (book.fill)                         → push CPListTemplate
 │   ├── Podcasts   (antenna.radiowaves.left.and.right) → push CPListTemplate
-│   └── Radio      (radio.fill)                        → push CPListTemplate
+│   ├── Radio      (radio.fill)                        → push CPListTemplate
+│   └── AI Radio   (sparkles)                          → push CPListTemplate (only with the ai_radio plugin and its scope)
 └── Section 2: Recommendations (CPListImageRowItem, async loaded)
     └── RecommendationFolders with artwork thumbnails (up to 8 per folder)
 ```
@@ -36,9 +36,12 @@ User taps an item → `CarPlayContentManager.playItem()` → `KmpHelper.playMedi
 ### Browse icons
 
 `CPGridTemplate` with SF Symbols, adaptive theming via `UIImageAsset`:
-- Dark: background `#404378` (primaryContainer), icon tint `#C0C1FF` (primary)
-- Light: background `#E0DEFF`, icon tint `#575992`
-- Icons centered, scaled to 80% of available space.
+- The icon tint is the `primary` role of the accent color setting (see the Accent color bullet in
+  `.claude/architecture.md`). `KmpHelper.carPlayAccent()` gives it as ARGB for the light and the dark
+  appearance. The wallpaper accent has no iOS scheme, so it gives the default blue.
+- The scene delegate reads the tint once in `didConnect`, before it builds a template. A CPListItem
+  image is immutable, so an accent change on the phone reaches CarPlay at the next connect.
+- The icons have no background. They are centered and scaled to 80% of the available space.
 
 ### Artwork loading
 
@@ -179,6 +182,7 @@ iOS-only Swift-callable API in `KmpHelper.kt`:
 | `setFavorite(item, favorite) -> Boolean` | `addFavorite(uri\|mediaUri)` or `removeFavorite(id, mediaType)`. False if no URI for add. |
 | `getServerUrl() -> String?` | The connected server's base URL |
 | `getServerId() -> String?` | The connected server's stable UUID (from `ServerInfo.server_id` in the handshake) |
+| `carPlayAccent() -> CarPlayAccent` | The accent primary as ARGB (`lightArgb`, `darkArgb`) for the browse icon tint |
 
 All completion handlers fire on `Dispatchers.Main` (= iOS main thread on Kotlin/Native).
 

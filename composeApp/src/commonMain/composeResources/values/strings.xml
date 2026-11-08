@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <resources>
+  <string name="accent_color_blue">Blue</string>
+  <string name="accent_color_default">Default</string>
+  <string name="accent_color_green">Green</string>
+  <string name="accent_color_indigo">Indigo</string>
+  <string name="accent_color_orange">Orange</string>
+  <string name="accent_color_pink">Pink</string>
+  <string name="accent_color_purple">Purple</string>
+  <string name="accent_color_red">Red</string>
+  <string name="accent_color_teal">Teal</string>
+  <string name="accent_color_wallpaper">Wallpaper</string>
+  <string name="accent_color_yellow">Yellow</string>
   <string name="action_add_all_to_queue">Add all to queue</string>
   <string name="action_add_to_library">Add to library</string>
   <string name="action_add_to_playlist">Add to playlist</string>
@@ -15,6 +26,7 @@
   <string name="action_go_to_episode">Go to episode</string>
   <string name="action_go_to_podcast">Go to podcast</string>
   <string name="action_go_to_track">Go to track</string>
+  <string name="action_go_to_radio">Go to radio</string>
   <string name="action_insert_next">Add next</string>
   <string name="action_insert_next_and_play">Add next and play</string>
   <string name="action_lyrics">Lyrics</string>
@@ -153,6 +165,7 @@
   <string name="cd_delete_crash_logs">Delete crash logs</string>
   <string name="cd_disliked">Disliked</string>
   <string name="cd_expand_sendspin_advanced">Show advanced configuration</string>
+  <string name="cd_explicit">Explicit</string>
   <string name="cd_favorite">Favorite</string>
   <string name="cd_filter">Filters</string>
   <string name="cd_find_in_list">Search in list</string>
@@ -170,6 +183,8 @@
   <string name="cd_more">More</string>
   <string name="cd_mute">Mute</string>
   <string name="cd_play_now">Play now</string>
+  <string name="cd_player_delay">Playback delay of %1$s</string>
+  <string name="cd_player_volume">Volume of %1$s</string>
   <string name="cd_play_options">Play options</string>
   <string name="cd_playing">Playing %1$s</string>
   <string name="cd_provider_filter">Filtering %1$s by provider %2$s</string>
@@ -191,7 +206,6 @@
   <string name="cd_transcript_offset_increase">Show transcript earlier</string>
   <string name="cd_unmute">Unmute</string>
   <string name="cd_view_all">View all %1$s</string>
-  <string name="cd_vinyl_record">Vinyl Record</string>
   <string name="clickctx_album">Album</string>
   <string name="clickctx_artist">Artist</string>
   <string name="clickctx_browse">Browse</string>
@@ -362,8 +376,10 @@
   <string name="player_standby">Player is in stand-by mode. Tap to wake.</string>
   <string name="player_unavailable">Unavailable</string>
   <string name="players_dsp_settings">DSP settings</string>
+  <string name="players_delay_slow_down">Slow down</string>
+  <string name="players_delay_speed_up">Speed up</string>
+  <string name="players_delay_step">%1$d ms</string>
   <string name="players_group_settings">Group settings</string>
-  <string name="players_group_volume">%1$s group volume</string>
   <string name="players_hide_unavailable">Hide unavailable</string>
   <string name="players_loading">Loading players…</string>
   <string name="players_none_available">No players available</string>
@@ -437,6 +453,7 @@
   <string name="server_id_mismatch_error">Server ID was changed. Re-authentication required.</string>
   <string name="settings_about_description">Music Assistant is a free, open-source, self-hosted music server. Connect to your server below to browse your library and control playback throughout your home.</string>
   <string name="settings_about_learn_more">Learn more at music-assistant.io →</string>
+  <string name="settings_accent_color">Accent color</string>
   <string name="settings_allow_landscape">Allow landscape on all devices</string>
   <string name="settings_allow_landscape_hint">Experimental: some screens can look wrong in landscape. Use at your own risk.</string>
   <string name="settings_app_documentation">App documentation →</string>
@@ -514,7 +531,6 @@
   <string name="settings_sendspin_advanced_summary">buffer, custom connection, and more</string>
   <string name="settings_sendspin_advanced_title">Advanced Configuration</string>
   <string name="settings_sendspin_intro">Enable to play music directly through your device.</string>
-  <string name="settings_sendspin_require_encryption">Require encrypted connection</string>
   <string name="settings_sendspin_reset_defaults">Reset to defaults</string>
   <string name="settings_sendspin_save_changes">Save changes</string>
   <string name="settings_server">Server</string>

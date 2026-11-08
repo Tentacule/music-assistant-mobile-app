@@ -36,8 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.data.model.client.PlayerData
-import io.music_assistant.client.data.model.server.ServerConfigEntry
 import io.music_assistant.client.data.model.server.ServerConfigOption
+import io.music_assistant.client.data.model.server.ServerSettingEntry
 import io.music_assistant.client.settings.SettingsRepository
 import io.music_assistant.client.tv.R
 import io.music_assistant.client.ui.compose.common.LocalGrantedScopes
@@ -263,7 +263,7 @@ private fun OnOffRow(title: String, on: Boolean, onToggle: () -> Unit) {
 @Composable
 private fun SettingRows(
     rows: List<SettingRow>,
-    entries: Map<String, ServerConfigEntry>,
+    entries: Map<String, ServerSettingEntry>,
     onChange: (String, JsonElement) -> Unit,
 ) {
     rows.forEach { row ->
@@ -274,7 +274,7 @@ private fun SettingRows(
 }
 
 @Composable
-private fun SettingEditor(row: SettingRow, entry: ServerConfigEntry, onChange: (JsonElement) -> Unit) {
+private fun SettingEditor(row: SettingRow, entry: ServerSettingEntry, onChange: (JsonElement) -> Unit) {
     val range = entry.range?.takeIf { it.size == 2 }
     val current = entry.currentText
     when {

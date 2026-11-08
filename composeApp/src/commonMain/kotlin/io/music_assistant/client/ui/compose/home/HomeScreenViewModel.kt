@@ -10,6 +10,7 @@ import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.data.model.client.Lyrics
 import io.music_assistant.client.data.model.client.Player
 import io.music_assistant.client.data.model.client.PlayerData
+import io.music_assistant.client.data.model.client.PlayerDelay
 import io.music_assistant.client.data.model.client.Shortcut
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.Genre
@@ -25,6 +26,7 @@ import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.data.play.PlayRequest
 import io.music_assistant.client.data.repository.MediaItemChange
 import io.music_assistant.client.data.repository.MediaItemRepository
+import io.music_assistant.client.data.repository.SendspinDelayRepository
 import io.music_assistant.client.data.repository.TranscriptRepository
 import io.music_assistant.client.data.repository.favoriteAfter
 import io.music_assistant.client.data.repository.fetchRecommendationRowItems
@@ -46,11 +48,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
@@ -94,22 +94,22 @@ class HomeScreenViewModel(
     private val mediaItemRepository: MediaItemRepository,
     private val playDispatcher: PlayDispatcher,
     private val transcriptRepository: TranscriptRepository,
+    private val sendspinDelays: SendspinDelayRepository,
 ) : ViewModel() {
     private val jobs = mutableListOf<Job>()
     private var loadDataJob: Job? = null
     private var deepLinkPlayerJob: Job? = null
 
-    private val _links = MutableSharedFlow<String>()
-    val links = _links.asSharedFlow()
-
-    // Local (Sendspin) player identity — used by the group dialog to decide
-    // whether to show the playback-delay adjuster.
+    // Local (Sendspin) player identity — the group sheet shows it with the phone icon.
     val localPlayerId: String
         get() = settings.sendspinEffectivePlayerId.value
 
-    fun adjustSendspinStaticDelayMs(deltaMs: Int) {
-        settings.setSendspinStaticDelayMs(settings.sendspinStaticDelayMs.value + deltaMs)
-    }
+    /** The delay of each player that has one, for the group sheet. See [SendspinDelayRepository]. */
+    val playerDelays: StateFlow<Map<String, PlayerDelay>> get() = sendspinDelays.delays
+
+    fun loadPlayerDelays(playerIds: Collection<String>) = sendspinDelays.load(playerIds)
+
+    fun adjustPlayerDelay(playerId: String, deltaMs: Int) = sendspinDelays.adjust(playerId, deltaMs)
 
     /** Live elapsed-time flow for the slider. Ticks at 500 ms only while playing + subscribed. */
     fun observePosition(queueId: String) = dataSource.positionTracker.observe(queueId)
@@ -527,19 +527,6 @@ class HomeScreenViewModel(
     fun clearSleepTimer(playerId: String) = dataSource.clearSleepTimer(playerId)
 
     fun onPlayersSortChanged(newSort: List<String>) = dataSource.onPlayersSortChanged(newSort)
-    fun openPlayerSettings(id: String) = settings.connectionInfo.value?.webUrl?.let { url ->
-        onOpenExternalLink("$url/?code=${currentServerToken().orEmpty()}#/settings/editplayer/$id")
-    }
-
-    fun openPlayerDspSettings(id: String) = settings.connectionInfo.value?.webUrl?.let { url ->
-        onOpenExternalLink("$url/?code=${currentServerToken().orEmpty()}#/settings/editplayer/$id/dsp")
-    }
-
-    private fun currentServerToken(): String? =
-        (apiClient.sessionState.value as? SessionState.Connected)
-            ?.serverInfo?.serverId?.let { settings.getTokenForServer(it) }
-
-    private fun onOpenExternalLink(url: String) = viewModelScope.launch { _links.emit(url) }
 
     /**
      * Persists the edited working list. Prefs for folders not currently present

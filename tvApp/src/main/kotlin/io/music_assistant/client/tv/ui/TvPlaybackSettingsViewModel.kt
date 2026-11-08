@@ -6,7 +6,7 @@ import co.touchlab.kermit.Logger
 import io.music_assistant.client.api.Request
 import io.music_assistant.client.api.ServiceClient
 import io.music_assistant.client.data.model.server.ServerConfig
-import io.music_assistant.client.data.model.server.ServerConfigEntry
+import io.music_assistant.client.data.model.server.ServerSettingEntry
 import io.music_assistant.client.data.model.server.serverConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,8 +33,8 @@ sealed interface TvConfigSource {
 class TvPlaybackSettingsViewModel(private val client: ServiceClient) : ViewModel() {
     private val log = Logger.withTag("TvPlaybackSettings")
 
-    private val _configs = MutableStateFlow<Map<TvConfigSource, Map<String, ServerConfigEntry>>>(emptyMap())
-    val configs: StateFlow<Map<TvConfigSource, Map<String, ServerConfigEntry>>> = _configs.asStateFlow()
+    private val _configs = MutableStateFlow<Map<TvConfigSource, Map<String, ServerSettingEntry>>>(emptyMap())
+    val configs: StateFlow<Map<TvConfigSource, Map<String, ServerSettingEntry>>> = _configs.asStateFlow()
 
     private val _saveFailed = MutableStateFlow(false)
     val saveFailed: StateFlow<Boolean> = _saveFailed.asStateFlow()

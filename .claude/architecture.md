@@ -86,6 +86,19 @@ actual class PlatformFeature {
   a `PlayerAction`, so the local player does not intercept it. A null `QueueInfo.overlay` means that the server
   has no overlay support. Show the feature only if a provider has the `sound_effects` feature. To turn the overlay
   off, send `enabled=false` only, because the server keeps the last sound and volume.
+- **Player delay**: the group sheet (`GroupSettings`) adjusts the playback delay of the Sendspin players
+  only. A higher value plays earlier (`PlayerDelay`, `data/model/client/`). The local player keeps its
+  delay in `SettingsRepository.sendspinStaticDelayMs`. The other Sendspin players keep it on the server, in
+  the player config entry `sendspin_static_delay` (0 to 5000 ms). The server offers the entry only for a
+  player that accepts the output delay command, and the app does not. `SendspinDelayRepository`
+  (`data/repository/`) loads the entry with `config/players/get` and saves it with `config/players/save`.
+  A device with more than one output protocol (an ESPHome device with a Sendspin output) carries the
+  entry under `<protocol player id>||protocol||sendspin_static_delay`, and its native output entries
+  under the bare key. `ServerPlayerConfig.outputEntry` picks the entry of the preferred output, and the
+  save goes to the parent player under that full key. A save applies at once and restarts nothing. The save needs `config.players.write`, so the repository
+  loads nothing for a user without it. `SendspinDelayRepository.delays` joins both sources and routes
+  an adjust by player id. `HomeScreenViewModel` forwards it, and the sheet shows the delay button for
+  a player in the map only.
 - **Play requests**: send every `player_queues/play_media` through `PlayDispatcher` (`data/play/`). Do not send it
   from a screen or from a car surface directly. The dispatcher runs each request in an app scope, because the server
   answers only after playback starts, and that can take tens of seconds. It sends one request for each queue at a
@@ -240,9 +253,14 @@ actual class PlatformFeature {
 - **AI Radio**: The client supports server schema 88 and higher only (`supportsAiRadio`). Both gates,
   `MainDataSource.aiRadioAvailable` and `aiRadioQueueDjAvailable`, need it. A station is a finite
   Radio item (`ai_radio://radio/<station_id>`, `ServerAiRadioStation.uri`). Play it through
-  `PlayDispatcher` like any radio. There is no start, stop or status command. The server also mirrors
-  each show into the library as a Radio row. The Radio lists hide these rows (`isAiRadioShow`),
-  because the AI Radio section lists them. The `ai_radio` plugin
+  `PlayDispatcher` like any radio. There is no start, stop or status command. A station with
+  `is_endless` false and `is_dynamic` false has a fixed tracklist
+  (`RadioStation.hasFiniteTracklist`). The radio page loads it with
+  `music/radios/radio_tracks` into the Tracks tab.
+  An endless or dynamic station gets no Tracks tab. A missing `is_endless` means
+  true. The Versions tab loads `music/radios/radio_versions`. The server also
+  mirrors each show into the library as a Radio row. The Radio lists hide these
+  rows (`isAiRadioShow`), because the AI Radio section lists them. The `ai_radio` plugin
   sends `provider_event` refetch hints (`object_id` `ai_radio`). The hints have no state, so re-read
   the endpoint that the hint names. `AiRadioRepository.changes` maps the hints to `AiRadioChange`.
   It also sends `RESYNC` when the command session comes back, because the server does not send
@@ -276,6 +294,42 @@ actual class PlatformFeature {
 - Use `remember`/`derivedStateOf` for computed values
 - Split large composables into smaller files by meaning
 - Previews only when explicitly requested
+- **Accent color**: `AppTheme` takes an `AccentColor` (`ui/theme/AccentColor.kt`). `DEFAULT` keeps the hand-made schemes in
+  `Theme.kt`, so a user who does not touch the setting sees no change. A seeded entry makes a Material 3 tonal spot scheme
+  with MaterialKolor, and `WALLPAPER` reads the Material You scheme (`wallpaperColorScheme`, Android 12 and newer, null on
+  iOS). `withPrimaryGroupOf` copies only the primary roles and the surface tint into the default scheme. The secondary,
+  tertiary and neutral roles never change, so the favorite heart (`favoriteTint`, tertiary) and the surfaces keep their
+  colors. `ThemeSetting.isDark()` resolves the light or dark choice. The settings picker (`AccentColorSection`) shows one
+  swatch for each accent that `accentColorScheme` can give on the platform. CarPlay tints its browse icons with
+  `accentPrimary` through `KmpHelper.carPlayAccent`, read on each connect.
+- **Device chrome**: `DeviceChrome` (`ui-utils`) is the window geometry that the platform reports. It holds the area
+  of the system vertical bar, the hinge of a book-style foldable and the fold. Read it from `LocalDeviceChrome`, which
+  `App` provides. Only iOS gives a value, from iOS 27.1 (iPhone Duo). The probe in `ContentView.swift` reads it from
+  UIKit and writes it through `DeviceChromeBridge`, and `MainViewController` gives it to `App`. UIKit sends no
+  notification when the reserved regions change. So the probe reads them after a layout pass, a safe area change, a
+  hinge update or a scene change. It also reads them when the vertical bar edge trait changes. After a signal it reads
+  them 4 times a second for 2 s, and each new signal makes this time longer. After the app starts and after a return
+  to the foreground, it reads them for up to 10 s. A read while the scene still reports the background state can end
+  this time early. Then the 2 s after the scene activation apply. A signal can be missed. So a window that had a hinge
+  region or a vertical bar also gets a backup read. Its nominal interval is 2 s. The real delay also depends on the
+  timer tolerance (0.5 s) and on the main thread. A later read without a hinge or a bar does not stop the backup read.
+  The probe reads only while the scene is in the foreground, and once when the scene starts to enter the foreground.
+  In one test series on iPhone Duo (iOS 27.1), the hinge sent updates during each movement. The series did not show
+  if the hinge can miss an update. On other devices each value is null and the layouts do not change. A test gives a
+  value with `App(deviceChrome = …)` or `LocalDeviceChrome`.
+- **Item artwork**: `MediaArtwork` (`ui/compose/common/items/`) draws the artwork of every item but an artist:
+  a square with 8 dp corners and the type icon as the placeholder. `AppMediaItem.defaultIcon` gives the icon
+  of each type. An artist is a circle (`ArtistImage`), and its grid labels are centered. Do not add a custom
+  shape or an overlay for a type. A grid tile puts the badges 2 dp inside the artwork, one for each corner:
+  the type at the top start (not on an artist), the explicit mark at the top end, the provider icon or the
+  favorite heart at the bottom end, and the played state at the bottom start. The item page header has the
+  same corners without the type. A row image has no badge, because it is too small. A row shows the badges
+  in a line under the labels (`RowBadges`, the `badges` slot of `RowItem`): type, provider or favorite,
+  explicit, played state. The AI Radio station row shows the category icon in that line.
+  An artist has no type badge, because its round image tells the type, and its provider icon or favorite
+  heart sits at the bottom center of the circle, in the grid and in the item page header.
+  The type chip of an item that plays on tap (`AppMediaItem.playsOnTap`) is filled, and the chip of an item
+  that opens its page is translucent.
 - **Stacked rows**: `CategoryRow` (`ui/compose/common/items/`) shows a row of tap-to-play items as list items, two
   in each column. The other rows show one row of grid tiles. A tap-to-play item is a track, a podcast episode or a
   radio station (`playsOnTap`). An audiobook is not a tap-to-play item, because its tile opens the item page. The

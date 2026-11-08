@@ -232,6 +232,23 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
                 put("key", JsonPrimitive("tts_pre_announce"))
             },
         )
+
+        /** The full config of [playerId], with every entry that the player offers right now. */
+        fun config(playerId: String) = Request(
+            command = APICommands.CONFIG_PLAYERS_GET,
+            args = buildJsonObject {
+                put("player_id", JsonPrimitive(playerId))
+            },
+        )
+
+        /** Saves one config value of [playerId]. The server answers with the full config. */
+        fun saveConfigValue(playerId: String, key: String, value: Int) = Request(
+            command = APICommands.CONFIG_PLAYERS_SAVE,
+            args = buildJsonObject {
+                put("player_id", JsonPrimitive(playerId))
+                put("values", buildJsonObject { put(key, JsonPrimitive(value)) })
+            },
+        )
     }
 
     data object Queue {
@@ -549,6 +566,24 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             itemId: String,
             providerInstanceIdOrDomain: String,
         ) = Library.get(APICommands.KIND_RADIOS, itemId, providerInstanceIdOrDomain)
+
+        fun getTracks(
+            itemId: String,
+            providerInstanceIdOrDomain: String,
+        ) = Library.subItems(
+            APICommands.MUSIC_RADIOS_RADIO_TRACKS,
+            itemId,
+            providerInstanceIdOrDomain,
+        )
+
+        fun getVersions(
+            itemId: String,
+            providerInstanceIdOrDomain: String,
+        ) = Library.subItems(
+            APICommands.MUSIC_RADIOS_RADIO_VERSIONS,
+            itemId,
+            providerInstanceIdOrDomain,
+        )
 
         fun listLibrary(
             favorite: Boolean? = null,

@@ -12,6 +12,7 @@ import io.music_assistant.client.data.model.client.SortConfig
 import io.music_assistant.client.data.model.client.SortField
 import io.music_assistant.client.data.model.client.SortOption
 import io.music_assistant.client.data.model.client.SubItemContext
+import io.music_assistant.client.ui.theme.AccentColor
 import io.music_assistant.client.ui.theme.ThemeSetting
 import io.music_assistant.client.utils.myJson
 import io.music_assistant.sendspin.api.AudioCodec
@@ -97,6 +98,18 @@ class SettingsRepository(
     fun switchTheme(theme: ThemeSetting) {
         settings.putString("theme", theme.name)
         _theme.update { theme }
+    }
+
+    private val _accentColor = MutableStateFlow(
+        settings.getStringOrNull("accent_color").let { stored ->
+            AccentColor.entries.firstOrNull { it.name == stored } ?: AccentColor.DEFAULT
+        },
+    )
+    val accentColor = _accentColor.asStateFlow()
+
+    fun setAccentColor(accent: AccentColor) {
+        settings.putString("accent_color", accent.name)
+        _accentColor.update { accent }
     }
 
     private val _connectionInfo = MutableStateFlow(
@@ -568,12 +581,12 @@ class SettingsRepository(
     // later (escape hatch if this device somehow leads the group). Not reported
     // to the server. Range ±2000 ms.
     private val _sendspinStaticDelayMs = MutableStateFlow(
-        settings.getInt("sendspin_static_delay_ms", 0).coerceIn(-2000, 2000),
+        settings.getInt("sendspin_static_delay_ms", 0).coerceIn(SENDSPIN_STATIC_DELAY_RANGE),
     )
     val sendspinStaticDelayMs = _sendspinStaticDelayMs.asStateFlow()
 
     fun setSendspinStaticDelayMs(ms: Int) {
-        val clamped = ms.coerceIn(-2000, 2000)
+        val clamped = ms.coerceIn(SENDSPIN_STATIC_DELAY_RANGE)
         settings.putInt("sendspin_static_delay_ms", clamped)
         _sendspinStaticDelayMs.update { clamped }
     }
@@ -847,6 +860,9 @@ class SettingsRepository(
     }
 
     companion object {
+        /** The range of the local player's static delay, in ms. Positive plays earlier. */
+        val SENDSPIN_STATIC_DELAY_RANGE = -2000..2000
+
         private const val CAR_DSP_CONNECT_KEY = "car_dsp_action_connect"
         private const val CAR_DSP_DISCONNECT_KEY = "car_dsp_action_disconnect"
 

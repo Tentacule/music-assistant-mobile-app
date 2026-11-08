@@ -21,6 +21,8 @@ object APICommands {
     const val PLAYERS_CMD_PLAY_ANNOUNCEMENT = "$PLAYERS_CMD/play_announcement"
     const val PLAYERS_TTS_ENGINES = "players/tts_engines"
     const val CONFIG_PLAYERS_GET_VALUE = "config/players/get_value"
+    const val CONFIG_PLAYERS_GET = "config/players/get"
+    const val CONFIG_PLAYERS_SAVE = "config/players/save"
     const val CONFIG_PLAYER_QUEUES_GET = "config/player_queues/get"
     const val CONFIG_PLAYER_QUEUES_SAVE = "config/player_queues/save"
     const val CONFIG_CORE_GET = "config/core/get"
@@ -57,6 +59,8 @@ object APICommands {
 
     // Radio Station commands
     const val MUSIC_RADIOS_LIBRARY_ITEMS = "music/radios/library_items"
+    const val MUSIC_RADIOS_RADIO_TRACKS = "music/radios/radio_tracks"
+    const val MUSIC_RADIOS_RADIO_VERSIONS = "music/radios/radio_versions"
 
     // Audiobook commands
     const val MUSIC_AUDIOBOOKS_LIBRARY_ITEMS = "music/audiobooks/library_items"
