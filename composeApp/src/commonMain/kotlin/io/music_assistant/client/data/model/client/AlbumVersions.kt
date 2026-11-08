@@ -4,44 +4,15 @@ import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 
 /**
- * The key that the versions of one album share: the name without its edition suffix, and the
- * first artist. "Abbey Road", "Abbey Road (Remastered 2019)" and "Abbey Road [Deluxe Edition]" by
- * the same artist are one album. "Live" is not an edition word, so a live album stays apart.
- */
-fun Album.versionKey(): String =
-    "${normalizedAlbumName(name)}|${artists.firstOrNull()?.name?.lowercase()?.trim().orEmpty()}"
-
-internal fun normalizedAlbumName(name: String): String {
-    var current = name.lowercase().trim()
-    while (true) {
-        val stripped = EDITION_SUFFIXES.firstNotNullOfOrNull { suffix ->
-            suffix.find(current)?.takeIf { match -> EDITION_WORD.containsMatchIn(match.value) }
-                ?.let { current.removeRange(it.range).trim() }
-        } ?: return current
-        if (stripped.isEmpty()) return current
-        current = stripped
-    }
-}
-
-private val EDITION_SUFFIXES = listOf(
-    Regex("""\s*\([^()]*\)$"""),
-    Regex("""\s*\[[^\[\]]*]$"""),
-    Regex("""\s+[-–]\s+[^-–]+$"""),
-)
-private val EDITION_WORD = Regex(
-    """\b(deluxe|remaster|remastered|edition|expanded|anniversary|bonus|version|special|mono|stereo|reissue)\b""",
-)
-
-/**
- * The list with each album shown once: the versions of an album collapse into one entry, at the
- * position of the first version, with [Album.versionCount] set. Other items stay as they are.
+ * The list with each album shown once: the versions of an album, the albums of one MusicBrainz
+ * release group, collapse into one entry at the position of the first version, with
+ * [Album.versionCount] set. An album without a release group and other items stay as they are.
  */
 fun List<AppMediaItem>.collapseVersions(): List<AppMediaItem> {
-    val groups = filterIsInstance<Album>().groupBy { it.versionKey() }
+    val groups = filterIsInstance<Album>().groupBy { it.releaseGroupId }
     val shown = mutableSetOf<String>()
     return mapNotNull { item ->
-        if (item !is Album) return@mapNotNull item
-        val key = item.versionKey()
+        val key = (item as? Album)?.releaseGroupId ?: return@mapNotNull item
         if (!shown.add(key)) return@mapNotNull null
         val versions = groups[key].orEmpty()
         if (versions.size < 2) item else versions.representative().copy(versionCount = versions.size)

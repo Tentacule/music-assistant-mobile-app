@@ -33,7 +33,7 @@ data class ServerMediaItem(
     // @SerialName("musicbrainz_id") val musicbrainzId: String? = null,
     // Album
     @SerialName("version") val version: String? = null,
-    // [type, value] pairs, such as ["barcode", "0602547..."]; full album items only.
+    // [type, value] pairs, such as ["barcode", "0602547..."]. A library list sends the release group only.
     @SerialName("external_ids") val externalIds: List<List<String>>? = null,
     @SerialName("position") val position: Long? = null,
     @SerialName("year") val year: Int? = null,

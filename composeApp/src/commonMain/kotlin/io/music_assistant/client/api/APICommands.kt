@@ -85,6 +85,7 @@ object APICommands {
     const val MUSIC_ALBUMS_LIBRARY_ITEMS = "music/albums/library_items"
     const val MUSIC_ALBUMS_ALBUM_TRACKS = "music/albums/album_tracks"
     const val MUSIC_ALBUMS_ALBUM_VERSIONS = "music/albums/album_versions"
+    const val MUSIC_ALBUMS_LIBRARY_RELEASE_GROUP = "music/albums/library_release_group"
 
     // Track commands
     const val MUSIC_TRACKS_LIBRARY_ITEMS = "music/tracks/library_items"

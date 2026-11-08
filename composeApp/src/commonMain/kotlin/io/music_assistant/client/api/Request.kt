@@ -820,12 +820,9 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             albumTypes: List<String>? = null,
             providers: List<String>? = null,
             genres: List<Int>? = null,
-            // False asks for full albums (label, release date, barcode); an older server ignores it.
-            summary: Boolean? = null,
         ) = Request(
             command = APICommands.MUSIC_ALBUMS_LIBRARY_ITEMS,
             args = buildJsonObject {
-                summary?.let { put("summary", JsonPrimitive(it)) }
                 favorite?.let { put("favorite", JsonPrimitive(it)) }
                 search?.let { put("search", JsonPrimitive(it)) }
                 put("limit", JsonPrimitive(limit))
@@ -840,6 +837,12 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
                     }
                 putListFilters(providers, genres)
             },
+        )
+
+        /** The full library albums of a MusicBrainz release group. */
+        fun libraryReleaseGroup(releaseGroupId: String) = Request(
+            command = APICommands.MUSIC_ALBUMS_LIBRARY_RELEASE_GROUP,
+            args = buildJsonObject { put("release_group_id", JsonPrimitive(releaseGroupId)) },
         )
 
         /** The versions of an album that the music providers find, the album itself excluded. */

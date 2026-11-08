@@ -70,9 +70,8 @@ class MediaItemFactory(
                 year = year,
                 artists = artists?.mapNotNull { create(it) as? Artist } ?: emptyList(),
                 albumType = AlbumType.fromServer(albumType),
-                barcode = externalIds?.firstNotNullOfOrNull { id ->
-                    id.getOrNull(1)?.takeIf { id.firstOrNull() == BARCODE_EXTERNAL_ID }
-                },
+                barcode = externalIds.valueOf(BARCODE_EXTERNAL_ID),
+                releaseGroupId = externalIds.valueOf(RELEASE_GROUP_EXTERNAL_ID),
             )
 
             MediaType.TRACK -> Track(
@@ -326,5 +325,10 @@ class MediaItemFactory(
     }
 }
 
-// The external id type of an album barcode (EAN/UPC), as the server names it.
+// The external id types of an album, as the server names them.
 private const val BARCODE_EXTERNAL_ID = "barcode"
+private const val RELEASE_GROUP_EXTERNAL_ID = "musicbrainz_releasegroupid"
+
+/** The value of the [type] pair in these `[type, value]` external ids. */
+private fun List<List<String>>?.valueOf(type: String): String? =
+    this?.firstNotNullOfOrNull { id -> id.getOrNull(1)?.takeIf { id.firstOrNull() == type } }

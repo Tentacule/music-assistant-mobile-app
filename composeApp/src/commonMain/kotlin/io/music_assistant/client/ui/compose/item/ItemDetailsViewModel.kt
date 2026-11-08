@@ -8,8 +8,6 @@ import io.music_assistant.client.auth.AuthCoordinator
 import io.music_assistant.client.auth.AuthState
 import io.music_assistant.client.data.ItemDetailsMainDataSource
 import io.music_assistant.client.data.model.client.Lyrics
-import io.music_assistant.client.data.model.client.normalizedAlbumName
-import io.music_assistant.client.data.model.client.versionKey
 import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.QueueOption
 import io.music_assistant.client.data.model.client.SortConfig
@@ -666,22 +664,18 @@ class ItemDetailsViewModel(
     }
 
     /**
-     * The other versions of [album]: the library albums with its version key first, then the
+     * The other versions of [album]: the library albums of its release group first, then the
      * versions that the music providers find, without the ones that the library already holds.
      */
     private fun loadAlbumVersions(album: Album) {
         _state.update {
             it.copy(libraryVersionsState = DataState.Loading(), serviceVersionsState = DataState.Loading())
         }
-        val key = album.versionKey()
         viewModelScope.launch {
-            val library = fetchList<Album>(
-                Request.Album.listLibrary(
-                    search = normalizedAlbumName(album.name),
-                    limit = VERSION_SEARCH_LIMIT,
-                    summary = false,
-                ),
-            ).map { albums -> albums.filter { it.versionKey() == key && !it.isSameAlbum(album) } }
+            val library = album.releaseGroupId?.let { releaseGroupId ->
+                fetchList<Album>(Request.Album.libraryReleaseGroup(releaseGroupId))
+                    .map { albums -> albums.filterNot { it.isSameAlbum(album) } }
+            } ?: DataState.Data(emptyList())
             _state.update { it.copy(libraryVersionsState = library) }
         }
         viewModelScope.launch {
@@ -957,9 +951,6 @@ class ItemDetailsViewModel(
     companion object {
         const val SIMILAR_TRACKS_FEATURE = "similar_tracks"
         const val ARTIST_SECTION_LIMIT = 10
-
-        // Enough for every library version of an album; the search is on its name.
-        private const val VERSION_SEARCH_LIMIT = 50
     }
 }
 
