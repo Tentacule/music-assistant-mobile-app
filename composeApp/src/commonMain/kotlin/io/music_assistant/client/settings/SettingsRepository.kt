@@ -194,6 +194,19 @@ class SettingsRepository(
         _hideUnavailablePlayers.update { hide }
     }
 
+    // Album lists: the versions of an album as one entry (GROUPED) or each on its own.
+    private val _versionGrouping = MutableStateFlow(
+        settings.getStringOrNull("album_version_grouping")
+            ?.let { runCatching { VersionGrouping.valueOf(it) }.getOrNull() }
+            ?: VersionGrouping.GROUPED,
+    )
+    val versionGrouping = _versionGrouping.asStateFlow()
+
+    fun setVersionGrouping(grouping: VersionGrouping) {
+        settings.putString("album_version_grouping", grouping.name)
+        _versionGrouping.update { grouping }
+    }
+
     // Album rows of the artist page: on or off, and the shown groups in their order.
     private val _albumGrouping = MutableStateFlow(
         AlbumGrouping.parse(

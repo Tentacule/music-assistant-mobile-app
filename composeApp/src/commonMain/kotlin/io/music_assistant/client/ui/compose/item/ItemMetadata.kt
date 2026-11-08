@@ -31,9 +31,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.music_assistant.client.data.model.client.AlbumVersionFacts
 import io.music_assistant.client.data.model.client.ItemDescription
 import io.music_assistant.client.data.model.client.ItemDescriptionKind
 import io.music_assistant.client.data.model.client.ProviderDetails
+import io.music_assistant.client.data.model.client.versionFacts
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.Audiobook
@@ -46,6 +48,7 @@ import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
 import io.music_assistant.client.utils.TotalDuration
 import io.music_assistant.client.utils.toTotalDuration
 import musicassistantclient.composeapp.generated.resources.Res
+import musicassistantclient.composeapp.generated.resources.album_fact_barcode
 import musicassistantclient.composeapp.generated.resources.item_description_more
 import musicassistantclient.composeapp.generated.resources.item_duration_hours
 import musicassistantclient.composeapp.generated.resources.item_duration_hours_minutes
@@ -90,7 +93,8 @@ fun ItemFacts(
 ) {
     val facts = listOfNotNull(
         (item as? Album)?.albumType?.let { stringResource(it.stringResource()) },
-        (item as? Album)?.year?.toString(),
+        // The release date, the label and the barcode tell the versions of an album apart.
+        (item as? Album)?.versionFacts()?.localized(includeVersion = false),
         playableSummary?.let { pluralStringResource(Res.plurals.item_track_count, it.count, it.count) },
         playableSummary?.totalSeconds?.toTotalDuration()?.localized(),
         (item as? PodcastEpisode)?.duration?.takeIf { it > 0 }?.toTotalDuration()?.localized(),
@@ -120,6 +124,19 @@ private fun FactText(text: String, textAlign: TextAlign) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
+
+/**
+ * The facts that tell an album version apart, joined like a facts line: release date (or year),
+ * version, label and barcode. Null when none is known.
+ */
+@Composable
+fun AlbumVersionFacts.localized(includeVersion: Boolean = true): String? =
+    listOfNotNull(
+        releaseDate,
+        version.takeIf { includeVersion },
+        label,
+        barcode?.let { stringResource(Res.string.album_fact_barcode, it) },
+    ).takeIf { it.isNotEmpty() }?.joinToString(PART_SEPARATOR)
 
 /** The names of the music services that hold a library item, in the order of its mappings. */
 private fun AppMediaItem.sourceNames(providerDetails: (String) -> ProviderDetails?): String? =

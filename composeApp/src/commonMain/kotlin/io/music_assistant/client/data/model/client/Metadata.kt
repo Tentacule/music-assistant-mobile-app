@@ -23,4 +23,6 @@ data class Metadata(
     val description: String? = null,
     // An album's review; the page falls back to [description] when it is absent.
     val review: String? = null,
+    // The record label of an album.
+    val label: String? = null,
 )

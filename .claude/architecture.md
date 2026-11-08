@@ -166,6 +166,19 @@ actual class PlatformFeature {
   row shows the provider filter, which changes every row. An author or a narrator is not grouped. The server sends
   every album of the artist, so "View all" of a group is `ItemList.ArtistLibrary` or `ArtistAlbums` with
   `albumGroup`, and `ItemList.shownItems` keeps the albums of the group on the client.
+- **Album versions**: the versions of an album (standard, Deluxe, a remaster) share `Album.versionKey()`
+  (`data/model/client/AlbumVersions.kt`): the name without an edition suffix (deluxe, remastered, edition,
+  anniversary...) and the first artist. "Live" is not an edition word. `collapseVersions` shows each album
+  once, at the position of its first version, as the version without a version text (then the oldest),
+  with `Album.versionCount` set, and the subtitle says "N versions". The Albums list collapses the loaded
+  pages on the client (`LibraryListViewModel.State.shownData`), so a version on a page that is not loaded
+  yet joins its album when that page loads. The artist page and "View all" collapse too. The setting is
+  `SettingsRepository.versionGrouping`, and the Albums bar toggles it (`VersionGroupingToggle`). The album
+  page has a Versions tab (`ItemDetailsTab.ALBUM_VERSIONS`): the library versions (`library_items` searched
+  by name with `summary=false`, filtered by key), then the versions that `music/albums/album_versions` finds
+  on the music services, without the library ones. The provider search is slow, so the tab shows once a
+  version is known and does not hold the tabs bar. A version shows its release date (or year), version,
+  label and barcode (`versionFacts`). Music Assistant has no catalog number, so the barcode stands in.
 - **Library sort**: get the sort choices of a library list from `LibrarySortRepository.menu(mediaType)`, on the
   phone and in Android Auto. From server 2.11 (`sortWireFor`), the menu holds the fields of `music/sort_options`
   and the request sends `sort_field` and `sort_direction`. An older server gets the static `SortConfig` table and

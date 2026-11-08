@@ -22,6 +22,10 @@ data class Album(
     val artists: List<Artist>,
     /** Null when the server does not know the type. */
     val albumType: AlbumType? = null,
+    /** The EAN/UPC barcode of this release; full album items only. */
+    val barcode: String? = null,
+    /** How many library versions this entry stands for in a collapsed list (see `collapseVersions`). */
+    val versionCount: Int = 1,
 ) : AppMediaItem() {
     override fun withFavorite(favorite: Boolean?) = copy(favorite = favorite)
     override val mediaType: MediaType = MediaType.ALBUM

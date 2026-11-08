@@ -70,6 +70,9 @@ class MediaItemFactory(
                 year = year,
                 artists = artists?.mapNotNull { create(it) as? Artist } ?: emptyList(),
                 albumType = AlbumType.fromServer(albumType),
+                barcode = externalIds?.firstNotNullOfOrNull { id ->
+                    id.getOrNull(1)?.takeIf { id.firstOrNull() == BARCODE_EXTERNAL_ID }
+                },
             )
 
             MediaType.TRACK -> Track(
@@ -283,6 +286,7 @@ class MediaItemFactory(
             hasTranscript = it.hasTranscript,
             description = it.description,
             review = it.review,
+            label = it.label,
         )
     }
 
@@ -320,3 +324,6 @@ class MediaItemFactory(
             ?.forEach { if (get(it.type) == null) put(it.type, it) }
     }
 }
+
+// The external id type of an album barcode (EAN/UPC), as the server names it.
+private const val BARCODE_EXTERNAL_ID = "barcode"

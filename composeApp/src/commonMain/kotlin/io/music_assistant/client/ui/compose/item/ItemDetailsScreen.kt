@@ -52,6 +52,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.music_assistant.client.data.model.client.AlbumGroup
+import io.music_assistant.client.data.model.client.versionFacts
 import io.music_assistant.client.data.model.client.AppMediaItemFixtures
 import io.music_assistant.client.data.model.client.Chapter
 import io.music_assistant.client.data.model.client.title
@@ -127,6 +128,8 @@ import io.music_assistant.client.ui.compose.provider.ProviderViewModel
 import io.music_assistant.client.ui.fullBleed
 import io.music_assistant.client.ui.theme.AppTheme
 import musicassistantclient.composeapp.generated.resources.Res
+import musicassistantclient.composeapp.generated.resources.album_versions_library
+import musicassistantclient.composeapp.generated.resources.album_versions_services
 import musicassistantclient.composeapp.generated.resources.album_disc_header
 import musicassistantclient.composeapp.generated.resources.artist_section_all
 import musicassistantclient.composeapp.generated.resources.artist_section_all_audiobooks
@@ -344,6 +347,7 @@ private fun ItemDetailsTab.stringResource(): StringResource? = when (this) {
     ItemDetailsTab.OTHER_EPISODES -> Res.string.item_tab_other_episodes
     ItemDetailsTab.COLLECTION_ITEMS -> Res.string.media_type_audiobooks
     ItemDetailsTab.TRACK_VERSIONS -> Res.string.item_tab_versions
+    ItemDetailsTab.ALBUM_VERSIONS -> Res.string.item_tab_versions
     ItemDetailsTab.SIMILAR_TRACKS -> Res.string.item_tab_similar_tracks
     else -> viewMediaType?.stringResource()
 }
@@ -787,6 +791,22 @@ private fun TabContent(
             controlTint = controlTint,
         )
 
+        ItemDetailsTab.ALBUM_VERSIONS -> AlbumVersionsTabContent(
+            libraryVersions = state.libraryVersionsState,
+            serviceVersions = state.serviceVersionsState,
+            parentItem = item,
+            onNavigateClick = onNavigateClick,
+            onPlayChildClick = onPlayChildClick,
+            playlistActions = playlistActions,
+            libraryActions = libraryActions,
+            providerIconFetcher = providerIconFetcher,
+            contentPadding = contentPadding,
+            heroSlot = heroSlot,
+            tabsSlot = tabsSlot,
+            gridState = gridState,
+            controlTint = controlTint,
+        )
+
         ItemDetailsTab.GENRE_ARTISTS -> ArtistsTabContent(
             artistsState = state.artistsState,
             viewModeProvider = viewModeProvider,
@@ -949,6 +969,86 @@ private fun AlbumsTabContent(
         }
     }
 }
+
+/**
+ * The other versions of an album, in two sections: the library ones, then the ones that the music
+ * services find. Each row shows what sets the version apart: its release date, version, label and
+ * barcode. A row opens its version.
+ */
+@Composable
+private fun AlbumVersionsTabContent(
+    libraryVersions: DataState<List<Album>>,
+    serviceVersions: DataState<List<Album>>,
+    parentItem: AppMediaItem,
+    onNavigateClick: (AppMediaItem) -> Unit,
+    onPlayChildClick: PlayHandler<AppMediaItem>,
+    playlistActions: PlaylistActions,
+    libraryActions: LibraryActions,
+    providerIconFetcher: ProviderIconFetcher,
+    contentPadding: PaddingValues,
+    heroSlot: @Composable () -> Unit,
+    tabsSlot: @Composable () -> Unit,
+    gridState: LazyGridState,
+    controlTint: Color,
+) {
+    val library = libraryVersions.tabRows()
+    val services = serviceVersions.tabRows()
+    DetailGrid(contentPadding, heroSlot, tabsSlot, gridState) {
+        listOf(
+            Triple(VERSIONS_LIBRARY_KEY, Res.string.album_versions_library, library),
+            Triple(VERSIONS_SERVICES_KEY, Res.string.album_versions_services, services),
+        ).forEach { (sectionKey, title, albums) ->
+            val loading = sectionKey == VERSIONS_SERVICES_KEY && serviceVersions is DataState.Loading
+            if (albums.isEmpty() && !loading) return@forEach
+            fullSpanItem(sectionKey) {
+                Text(
+                    text = stringResource(title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = controlTint,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+                )
+            }
+            if (loading) fullSpanItem("$sectionKey:loading") { InlineProgress() }
+            albums.forEachIndexed { index, album ->
+                val rowKey = "$sectionKey:${album.provider}:${album.itemId}:$index"
+                fullSpanItem(rowKey) {
+                    DpadRememberedFocus(rowKey = sectionKey, itemKey = rowKey) {
+                        Column {
+                            AlbumWithMenu(
+                                item = album,
+                                viewMode = ViewMode.LIST,
+                                onNavigateClick = onNavigateClick,
+                                navigateToItem = onNavigateClick,
+                                containerItem = parentItem,
+                                onPlayOption = onPlayChildClick,
+                                playlistActions = playlistActions,
+                                libraryActions = libraryActions,
+                                providerIconFetcher = providerIconFetcher,
+                            )
+                            AlbumVersionFactsLine(album)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumVersionFactsLine(album: Album) {
+    val text = album.versionFacts().localized() ?: return
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+    )
+}
+
+private const val VERSIONS_LIBRARY_KEY = "versions:library"
+private const val VERSIONS_SERVICES_KEY = "versions:services"
 
 @Composable
 private fun ArtistsTabContent(

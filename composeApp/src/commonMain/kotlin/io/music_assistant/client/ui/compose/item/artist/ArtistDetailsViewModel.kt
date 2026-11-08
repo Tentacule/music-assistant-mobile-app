@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import io.music_assistant.client.api.Request
 import io.music_assistant.client.data.model.client.AlbumGroup
 import io.music_assistant.client.data.model.client.AlbumGrouping
+import io.music_assistant.client.data.model.client.collapseVersions
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.Artist
@@ -17,6 +18,7 @@ import io.music_assistant.client.data.repository.MediaItemChange
 import io.music_assistant.client.data.repository.MediaItemRepository
 import io.music_assistant.client.data.repository.ProviderRepository
 import io.music_assistant.client.settings.SettingsRepository
+import io.music_assistant.client.settings.VersionGrouping
 import io.music_assistant.client.ui.compose.common.DataState
 import io.music_assistant.client.ui.compose.common.map
 import io.music_assistant.client.ui.compose.item.ItemDetailsViewModel.Companion.ARTIST_SECTION_LIMIT
@@ -48,19 +50,27 @@ class ArtistDetailsViewModel(
         grouping.takeIf { it.enabled && audiobookType == null }
     }
 
+    // How the album rows show: grouped by type or not, and the versions of an album as one entry or not.
+    private val albumDisplay = combine(albumGrouping, settingsRepository.versionGrouping) { grouping, versions ->
+        AlbumDisplay(grouping, collapseVersions = versions == VersionGrouping.GROUPED && audiobookType == null)
+    }
+
+    private data class AlbumDisplay(val grouping: AlbumGrouping?, val collapseVersions: Boolean)
+
     private fun List<AppMediaItem>.sectionItems(): List<AppMediaItem> =
         filter { if (audiobookType != null) it is Audiobook else it is Album }.take(ARTIST_SECTION_LIMIT)
 
     private val libraryItems = itemList(mediaItemRepository)
     val library = libraryItems.asFlow()
-        .combine(albumGrouping) { items, grouping ->
+        .combine(albumDisplay) { items, display ->
             items.map {
                 sections(
                     items = it,
+                    collapseVersions = display.collapseVersions,
                     itemList = audiobookType
                         ?.let { type -> ItemList.ArtistLibraryAudiobooks(artist.itemId, type) }
                         ?: ItemList.ArtistLibrary(artist.itemId),
-                    grouping = grouping,
+                    grouping = display.grouping,
                 )
             }
         }
@@ -68,14 +78,15 @@ class ArtistDetailsViewModel(
 
     private val allItems = itemList(mediaItemRepository)
     private val allProviderFilter = MutableStateFlow<Section.ProviderFilter?>(null)
-    val all = combine(allItems.asFlow(), allProviderFilter, albumGrouping) { items, providerFilter, grouping ->
+    val all = combine(allItems.asFlow(), allProviderFilter, albumDisplay) { items, providerFilter, display ->
             items.map {
                 sections(
                     items = it,
+                    collapseVersions = display.collapseVersions,
                     itemList = providerFilter?.current,
                     providerFilter = providerFilter,
                     // A library artist has its albums grouped in the library rows. Its discography stays one row.
-                    grouping = grouping?.takeUnless { artist.isInLibrary },
+                    grouping = display.grouping?.takeUnless { artist.isInLibrary },
                 )
             }
         }
@@ -87,18 +98,21 @@ class ArtistDetailsViewModel(
      */
     private fun sections(
         items: List<AppMediaItem>,
+        collapseVersions: Boolean,
         itemList: ItemList?,
         grouping: AlbumGrouping?,
         providerFilter: Section.ProviderFilter? = null,
-    ): List<Section<AppMediaItem>> =
-        grouping?.group(items)?.mapIndexed { index, (group, albums) ->
+    ): List<Section<AppMediaItem>> {
+        val shown = if (collapseVersions) items.collapseVersions() else items
+        return grouping?.group(shown)?.mapIndexed { index, (group, albums) ->
             Section(
                 items = albums.take(ARTIST_SECTION_LIMIT),
                 itemList = itemList?.withAlbumGroup(group),
                 providerFilter = providerFilter.takeIf { index == 0 },
                 albumGroup = group,
             )
-        } ?: listOf(Section(items.sectionItems(), itemList, providerFilter))
+        } ?: listOf(Section(shown.sectionItems(), itemList, providerFilter))
+    }
 
     private val topTrackItems = itemList(mediaItemRepository)
     private val topTracksFilter = MutableStateFlow<Section.ProviderFilter?>(null)

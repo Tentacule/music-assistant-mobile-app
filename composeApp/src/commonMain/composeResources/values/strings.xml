@@ -184,6 +184,7 @@
   <string name="cd_toggle_hide_played_episodes">Hide played episodes</string>
   <string name="cd_toggle_queue">Toggle Queue</string>
   <string name="cd_toggle_series_grouping">Group series</string>
+  <string name="cd_toggle_version_grouping">Group album versions</string>
   <string name="cd_toggle_view_mode">Toggle view mode</string>
   <string name="cd_transcript">Transcript</string>
   <string name="cd_transcript_close">Close transcript</string>
@@ -292,6 +293,13 @@
   <string name="item_tab_other_episodes">Other episodes</string>
   <string name="item_tab_similar_tracks">Similar tracks</string>
   <string name="item_tab_versions">Versions</string>
+  <plurals name="album_versions_count">
+    <item quantity="one">%1$d version</item>
+    <item quantity="other">%1$d versions</item>
+  </plurals>
+  <string name="album_versions_library">In your library</string>
+  <string name="album_versions_services">On your music services</string>
+  <string name="album_fact_barcode">UPC %1$s</string>
   <plurals name="item_track_count">
     <item quantity="one">%1$d track</item>
     <item quantity="other">%1$d tracks</item>

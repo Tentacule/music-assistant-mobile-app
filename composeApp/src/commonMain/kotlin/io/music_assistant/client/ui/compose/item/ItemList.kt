@@ -6,10 +6,12 @@ import io.music_assistant.client.data.model.client.AlbumGrouping
 import io.music_assistant.client.data.model.client.ArtistType
 import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.SubItemContext
+import io.music_assistant.client.data.model.client.collapseVersions
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.server.ProviderMapping
 import io.music_assistant.client.data.model.server.ServerMediaItem
+import io.music_assistant.client.settings.VersionGrouping
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -93,10 +95,21 @@ fun ItemList.withAlbumGroup(group: AlbumGroup): ItemList = when (this) {
  * The items of this list to show. The server sends every album of the artist, so the client
  * keeps the albums that [grouping] puts in the [albumGroup].
  */
-fun ItemList.shownItems(items: List<AppMediaItem>, grouping: AlbumGrouping): List<AppMediaItem> =
-    albumGroup?.let { group ->
+fun ItemList.shownItems(
+    items: List<AppMediaItem>,
+    grouping: AlbumGrouping,
+    versionGrouping: VersionGrouping = VersionGrouping.FLAT,
+): List<AppMediaItem> {
+    val inGroup = albumGroup?.let { group ->
         items.filter { it is Album && grouping.groupOf(it) == group }
     } ?: items
+    // The versions of an album as one entry, like the rows of the artist page.
+    return if (mediaType == MediaType.ALBUM && versionGrouping == VersionGrouping.GROUPED) {
+        inGroup.collapseVersions()
+    } else {
+        inGroup
+    }
+}
 
 fun ItemList.toRequests(): List<Request> {
     return when (this) {

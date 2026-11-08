@@ -33,11 +33,14 @@ enum class ItemDetailsTab(
     GENRE_ALBUMS(null, MediaType.ALBUM),
     TRACK_ALBUMS(null, MediaType.ALBUM),
     TRACK_VERSIONS(null, MediaType.TRACK),
+
+    /** The other versions of an album: the library ones, then the ones on the music services. */
+    ALBUM_VERSIONS(null, null),
     SIMILAR_TRACKS(null, MediaType.TRACK),
 }
 
 fun tabsFor(item: AppMediaItem): List<ItemDetailsTab> = when (item) {
-    is Album -> listOf(ItemDetailsTab.ALBUM_TRACKS)
+    is Album -> listOf(ItemDetailsTab.ALBUM_TRACKS, ItemDetailsTab.ALBUM_VERSIONS)
     is Playlist -> listOf(ItemDetailsTab.PLAYLIST_ITEMS)
     is Podcast -> listOf(ItemDetailsTab.PODCAST_EPISODES)
     is PodcastEpisode -> listOfNotNull(ItemDetailsTab.OTHER_EPISODES.takeIf { item.podcast != null })

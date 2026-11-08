@@ -7,6 +7,7 @@ import io.music_assistant.client.api.Request
 import io.music_assistant.client.api.ServiceClient
 import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.data.model.client.ArtistType
+import io.music_assistant.client.data.model.client.collapseVersions
 import io.music_assistant.client.data.model.client.LibraryFilters
 import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.SortConfig
@@ -27,10 +28,12 @@ import io.music_assistant.client.data.repository.MediaItemRepository
 import io.music_assistant.client.data.repository.ProviderRepository
 import io.music_assistant.client.data.repository.favoriteAfter
 import io.music_assistant.client.settings.SeriesGrouping
+import io.music_assistant.client.settings.VersionGrouping
 import io.music_assistant.client.settings.SettingsRepository
 import io.music_assistant.client.ui.Timings
 import io.music_assistant.client.ui.compose.common.DataState
 import io.music_assistant.client.ui.compose.common.SelectOption
+import io.music_assistant.client.ui.compose.common.map
 import io.music_assistant.client.ui.compose.common.mapData
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -111,6 +114,12 @@ class LibraryListViewModel(
                 .collect {
                     loadFirstPage()
                 }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.versionGrouping.collect { grouping ->
+                _state.update { it.copy(versionGrouping = grouping) }
+            }
         }
 
         // Settings are the source of truth for filters; fold emissions into state
@@ -247,6 +256,10 @@ class LibraryListViewModel(
 
     fun onSearchQueryChanged(query: String) {
         _state.update { it.copy(searchQuery = query) }
+    }
+
+    fun onVersionGroupingToggled() {
+        settingsRepository.setVersionGrouping(_state.value.versionGrouping.toggled())
     }
 
     fun onSeriesGroupingToggled() {
@@ -541,7 +554,20 @@ class LibraryListViewModel(
         val filters: LibraryFilters = LibraryFilters.DEFAULT,
         // Audiobooks only: GROUPED sends `collapse_collections`, so a series comes back as one row.
         val seriesGrouping: SeriesGrouping = SeriesGrouping.FLAT,
+        // Albums only: GROUPED shows the versions of an album as one entry.
+        val versionGrouping: VersionGrouping = VersionGrouping.GROUPED,
     ) {
+        /**
+         * The rows to show. The versions collapse on the client over every loaded page, so a
+         * version on a later page joins its album when that page loads.
+         */
+        val shownData: DataState<List<AppMediaItem>>
+            get() = if (listedMediaType == MediaType.ALBUM && versionGrouping == VersionGrouping.GROUPED) {
+                dataState.map { it.collapseVersions() }
+            } else {
+                dataState
+            }
+
         /** The type of the rows: the Audiobooks list shows artists while [filters] name an artist type. */
         val listedMediaType: MediaType
             get() = if (filters.audiobookArtistType != null) MediaType.ARTIST else mediaType

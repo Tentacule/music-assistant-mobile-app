@@ -31,6 +31,7 @@ import io.music_assistant.client.data.model.client.SortOffer
 import io.music_assistant.client.data.model.client.SortOption
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.settings.SeriesGrouping
+import io.music_assistant.client.settings.VersionGrouping
 import io.music_assistant.client.settings.ViewMode
 import io.music_assistant.client.ui.compose.common.DataState
 import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
@@ -97,6 +98,8 @@ fun LibraryListScreen(
                 viewMode = viewMode,
                 seriesGrouping = state.seriesGrouping,
                 onToggleSeriesGrouping = libraryListViewModel::onSeriesGroupingToggled,
+                versionGrouping = state.versionGrouping,
+                onToggleVersionGrouping = libraryListViewModel::onVersionGroupingToggled,
                 searchQuery = state.searchQuery,
                 onSearchQueryChanged = libraryListViewModel::onSearchQueryChanged,
                 onSearch = libraryListViewModel::onSearch,
@@ -113,8 +116,9 @@ fun LibraryListScreen(
             )
         },
     ) {
+        val shownData = remember(state.dataState, state.versionGrouping, state.listedMediaType) { state.shownData }
         ItemListContent(
-            data = state.dataState,
+            data = shownData,
             onNavigateClick = onNavigateClick,
             onPlayClick = libraryListViewModel::onPlayClick,
             onCreatePlaylist = libraryListViewModel::createPlaylist.takeIf {
@@ -155,6 +159,8 @@ private fun LibraryListTopBar(
     viewMode: ViewMode,
     seriesGrouping: SeriesGrouping,
     onToggleSeriesGrouping: () -> Unit,
+    versionGrouping: VersionGrouping,
+    onToggleVersionGrouping: () -> Unit,
     searchQuery: String,
     onSearchQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
@@ -260,6 +266,10 @@ private fun LibraryListTopBar(
                 grouping = seriesGrouping,
                 onToggle = onToggleSeriesGrouping,
             )
+        }
+
+        if (mediaType == MediaType.ALBUM) {
+            VersionGroupingToggle(grouping = versionGrouping, onToggle = onToggleVersionGrouping)
         }
 
         ViewModeToggle(

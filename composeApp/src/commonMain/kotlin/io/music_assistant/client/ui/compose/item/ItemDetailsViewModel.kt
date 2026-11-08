@@ -8,6 +8,8 @@ import io.music_assistant.client.auth.AuthCoordinator
 import io.music_assistant.client.auth.AuthState
 import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.data.model.client.Lyrics
+import io.music_assistant.client.data.model.client.normalizedAlbumName
+import io.music_assistant.client.data.model.client.versionKey
 import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.QueueOption
 import io.music_assistant.client.data.model.client.SortConfig
@@ -54,6 +56,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -83,6 +86,10 @@ class ItemDetailsViewModel(
         /** Lazily loaded on demand from the artist overflow menu; NoData until then. */
         val similarArtistsState: DataState<List<Artist>> = DataState.NoData(),
         val trackVersionsState: DataState<List<Track>> = DataState.NoData(),
+        /** Album only: the other versions of the album in the library. */
+        val libraryVersionsState: DataState<List<Album>> = DataState.NoData(),
+        /** Album only: the versions that the music providers find, minus the library ones. Slow. */
+        val serviceVersionsState: DataState<List<Album>> = DataState.NoData(),
         /** NoData while no provider has [SIMILAR_TRACKS_FEATURE]: then the tab is not shown. */
         val similarTracksState: DataState<List<Track>> = DataState.NoData(),
         /** The lyrics of the loaded [Track] or the transcript of the loaded [PodcastEpisode]; null without one. */
@@ -119,7 +126,13 @@ class ItemDetailsViewModel(
         val tabs: List<ItemDetailsTab>
             get() = itemOrNull()?.let { item ->
                 tabsFor(item).filterNot {
-                    it == ItemDetailsTab.SIMILAR_TRACKS && similarTracksState is DataState.NoData
+                    when (it) {
+                        ItemDetailsTab.SIMILAR_TRACKS -> similarTracksState is DataState.NoData
+                        // Shown once a version is known: the provider search can take a while.
+                        ItemDetailsTab.ALBUM_VERSIONS ->
+                            !libraryVersionsState.hasItems() && !serviceVersionsState.hasItems()
+                        else -> false
+                    }
                 }
             } ?: emptyList()
 
@@ -291,6 +304,7 @@ class ItemDetailsViewModel(
                 }
                 loadAlbumTracks(item.itemId, item.provider)
                 loadGenres(item)
+                loadAlbumVersions(item)
             }
 
             is Playlist -> {
@@ -589,6 +603,44 @@ class ItemDetailsViewModel(
         }
     }
 
+    /**
+     * The other versions of [album]: the library albums with its version key first, then the
+     * versions that the music providers find, without the ones that the library already holds.
+     */
+    private fun loadAlbumVersions(album: Album) {
+        _state.update {
+            it.copy(libraryVersionsState = DataState.Loading(), serviceVersionsState = DataState.Loading())
+        }
+        val key = album.versionKey()
+        viewModelScope.launch {
+            val library = fetchList<Album>(
+                Request.Album.listLibrary(
+                    search = normalizedAlbumName(album.name),
+                    limit = VERSION_SEARCH_LIMIT,
+                    summary = false,
+                ),
+            ).map { albums -> albums.filter { it.versionKey() == key && !it.isSameAlbum(album) } }
+            _state.update { it.copy(libraryVersionsState = library) }
+        }
+        viewModelScope.launch {
+            val services = fetchList<Album>(Request.Album.getVersions(album.itemId, album.provider))
+            // The library list can still be loading: wait for it, so a library version is not listed twice.
+            val library = _state.first { it.libraryVersionsState !is DataState.Loading }
+                .libraryVersionsState.dataOrNull.orEmpty()
+            val known = library + album
+            _state.update {
+                it.copy(
+                    serviceVersionsState = services.map { albums ->
+                        albums.filter { candidate -> known.none { candidate.isSameAlbum(it) } }
+                    },
+                )
+            }
+        }
+    }
+
+    private fun Album.isSameAlbum(other: Album): Boolean =
+        (itemId == other.itemId && provider == other.provider) || hasAnyMappingFrom(other)
+
     private suspend inline fun <reified T : AppMediaItem> fetchList(request: Request): DataState<List<T>> =
         mediaItemRepository.fetchMediaItems(request).fold(
             onSuccess = { items -> DataState.Data(items.filterIsInstance<T>()) },
@@ -828,6 +880,9 @@ class ItemDetailsViewModel(
     companion object {
         const val SIMILAR_TRACKS_FEATURE = "similar_tracks"
         const val ARTIST_SECTION_LIMIT = 10
+
+        // Enough for every library version of an album; the search is on its name.
+        private const val VERSION_SEARCH_LIMIT = 50
     }
 }
 
@@ -850,6 +905,10 @@ private fun ItemDetailsTab.subState(
         -> state.albumsState
 
     ItemDetailsTab.TRACK_VERSIONS -> state.trackVersionsState
+    // The library list decides; the slow provider search must not hold the tabs bar.
+    ItemDetailsTab.ALBUM_VERSIONS -> state.libraryVersionsState.map { library ->
+        library + state.serviceVersionsState.dataOrNull.orEmpty()
+    }
     ItemDetailsTab.SIMILAR_TRACKS -> state.similarTracksState
     ItemDetailsTab.ALBUM_TRACKS,
     ItemDetailsTab.PLAYLIST_ITEMS,
