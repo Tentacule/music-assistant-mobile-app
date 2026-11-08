@@ -10,12 +10,12 @@ import kotlinx.serialization.json.contentOrNull
 /** A server settings object (`Config` in `music_assistant_models`): its entries, by key. */
 @Serializable
 data class ServerConfig(
-    val values: Map<String, ServerConfigEntry> = emptyMap(),
+    val values: Map<String, ServerSettingEntry> = emptyMap(),
 )
 
 /** One setting. `type` is the server's `ConfigEntryType`, such as `boolean`, `integer` or `string`. */
 @Serializable
-data class ServerConfigEntry(
+data class ServerSettingEntry(
     val key: String,
     val type: String,
     val value: JsonElement? = null,
@@ -32,7 +32,7 @@ data class ServerConfigEntry(
         get() = value.primitiveText() ?: defaultValue.primitiveText()
 
     /** Whether the setting applies, given the other entries of the same config. */
-    fun appliesWith(entries: Map<String, ServerConfigEntry>): Boolean {
+    fun appliesWith(entries: Map<String, ServerSettingEntry>): Boolean {
         val parent = dependsOn?.let { entries[it] }?.currentText
         val expected = dependsOnValue.primitiveText()
         val excluded = dependsOnValueNot.primitiveText()

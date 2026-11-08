@@ -301,6 +301,7 @@ fun ItemDetails(
                             is MediaCollection,
                             is Genre,
                             is Track,
+                            is RadioStation,
                             is PodcastEpisode,
                                 -> {
                                 onNavigateToItem(item.itemId, item.mediaType, item.provider)
@@ -346,8 +347,10 @@ private fun ItemDetailsTab.stringResource(): StringResource? = when (this) {
     ItemDetailsTab.PODCAST_EPISODES -> Res.string.media_type_episodes
     ItemDetailsTab.OTHER_EPISODES -> Res.string.item_tab_other_episodes
     ItemDetailsTab.COLLECTION_ITEMS -> Res.string.media_type_audiobooks
-    ItemDetailsTab.TRACK_VERSIONS -> Res.string.item_tab_versions
-    ItemDetailsTab.ALBUM_VERSIONS -> Res.string.item_tab_versions
+    ItemDetailsTab.TRACK_VERSIONS,
+    ItemDetailsTab.ALBUM_VERSIONS,
+    ItemDetailsTab.RADIO_VERSIONS,
+    -> Res.string.item_tab_versions
     ItemDetailsTab.SIMILAR_TRACKS -> Res.string.item_tab_similar_tracks
     else -> viewMediaType?.stringResource()
 }
@@ -625,6 +628,7 @@ private fun TabsBar(
         SubItemContext.ARTIST_TRACKS,
         SubItemContext.ALBUM_TRACKS,
         SubItemContext.PLAYLIST_ITEMS,
+        SubItemContext.RADIO_TRACKS,
         SubItemContext.PODCAST_EPISODES,
         SubItemContext.COLLECTION_ITEMS,
         SubItemContext.ARTIST_TOP_TRACKS,
@@ -742,6 +746,7 @@ private fun TabContent(
 
         ItemDetailsTab.ALBUM_TRACKS,
         ItemDetailsTab.PLAYLIST_ITEMS,
+        ItemDetailsTab.RADIO_TRACKS,
         ItemDetailsTab.PODCAST_EPISODES,
         ItemDetailsTab.OTHER_EPISODES,
         ItemDetailsTab.COLLECTION_ITEMS,
@@ -767,11 +772,12 @@ private fun TabContent(
 
         ItemDetailsTab.TRACK_VERSIONS,
         ItemDetailsTab.SIMILAR_TRACKS,
+        ItemDetailsTab.RADIO_VERSIONS,
             -> PlayablesTabContent(
-            playableItemsState = if (tab == ItemDetailsTab.TRACK_VERSIONS) {
-                state.trackVersionsState
-            } else {
-                state.similarTracksState
+            playableItemsState = when (tab) {
+                ItemDetailsTab.TRACK_VERSIONS -> state.trackVersionsState
+                ItemDetailsTab.SIMILAR_TRACKS -> state.similarTracksState
+                ItemDetailsTab.RADIO_VERSIONS -> state.radioVersionsState
             },
             parentItem = item,
             playableItemsSortOption = null,
@@ -1150,6 +1156,7 @@ private fun PlayablesTabContent(
             is RadioStation -> RadioWithMenu(
                 item = track,
                 viewMode = viewMode,
+                navigateToItem = onNavigateClick,
                 onPlayOption = onPlayChildClick,
                 playlistActions = playlistActions,
                 onRemoveFromPlaylist = onRemove,

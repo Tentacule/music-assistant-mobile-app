@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,10 +22,10 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,14 +44,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import compose.icons.TablerIcons
 import compose.icons.tablericons.GripVertical
 import io.music_assistant.client.data.model.client.PlayerData
+import io.music_assistant.client.data.model.client.PlayerDelay
 import io.music_assistant.client.data.model.client.byId
 import io.music_assistant.client.sharedicons.SharedIcons
 import io.music_assistant.client.ui.alphaOn
@@ -59,6 +66,7 @@ import io.music_assistant.client.ui.compose.common.OverflowMenuOption
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
 import io.music_assistant.client.ui.compose.common.icons.NowPlayingIcon
 import musicassistantclient.composeapp.generated.resources.Res
+import musicassistantclient.composeapp.generated.resources.cd_close
 import musicassistantclient.composeapp.generated.resources.cd_more
 import musicassistantclient.composeapp.generated.resources.player_unavailable
 import musicassistantclient.composeapp.generated.resources.players_group_settings
@@ -69,6 +77,17 @@ import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.vectorResource
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+
+/**
+ * Keeps a scroll inside the sheet content from moving the sheet. The sheet collapses from
+ * the leftover of a content scroll (post-scroll and post-fling), so consuming that leftover
+ * here leaves the drag handle, the header, the back gesture and the close button as the
+ * only ways to close it.
+ */
+private object SheetStaysOnContentScroll : NestedScrollConnection {
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource) = available
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity) = available
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,7 +100,9 @@ fun SelectPlayerSheet(
     onPlayerAction: (String, PlayerAction) -> Unit = { _, _ -> },
     hideUnavailable: Boolean = false,
     onToggleHideUnavailable: () -> Unit = {},
-    onAdjustPlaybackDelay: (Int) -> Unit = {},
+    playerDelays: Map<String, PlayerDelay> = emptyMap(),
+    onLoadPlayerDelays: (Collection<String>) -> Unit = {},
+    onAdjustPlayerDelay: (String, Int) -> Unit = { _, _ -> },
     canLeaveGroup: Boolean = false,
 ) {
     val sheetState = rememberBottomSheetState(
@@ -92,6 +113,7 @@ fun SelectPlayerSheet(
     ModalBottomSheet(
         sheetState = sheetState,
         onDismissRequest = onDismissRequest,
+        dragHandle = { SheetHandle(onClose = onDismissRequest) },
     ) {
         var showGroupSettings by remember { mutableStateOf<String?>(null) }
         val groupPlayer = showGroupSettings?.let { players.byId(it) }
@@ -102,7 +124,9 @@ fun SelectPlayerSheet(
                 players = players,
                 onDismissRequest = onDismissRequest,
                 onPlayerAction = onPlayerAction,
-                onAdjustPlaybackDelay = onAdjustPlaybackDelay,
+                playerDelays = playerDelays,
+                onLoadPlayerDelays = onLoadPlayerDelays,
+                onAdjustPlayerDelay = onAdjustPlayerDelay,
                 canLeaveGroup = canLeaveGroup,
             )
         } else {
@@ -131,7 +155,7 @@ private fun PlayerLayout(
     hideUnavailable: Boolean,
     onToggleHideUnavailable: () -> Unit,
 ) {
-    Column {
+    Column(modifier = Modifier.fillMaxHeight()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -173,7 +197,7 @@ private fun PlayerLayout(
             }
         }
 
-        Box(modifier = Modifier.padding(16.dp)) {
+        Box(modifier = Modifier.padding(16.dp).nestedScroll(SheetStaysOnContentScroll)) {
             PlayerSelection(
                 players = shownPlayers,
                 selectedPlayer = selectedPlayer,
@@ -200,24 +224,47 @@ private fun GroupLayout(
     players: List<PlayerData>,
     onDismissRequest: () -> Unit,
     onPlayerAction: (String, PlayerAction) -> Unit,
-    onAdjustPlaybackDelay: (Int) -> Unit,
+    playerDelays: Map<String, PlayerDelay>,
+    onLoadPlayerDelays: (Collection<String>) -> Unit,
+    onAdjustPlayerDelay: (String, Int) -> Unit,
     canLeaveGroup: Boolean,
 ) {
-    Column {
+    // The pivot and the bound members show controls, so their delays load; a new member loads on join.
+    val memberIds = remember(player.playerId, player.childrenBinds) {
+        listOf(player.playerId) + player.childrenBinds.filter { it.isBound }.map { it.id }
+    }
+    LaunchedEffect(memberIds) { onLoadPlayerDelays(memberIds) }
+    Column(modifier = Modifier.fillMaxHeight()) {
         Text(
             text = stringResource(Res.string.players_group_settings),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(start = 16.dp),
         )
 
-        Box(modifier = Modifier.padding(16.dp)) {
+        Box(modifier = Modifier.padding(16.dp).nestedScroll(SheetStaysOnContentScroll)) {
             GroupSettings(
                 player = player,
                 onDismiss = onDismissRequest,
                 playerAction = onPlayerAction,
                 localPlayerId = players.firstOrNull { it.isLocal }?.playerId,
-                onAdjustPlaybackDelay = onAdjustPlaybackDelay,
+                playerDelays = playerDelays,
+                onAdjustPlayerDelay = onAdjustPlayerDelay,
                 canLeaveGroup = canLeaveGroup,
+            )
+        }
+    }
+}
+
+/** The drag handle of the sheet, with the close button at its end. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SheetHandle(onClose: () -> Unit) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        BottomSheetDefaults.DragHandle(modifier = Modifier.align(Alignment.Center))
+        IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterEnd)) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = stringResource(Res.string.cd_close),
             )
         }
     }
@@ -267,7 +314,7 @@ private fun PlayerSelection(
             .testTag("PlayersList")
             .selectableGroup(),
         state = listState,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(
             items = internalPlayers,
@@ -292,7 +339,7 @@ private fun PlayerSelection(
             ) {
                 Row(
                     modifier = Modifier
-                        .height(80.dp)
+                        .height(56.dp)
                         .fillMaxWidth()
                         .clip(shape = plateShape)
                         .background(color = backgroundColor)
@@ -347,26 +394,14 @@ private fun PlayerSelection(
                     }
 
                     if (!item.isLocal) {
+                        item.groupBadge()?.let {
+                            GroupCountBadge(it, modifier = Modifier.padding(start = 8.dp))
+                        }
                         IconButton(onClick = { onGroupRequest(item) }) {
-                            BadgedBox(
-                                badge = {
-                                    val groupMembers = item.player.groupMembers?.size ?: 0
-                                    val playerCount = if (groupMembers > 0) {
-                                        groupMembers
-                                    } else {
-                                        1
-                                    }
-
-                                    Badge {
-                                        Text(playerCount.toString())
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    vectorResource(SharedIcons.getResource(SharedIcons.SPEAKER)),
-                                    contentDescription = null,
-                                )
-                            }
+                            Icon(
+                                vectorResource(SharedIcons.getResource(SharedIcons.SPEAKER)),
+                                contentDescription = null,
+                            )
                         }
                     }
 
