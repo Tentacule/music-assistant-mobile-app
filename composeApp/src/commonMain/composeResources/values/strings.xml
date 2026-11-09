@@ -46,6 +46,7 @@
   <string name="action_play_podcast_from_here">Play from here to latest</string>
   <string name="action_play_shuffled">Play shuffled</string>
   <string name="action_refresh_item">Refresh item</string>
+  <string name="action_set_default_version">Set as default version</string>
   <string name="action_remove">Remove</string>
   <string name="action_remove_dislike">Remove dislike</string>
   <string name="action_remove_from_library">Remove from library</string>

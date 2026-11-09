@@ -201,6 +201,7 @@ fun ItemDetailsScreen(
         onRefreshPlaylist = itemDetailsViewModel::refreshPlaylistTracks,
         refreshAction = refreshAction,
         onRefreshItem = itemDetailsViewModel::refreshItem,
+        onSetDefaultVersion = itemDetailsViewModel::setAlbumGroupDefault,
         providerDetails = providerViewModel::getProviderDetails,
     )
 }
@@ -235,6 +236,7 @@ fun ItemDetails(
     onRefreshPlaylist: () -> Unit = {},
     refreshAction: RefreshItemAction? = null,
     onRefreshItem: () -> Unit = {},
+    onSetDefaultVersion: () -> Unit = {},
     providerDetails: (String) -> ProviderDetails? = { null },
 ) {
     val playlistActions = object : PlaylistActions {
@@ -333,6 +335,7 @@ fun ItemDetails(
                     onRefreshPlaylist = onRefreshPlaylist,
                     refreshAction = refreshAction,
                     onRefreshItem = onRefreshItem,
+                    onSetDefaultVersion = onSetDefaultVersion,
                     providerDetails = providerDetails,
                 )
             }
@@ -383,6 +386,7 @@ private fun ItemContent(
     onRefreshPlaylist: () -> Unit,
     refreshAction: RefreshItemAction?,
     onRefreshItem: () -> Unit,
+    onSetDefaultVersion: () -> Unit,
     providerDetails: (String) -> ProviderDetails?,
 ) {
     // Tabs, the loading gate, and the selected tab are all derived in ItemDetailsViewModel.State.
@@ -441,6 +445,7 @@ private fun ItemContent(
             refreshAction = refreshAction,
             refreshingItem = state.refreshingItem,
             onRefreshItem = onRefreshItem,
+            onSetDefaultVersion = onSetDefaultVersion.takeIf { state.albumGroupInfo?.canSetDefault == true },
             query = query,
             onQueryChanged = onQueryChanged,
             // Next to the play button in the hero. The search bar replaces the hero.
