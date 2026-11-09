@@ -847,6 +847,24 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             itemId,
             providerInstanceIdOrDomain,
         )
+
+        fun getVersions(
+            itemId: String,
+            providerInstanceIdOrDomain: String,
+        ) = Library.subItems(
+            APICommands.MUSIC_ALBUMS_ALBUM_VERSIONS,
+            itemId,
+            providerInstanceIdOrDomain,
+        )
+
+        fun getVersionsEnrichment(
+            itemId: String,
+            providerInstanceIdOrDomain: String,
+        ) = Library.subItems(
+            APICommands.MUSIC_ALBUMS_VERSIONS_ENRICHMENT,
+            itemId,
+            providerInstanceIdOrDomain,
+        )
     }
 
     data object Track {

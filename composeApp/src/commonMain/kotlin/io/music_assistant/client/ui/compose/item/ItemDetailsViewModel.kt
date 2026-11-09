@@ -36,6 +36,7 @@ import io.music_assistant.client.data.model.client.items.refreshItemAction
 import io.music_assistant.client.data.play.PlayDispatcher
 import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.data.play.PlayRequest
+import io.music_assistant.client.data.model.server.ServerAlbumVersionEnrichment
 import io.music_assistant.client.data.repository.ItemRefresher
 import io.music_assistant.client.data.repository.MediaItemChange
 import io.music_assistant.client.data.repository.MediaItemRepository
@@ -105,6 +106,10 @@ class ItemDetailsViewModel(
         val genres: List<Genre> = emptyList(),
         /** The owner line of a playlist; null for every other item and for a playlist without one. */
         val playlistOwnerLine: PlaylistOwnerLine? = null,
+        /** Other editions of this album the user has in their sources; NoData while not loaded. */
+        val albumVersionsState: DataState<List<Album>> = DataState.NoData(),
+        /** MusicBrainz enrichment keyed by MB release MBID; empty until loaded alongside versions. */
+        val versionEnrichmentsMap: Map<String, ServerAlbumVersionEnrichment> = emptyMap(),
     ) {
         /**
          * The count and the total playing time of the loaded tracks of an album or a playlist, for
@@ -133,6 +138,12 @@ class ItemDetailsViewModel(
                         }
                         ItemDetailsTab.RADIO_VERSIONS ->
                             when (val state = radioVersionsState) {
+                                is DataState.Data -> state.data.isEmpty()
+                                is DataState.Stale -> state.data.isEmpty()
+                                else -> false
+                            }
+                        ItemDetailsTab.ALBUM_VERSIONS ->
+                            when (val state = albumVersionsState) {
                                 is DataState.Data -> state.data.isEmpty()
                                 is DataState.Stale -> state.data.isEmpty()
                                 else -> false
@@ -307,9 +318,12 @@ class ItemDetailsViewModel(
                         albumsState = DataState.NoData(),
                         albumsSortOption = null,
                         playableItemsSortOption = settingsRepository.getSortOption(SubItemContext.ALBUM_TRACKS),
+                        albumVersionsState = DataState.Loading(),
+                        versionEnrichmentsMap = emptyMap(),
                     )
                 }
                 loadAlbumTracks(item.itemId, item.provider)
+                loadAlbumVersions(item.itemId, item.provider)
                 loadGenres(item)
             }
 
@@ -472,6 +486,27 @@ class ItemDetailsViewModel(
             } catch (e: Exception) {
                 Logger.e("Failed to load album tracks", e)
                 setPlayableItemsState(DataState.Error())
+            }
+        }
+    }
+
+    private fun loadAlbumVersions(itemId: String, provider: String) {
+        viewModelScope.launch {
+            try {
+                val versions = mediaItemRepository.fetchMediaItems(
+                    Request.Album.getVersions(
+                        itemId = itemId,
+                        providerInstanceIdOrDomain = provider,
+                    ),
+                ).getOrNull()?.filterIsInstance<Album>() ?: emptyList()
+                _state.update { it.copy(albumVersionsState = DataState.Data(versions)) }
+                val enrichments = mediaItemRepository.fetchVersionsEnrichment(itemId, provider)
+                _state.update { it.copy(versionEnrichmentsMap = enrichments.associateBy { it.mbReleaseId }) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("Failed to load album versions", e)
+                _state.update { it.copy(albumVersionsState = DataState.Error()) }
             }
         }
     }
@@ -931,6 +966,7 @@ private fun ItemDetailsTab.subState(
     ItemDetailsTab.TRACK_VERSIONS -> state.trackVersionsState
     ItemDetailsTab.RADIO_VERSIONS -> state.radioVersionsState
     ItemDetailsTab.SIMILAR_TRACKS -> state.similarTracksState
+    ItemDetailsTab.ALBUM_VERSIONS -> state.albumVersionsState
     ItemDetailsTab.ALBUM_TRACKS,
     ItemDetailsTab.PLAYLIST_ITEMS,
     ItemDetailsTab.RADIO_TRACKS,

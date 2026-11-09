@@ -13,6 +13,7 @@ import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.model.client.lyricsOf
 import io.music_assistant.client.data.model.client.transcriptOf
 import io.music_assistant.client.data.model.server.SearchResult
+import io.music_assistant.client.data.model.server.ServerAlbumVersionEnrichment
 import io.music_assistant.client.data.model.server.ServerMediaItem
 import io.music_assistant.client.data.model.server.ServerTranscriptCue
 import io.music_assistant.client.data.model.server.events.FavoriteUpdatedEvent
@@ -58,6 +59,15 @@ interface MediaItemRepository {
     val itemChanges: SharedFlow<MediaItemChange>
     suspend fun search(request: Request): Result<SearchResultData>
     suspend fun fetchMediaItem(request: Request): Result<AppMediaItem?>
+
+    /**
+     * MB enrichment (catalog number, label, track count) for all versions of an album the user
+     * has in their sources. Returns an empty list on any error so the UI degrades gracefully.
+     */
+    suspend fun fetchVersionsEnrichment(
+        itemId: String,
+        provider: String,
+    ): List<ServerAlbumVersionEnrichment>
 
     /** The lyrics the server finds for [track]; `Result.success(null)` when it has none. */
     suspend fun fetchTrackLyrics(track: Track): Result<Lyrics?>
@@ -134,6 +144,17 @@ class ServiceClientMediaItemRepository(
                     ?.let(factory::createSearchResult)
                     ?: error("Missing or undecodable search payload")
             }
+        }
+
+    override suspend fun fetchVersionsEnrichment(
+        itemId: String,
+        provider: String,
+    ): List<ServerAlbumVersionEnrichment> =
+        withContext(workDispatcher) {
+            apiClient.sendRequest(Request.Album.getVersionsEnrichment(itemId, provider))
+                .getOrNull()
+                ?.resultAs<List<ServerAlbumVersionEnrichment>>()
+                ?: emptyList()
         }
 
     /** `metadata/get_track_lyrics` answers a `[lyrics, lrc_lyrics]` tuple. */

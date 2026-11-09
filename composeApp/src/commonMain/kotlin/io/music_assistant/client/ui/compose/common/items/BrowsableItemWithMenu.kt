@@ -46,6 +46,7 @@ fun AlbumWithMenu(
     libraryActions: LibraryActions,
     providerIconFetcher: ProviderIconFetcher?,
     subtitle: AlbumSubtitle = AlbumSubtitle.ARTISTS,
+    customSubtitle: String? = null,
 ) {
     BrowsableItemWithMenu(
         modifier = when (viewMode) {
@@ -68,6 +69,7 @@ fun AlbumWithMenu(
                 onLongClick = onLongClick,
                 providerIconFetcher = providerIconFetcher,
                 subtitle = subtitle,
+                customSubtitle = customSubtitle,
             )
             ViewMode.GRID -> AlbumGridItem(
                 modifier = mod,
@@ -76,6 +78,7 @@ fun AlbumWithMenu(
                 onLongClick = onLongClick,
                 providerIconFetcher = providerIconFetcher,
                 subtitle = subtitle,
+                customSubtitle = customSubtitle,
             )
         }
     }

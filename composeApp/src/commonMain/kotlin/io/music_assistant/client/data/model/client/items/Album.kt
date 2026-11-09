@@ -23,7 +23,12 @@ data class Album(
     val artists: List<Artist>,
     /** Null when the server does not know the type. */
     val albumType: AlbumType? = null,
+    /** Raw external ID pairs from the server, e.g. [["musicbrainz_albumid", "abc-123"]]. */
+    val externalIds: List<List<String>>? = null,
 ) : AppMediaItem() {
+    /** The MusicBrainz release MBID for this album, if the server provided one. */
+    val mbAlbumId: String?
+        get() = externalIds?.firstOrNull { it.getOrNull(0) == "musicbrainz_albumid" }?.getOrNull(1)
     override fun withFavorite(favorite: Boolean?) = copy(favorite = favorite)
     override val mediaType: MediaType = MediaType.ALBUM
     override val defaultIcon = AlbumIcon

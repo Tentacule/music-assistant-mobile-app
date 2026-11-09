@@ -70,6 +70,7 @@ class MediaItemFactory(
                 year = year,
                 artists = artists?.mapNotNull { create(it) as? Artist } ?: emptyList(),
                 albumType = AlbumType.fromServer(albumType),
+                externalIds = externalIds,
             )
 
             MediaType.TRACK -> Track(

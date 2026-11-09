@@ -197,6 +197,7 @@ fun AlbumGridItem(
     onLongClick: (Album) -> Unit,
     providerIconFetcher: ProviderIconFetcher?,
     subtitle: AlbumSubtitle = AlbumSubtitle.ARTISTS,
+    customSubtitle: String? = null,
 ) {
     GridItem(
         modifier = modifier,
@@ -211,7 +212,7 @@ fun AlbumGridItem(
         Spacer(Modifier.height(4.dp))
         MediaItemLabels(
             title = item.displayName,
-            subtitle = item.subtitleText(subtitle).orEmpty(),
+            subtitle = customSubtitle ?: item.subtitleText(subtitle).orEmpty(),
         )
     }
 }
@@ -646,11 +647,12 @@ internal fun AlbumRowItem(
     onLongClick: (Album) -> Unit,
     providerIconFetcher: ProviderIconFetcher?,
     subtitle: AlbumSubtitle = AlbumSubtitle.ARTISTS,
+    customSubtitle: String? = null,
 ) {
     RowItem(
         modifier = modifier,
         name = item.displayName,
-        subtitle = item.subtitleText(subtitle),
+        subtitle = customSubtitle ?: item.subtitleText(subtitle),
         description = contentDescription(item),
         prefixContent = { MediaArtwork(item) },
         badges = { RowBadges(item, providerIconFetcher) },

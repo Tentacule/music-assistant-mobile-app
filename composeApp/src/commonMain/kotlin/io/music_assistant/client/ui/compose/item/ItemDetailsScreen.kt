@@ -79,6 +79,7 @@ import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.model.client.resumeChapter
 import io.music_assistant.client.data.model.client.stringResource
 import io.music_assistant.client.data.model.client.toClickContext
+import io.music_assistant.client.data.model.server.ServerAlbumVersionEnrichment
 import io.music_assistant.client.data.model.server.ServerMediaItem
 import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.nav.BackHandler
@@ -137,9 +138,11 @@ import musicassistantclient.composeapp.generated.resources.cd_in_progress
 import musicassistantclient.composeapp.generated.resources.cd_provider_filter
 import musicassistantclient.composeapp.generated.resources.item_error
 import musicassistantclient.composeapp.generated.resources.item_no_data
+import musicassistantclient.composeapp.generated.resources.item_tab_album_versions
 import musicassistantclient.composeapp.generated.resources.item_tab_other_episodes
 import musicassistantclient.composeapp.generated.resources.item_tab_similar_tracks
 import musicassistantclient.composeapp.generated.resources.item_tab_versions
+import musicassistantclient.composeapp.generated.resources.item_track_count
 import musicassistantclient.composeapp.generated.resources.library_empty
 import musicassistantclient.composeapp.generated.resources.library_error
 import musicassistantclient.composeapp.generated.resources.media_type_audiobooks
@@ -147,6 +150,7 @@ import musicassistantclient.composeapp.generated.resources.media_type_chapters
 import musicassistantclient.composeapp.generated.resources.media_type_episodes
 import musicassistantclient.composeapp.generated.resources.search_no_results
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -347,6 +351,7 @@ private fun ItemDetailsTab.stringResource(): StringResource? = when (this) {
     ItemDetailsTab.TRACK_VERSIONS,
     ItemDetailsTab.RADIO_VERSIONS,
     -> Res.string.item_tab_versions
+    ItemDetailsTab.ALBUM_VERSIONS -> Res.string.item_tab_album_versions
     ItemDetailsTab.SIMILAR_TRACKS -> Res.string.item_tab_similar_tracks
     else -> viewMediaType?.stringResource()
 }
@@ -816,6 +821,22 @@ private fun TabContent(
             gridState = gridState,
             controlTint = controlTint,
         )
+
+        ItemDetailsTab.ALBUM_VERSIONS -> AlbumVersionsTabContent(
+            albumVersionsState = state.albumVersionsState,
+            versionEnrichmentsMap = state.versionEnrichmentsMap,
+            parentItem = item,
+            viewModeProvider = viewModeProvider,
+            onNavigateClick = onNavigateClick,
+            onPlayChildClick = onPlayChildClick,
+            playlistActions = playlistActions,
+            libraryActions = libraryActions,
+            providerIconFetcher = providerIconFetcher,
+            contentPadding = contentPadding,
+            heroSlot = heroSlot,
+            tabsSlot = tabsSlot,
+            gridState = gridState,
+        )
     }
 }
 
@@ -954,6 +975,75 @@ private fun AlbumsTabContent(
             }
         }
     }
+}
+
+@Composable
+private fun AlbumVersionsTabContent(
+    albumVersionsState: DataState<List<Album>>,
+    versionEnrichmentsMap: Map<String, ServerAlbumVersionEnrichment>,
+    parentItem: AppMediaItem,
+    viewModeProvider: @Composable (MediaType) -> ViewMode,
+    onNavigateClick: (AppMediaItem) -> Unit,
+    onPlayChildClick: PlayHandler<AppMediaItem>,
+    playlistActions: PlaylistActions,
+    libraryActions: LibraryActions,
+    providerIconFetcher: ProviderIconFetcher,
+    contentPadding: PaddingValues,
+    heroSlot: @Composable () -> Unit,
+    tabsSlot: @Composable () -> Unit,
+    gridState: LazyGridState,
+) {
+    val viewMode = viewModeProvider(MediaType.ALBUM)
+    val albumRows = albumVersionsState.tabRows()
+    val albumKeys = remember(albumRows) { albumRows.lazyListOccurrenceKeys() }
+    DetailGrid(contentPadding, heroSlot, tabsSlot, gridState) {
+        tabListBody(albumVersionsState) { albums ->
+            itemsIndexed(
+                items = albums,
+                key = { index, _ -> albumKeys[index] },
+                span = when (viewMode) {
+                    ViewMode.LIST -> { _, _ -> GridItemSpan(maxLineSpan) }
+                    ViewMode.GRID -> null
+                },
+            ) { index, album ->
+                val enrichment = album.mbAlbumId?.let { versionEnrichmentsMap[it] }
+                val subtitle = enrichmentSubtitle(album, enrichment)
+                DpadRememberedFocus(rowKey = "album_versions", itemKey = albumKeys[index]) {
+                    AlbumWithMenu(
+                        item = album,
+                        viewMode = viewMode,
+                        onNavigateClick = onNavigateClick,
+                        navigateToItem = onNavigateClick,
+                        containerItem = parentItem,
+                        onPlayOption = onPlayChildClick,
+                        playlistActions = playlistActions,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                        customSubtitle = subtitle,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Format the enriched subtitle for one album version: type · year · N tracks · catalog · notes. */
+@Composable
+private fun enrichmentSubtitle(
+    album: Album,
+    enrichment: ServerAlbumVersionEnrichment?,
+): String {
+    val parts = mutableListOf<String>()
+    album.albumType?.stringResource()?.let { parts += stringResource(it) }
+    album.year?.let { parts += it.toString() }
+    if (enrichment != null) {
+        val total = enrichment.totalTrackCount
+        if (total > 0) parts += pluralStringResource(Res.plurals.item_track_count, total, total)
+        if (enrichment.catalogNumbers.isNotEmpty())
+            parts += enrichment.catalogNumbers.joinToString(", ")
+    }
+    album.version?.takeIf { it.isNotBlank() }?.let { parts += it }
+    return parts.joinToString(" · ")
 }
 
 @Composable
