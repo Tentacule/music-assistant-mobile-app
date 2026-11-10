@@ -88,6 +88,7 @@ class MediaItemFactory(
                 artists = artists?.mapNotNull { create(it) as? Artist } ?: emptyList(),
                 album = album?.let { create(it) as? Album },
                 discNumber = discNumber,
+                discSubtitle = discSubtitle?.takeIf { it.isNotBlank() },
                 trackNumber = trackNumber,
                 position = intPosition,
                 version = version,

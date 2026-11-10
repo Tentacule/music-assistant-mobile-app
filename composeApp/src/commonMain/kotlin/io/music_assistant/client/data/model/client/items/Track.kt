@@ -25,6 +25,7 @@ data class Track(
     val artists: List<Artist>,
     val album: Album?,
     val discNumber: Int?,
+    val discSubtitle: String? = null,
     val trackNumber: Int?,
     override val position: Int?,
     override val version: String?,

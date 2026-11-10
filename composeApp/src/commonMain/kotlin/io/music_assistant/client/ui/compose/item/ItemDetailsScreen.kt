@@ -1200,7 +1200,8 @@ private fun PlayablesTabContent(
                     val disc = (track as? Track)?.discNumber ?: return@forEachIndexed
                     val prevDisc = (tracks.getOrNull(index - 1) as? Track)?.discNumber
                     if (index == 0 || disc != prevDisc) {
-                        fullSpanItem("disc-header-$disc") { DiscHeader(disc, controlTint) }
+                        val subtitle = (track as? Track)?.discSubtitle
+                        fullSpanItem("disc-header-$disc") { DiscHeader(disc, subtitle, controlTint) }
                     }
                     item(key = trackKeys[index], span = listSpan) { trackItem(track) }
                 }
@@ -1219,9 +1220,14 @@ private fun PlayablesTabContent(
 }
 
 @Composable
-private fun DiscHeader(disc: Int, controlTint: Color) {
+private fun DiscHeader(disc: Int, subtitle: String?, controlTint: Color) {
+    val text = if (subtitle != null) {
+        "$disc - $subtitle"
+    } else {
+        stringResource(Res.string.album_disc_header, disc)
+    }
     Text(
-        text = stringResource(Res.string.album_disc_header, disc),
+        text = text,
         style = MaterialTheme.typography.titleSmall,
         color = controlTint,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),

@@ -56,6 +56,7 @@ data class ServerMediaItem(
     // album track only
     @SerialName("album") val album: ServerMediaItem? = null,
     @SerialName("disc_number") val discNumber: Int? = null,
+    @SerialName("disc_subtitle") val discSubtitle: String? = null,
     @SerialName("track_number") val trackNumber: Int? = null,
     // podcast episode only
     @SerialName("podcast") val podcast: ServerMediaItem? = null,
