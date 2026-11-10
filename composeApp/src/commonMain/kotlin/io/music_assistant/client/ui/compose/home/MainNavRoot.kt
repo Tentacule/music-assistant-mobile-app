@@ -829,6 +829,10 @@ private fun mainNavEntryProvider(
                 onNavigateToList = { title, itemList, clickContext ->
                     multiBackStack.add(MainNav.ItemList(title, itemList, clickContext))
                 },
+                onNavigateToSeries = { seriesId, seriesName ->
+                    mbSeriesNavState.store(seriesId, emptyList())
+                    multiBackStack.add(MainNav.MbSeriesAlbums(seriesId, seriesName))
+                },
                 contentPadding = contentPadding,
             )
         }

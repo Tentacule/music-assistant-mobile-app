@@ -165,6 +165,7 @@ fun ItemDetailsScreen(
     onNavigateToItem: (String, MediaType, String) -> Unit,
     onNavigateToList: (String, ItemList, ClickContext) -> Unit,
     contentPadding: PaddingValues,
+    onNavigateToSeries: ((String, String) -> Unit)? = null,
 ) {
     val state by itemDetailsViewModel.state.collectAsStateWithLifecycle()
     val refreshAction by itemDetailsViewModel.refreshAction.collectAsStateWithLifecycle()
@@ -202,6 +203,7 @@ fun ItemDetailsScreen(
         refreshAction = refreshAction,
         onRefreshItem = itemDetailsViewModel::refreshItem,
         providerDetails = providerViewModel::getProviderDetails,
+        onNavigateToSeries = onNavigateToSeries,
     )
 }
 
@@ -236,6 +238,7 @@ fun ItemDetails(
     refreshAction: RefreshItemAction? = null,
     onRefreshItem: () -> Unit = {},
     providerDetails: (String) -> ProviderDetails? = { null },
+    onNavigateToSeries: ((String, String) -> Unit)? = null,
 ) {
     val playlistActions = object : PlaylistActions {
         override suspend fun getEditablePlaylists(): List<Playlist> {
@@ -334,6 +337,7 @@ fun ItemDetails(
                     refreshAction = refreshAction,
                     onRefreshItem = onRefreshItem,
                     providerDetails = providerDetails,
+                    onNavigateToSeries = onNavigateToSeries,
                 )
             }
 
@@ -384,6 +388,7 @@ private fun ItemContent(
     refreshAction: RefreshItemAction?,
     onRefreshItem: () -> Unit,
     providerDetails: (String) -> ProviderDetails?,
+    onNavigateToSeries: ((String, String) -> Unit)? = null,
 ) {
     // Tabs, the loading gate, and the selected tab are all derived in ItemDetailsViewModel.State.
     val tabs = state.tabs
@@ -468,6 +473,7 @@ private fun ItemContent(
                     description = description,
                     onOpenDescription = { showDescription = true },
                     albumSeriesInfo = state.albumSeriesInfo,
+                    onNavigateToSeries = onNavigateToSeries,
                     actions = actions.takeIf { dpad },
                 )
             }

@@ -36,7 +36,6 @@ import io.music_assistant.client.data.model.client.ItemDescriptionKind
 import io.music_assistant.client.data.model.client.ProviderDetails
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
-import io.music_assistant.client.data.model.server.ServerAlbumSeriesInfo
 import io.music_assistant.client.data.model.client.items.Audiobook
 import io.music_assistant.client.data.model.client.items.Genre
 import io.music_assistant.client.data.model.client.items.PlaylistAccessPart
@@ -52,7 +51,6 @@ import musicassistantclient.composeapp.generated.resources.item_duration_hours
 import musicassistantclient.composeapp.generated.resources.item_duration_hours_minutes
 import musicassistantclient.composeapp.generated.resources.item_duration_minutes
 import musicassistantclient.composeapp.generated.resources.item_publisher
-import musicassistantclient.composeapp.generated.resources.item_series_part
 import musicassistantclient.composeapp.generated.resources.item_section_about_episode
 import musicassistantclient.composeapp.generated.resources.item_section_biography
 import musicassistantclient.composeapp.generated.resources.item_section_description
@@ -89,17 +87,10 @@ fun ItemFacts(
     providerDetails: (String) -> ProviderDetails?,
     textAlign: TextAlign,
     modifier: Modifier = Modifier,
-    albumSeriesInfo: ServerAlbumSeriesInfo? = null,
 ) {
-    val seriesFact = albumSeriesInfo?.let { series ->
-        series.orderNumber
-            ?.let { num -> stringResource(Res.string.item_series_part, series.seriesName, num) }
-            ?: series.seriesName
-    }
     val facts = listOfNotNull(
         (item as? Album)?.albumType?.let { stringResource(it.stringResource()) },
         (item as? Album)?.year?.toString(),
-        seriesFact,
         playableSummary?.let { pluralStringResource(Res.plurals.item_track_count, it.count, it.count) },
         playableSummary?.totalSeconds?.toTotalDuration()?.localized(),
         (item as? PodcastEpisode)?.duration?.takeIf { it > 0 }?.toTotalDuration()?.localized(),
