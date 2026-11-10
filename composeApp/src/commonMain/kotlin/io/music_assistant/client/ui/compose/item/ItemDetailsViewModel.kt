@@ -36,6 +36,7 @@ import io.music_assistant.client.data.model.client.items.refreshItemAction
 import io.music_assistant.client.data.play.PlayDispatcher
 import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.data.play.PlayRequest
+import io.music_assistant.client.data.model.server.ServerAlbumSeriesInfo
 import io.music_assistant.client.data.model.server.ServerAlbumVersionEnrichment
 import io.music_assistant.client.data.repository.ItemRefresher
 import io.music_assistant.client.data.repository.MediaItemChange
@@ -110,6 +111,8 @@ class ItemDetailsViewModel(
         val albumVersionsState: DataState<List<Album>> = DataState.NoData(),
         /** MusicBrainz enrichment keyed by MB release MBID; empty until loaded alongside versions. */
         val versionEnrichmentsMap: Map<String, ServerAlbumVersionEnrichment> = emptyMap(),
+        /** MusicBrainz series membership of this album's release group; null while not loaded or not in a series. */
+        val albumSeriesInfo: ServerAlbumSeriesInfo? = null,
     ) {
         /**
          * The count and the total playing time of the loaded tracks of an album or a playlist, for
@@ -320,10 +323,12 @@ class ItemDetailsViewModel(
                         playableItemsSortOption = settingsRepository.getSortOption(SubItemContext.ALBUM_TRACKS),
                         albumVersionsState = DataState.Loading(),
                         versionEnrichmentsMap = emptyMap(),
+                        albumSeriesInfo = null,
                     )
                 }
                 loadAlbumTracks(item.itemId, item.provider)
                 loadAlbumVersions(item.itemId, item.provider)
+                loadAlbumSeriesInfo(item)
                 loadGenres(item)
             }
 
@@ -465,6 +470,14 @@ class ItemDetailsViewModel(
         viewModelScope.launch {
             val name = providerRepository.shareCandidates()?.firstOrNull { it.userId == ownerId }?.name ?: return@launch
             _state.update { it.copy(playlistOwnerLine = playlist.ownerLine(accessSupported, viewerId, name)) }
+        }
+    }
+
+    private fun loadAlbumSeriesInfo(album: Album) {
+        val releaseGroupId = album.mbReleaseGroupId ?: return
+        viewModelScope.launch {
+            val seriesInfo = mediaItemRepository.fetchReleaseGroupSeriesInfo(releaseGroupId)
+            _state.update { it.copy(albumSeriesInfo = seriesInfo) }
         }
     }
 

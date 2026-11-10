@@ -63,6 +63,8 @@ import io.music_assistant.client.ui.compose.library.BrowseViewModel
 import io.music_assistant.client.ui.compose.library.LibraryCategoriesViewModel
 import io.music_assistant.client.ui.compose.library.LibraryListViewModel
 import io.music_assistant.client.ui.compose.provider.ProviderViewModel
+import io.music_assistant.client.ui.compose.series.MbSeriesAlbumsViewModel
+import io.music_assistant.client.ui.compose.series.MbSeriesNavigationState
 import io.music_assistant.client.ui.compose.search.SearchViewModel
 import io.music_assistant.client.ui.compose.settings.CarActionsViewModel
 import io.music_assistant.client.ui.compose.settings.CarDspViewModel
@@ -238,6 +240,10 @@ fun sharedModule(
             )
         }
         factory { LibraryCategoriesViewModel(get(), get()) }
+        single { MbSeriesNavigationState() }
+        factory { params ->
+            MbSeriesAlbumsViewModel(params[0], params[1], get(), get(), get())
+        }
         factory { params -> LibraryListViewModel(params[0], get(), get(), get(), get(), get(), get(), get()) }
         factory { params -> BrowseViewModel(params.getOrNull<String>(), get(), get(), get()) }
         factory { params ->

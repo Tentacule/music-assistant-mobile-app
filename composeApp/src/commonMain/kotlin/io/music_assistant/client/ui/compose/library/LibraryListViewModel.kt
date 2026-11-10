@@ -26,6 +26,9 @@ import io.music_assistant.client.data.repository.MediaItemChange
 import io.music_assistant.client.data.repository.MediaItemRepository
 import io.music_assistant.client.data.repository.ProviderRepository
 import io.music_assistant.client.data.repository.favoriteAfter
+import io.music_assistant.client.data.model.client.items.Album
+import io.music_assistant.client.data.model.server.ServerAlbumSeriesInfo
+import io.music_assistant.client.settings.MbSeriesGrouping
 import io.music_assistant.client.settings.SeriesGrouping
 import io.music_assistant.client.settings.SettingsRepository
 import io.music_assistant.client.ui.Timings
@@ -69,6 +72,7 @@ class LibraryListViewModel(
             dataState = DataState.Loading(),
             mediaType = mediaType,
             seriesGrouping = settingsRepository.getSeriesGrouping(),
+            mbSeriesGrouping = settingsRepository.getMbAlbumSeriesGrouping(),
         ),
     )
     val state = _state.asStateFlow()
@@ -254,6 +258,24 @@ class LibraryListViewModel(
         settingsRepository.setSeriesGrouping(grouping)
         _state.update { it.copy(seriesGrouping = grouping) }
         searchTrigger.tryEmit(Unit)
+    }
+
+    fun onMbSeriesGroupingToggled() {
+        val grouping = _state.value.mbSeriesGrouping.toggled()
+        settingsRepository.setMbAlbumSeriesGrouping(grouping)
+        _state.update { it.copy(mbSeriesGrouping = grouping) }
+    }
+
+    private fun loadSeriesInfoForAlbums(albums: List<AppMediaItem>) {
+        if (mediaType != MediaType.ALBUM) return
+        viewModelScope.launch {
+            albums.filterIsInstance<Album>().forEach { album ->
+                val rgId = album.mbReleaseGroupId ?: return@forEach
+                if (rgId in _state.value.seriesInfoMap) return@forEach
+                val info = mediaItemRepository.fetchReleaseGroupSeriesInfo(rgId) ?: return@forEach
+                _state.update { it.copy(seriesInfoMap = it.seriesInfoMap + (rgId to info)) }
+            }
+        }
     }
 
     fun onSortChanged(sortOption: SortOption) {
@@ -499,7 +521,10 @@ class LibraryListViewModel(
 
     private fun updateState(dataState: DataState<List<AppMediaItem>>) {
         _state.update {
-            it.copy(dataState = dataState)
+            it.copy(
+                dataState = dataState,
+                seriesInfoMap = if (dataState is DataState.Loading) emptyMap() else it.seriesInfoMap,
+            )
         }
     }
 
@@ -520,6 +545,7 @@ class LibraryListViewModel(
                 isLoadingMore = false,
             )
         }
+        loadSeriesInfoForAlbums(deduped)
     }
 
     companion object Companion {
@@ -541,9 +567,40 @@ class LibraryListViewModel(
         val filters: LibraryFilters = LibraryFilters.DEFAULT,
         // Audiobooks only: GROUPED sends `collapse_collections`, so a series comes back as one row.
         val seriesGrouping: SeriesGrouping = SeriesGrouping.FLAT,
+        // Albums only: GROUPED deduplicates albums into one entry per MB series.
+        val mbSeriesGrouping: MbSeriesGrouping = MbSeriesGrouping.FLAT,
+        // Albums only: keyed by mbReleaseGroupId; filled asynchronously as pages load.
+        val seriesInfoMap: Map<String, ServerAlbumSeriesInfo> = emptyMap(),
     ) {
         /** The type of the rows: the Audiobooks list shows artists while [filters] name an artist type. */
         val listedMediaType: MediaType
             get() = if (filters.audiobookArtistType != null) MediaType.ARTIST else mediaType
+
+        /**
+         * Items to display: applies the [filters.seriesOnly] client filter and, when
+         * [mbSeriesGrouping] is GROUPED, collapses all albums of a series into one entry
+         * (the first album encountered, ordered by page fetch order).
+         */
+        val displayItems: DataState<List<AppMediaItem>>
+            get() {
+                val data = dataState as? DataState.Data ?: return dataState
+                var items: List<AppMediaItem> = data.data
+                if (mediaType == MediaType.ALBUM && filters.seriesOnly) {
+                    items = items.filter { item ->
+                        item is Album && item.mbReleaseGroupId?.let { seriesInfoMap[it] } != null
+                    }
+                }
+                if (mediaType == MediaType.ALBUM && mbSeriesGrouping == MbSeriesGrouping.GROUPED) {
+                    val seenSeriesIds = mutableSetOf<String>()
+                    items = items.filter { item ->
+                        if (item !is Album) return@filter true
+                        val seriesId = item.mbReleaseGroupId
+                            ?.let { seriesInfoMap[it] }?.seriesId
+                            ?: return@filter true
+                        seenSeriesIds.add(seriesId)
+                    }
+                }
+                return DataState.Data(items)
+            }
     }
 }

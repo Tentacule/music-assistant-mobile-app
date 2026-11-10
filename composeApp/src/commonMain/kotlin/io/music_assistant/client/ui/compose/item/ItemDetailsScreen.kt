@@ -467,6 +467,7 @@ private fun ItemContent(
                     providerDetails = providerDetails,
                     description = description,
                     onOpenDescription = { showDescription = true },
+                    albumSeriesInfo = state.albumSeriesInfo,
                     actions = actions.takeIf { dpad },
                 )
             }

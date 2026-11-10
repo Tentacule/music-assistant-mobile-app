@@ -75,6 +75,7 @@ import io.music_assistant.client.data.model.client.items.Genre
 import io.music_assistant.client.data.model.client.items.MediaCollection
 import io.music_assistant.client.data.model.client.items.PlaylistOwnerLine
 import io.music_assistant.client.data.model.client.items.PodcastEpisode
+import io.music_assistant.client.data.model.server.ServerAlbumSeriesInfo
 import io.music_assistant.client.data.model.client.items.RefreshItemAction
 import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.play.PlayMode
@@ -148,6 +149,7 @@ fun ItemHeader(
     providerDetails: (String) -> ProviderDetails? = { null },
     description: ItemDescription? = null,
     onOpenDescription: () -> Unit = {},
+    albumSeriesInfo: ServerAlbumSeriesInfo? = null,
     // Controls on the row of the play button: the TV has no top bar on this page.
     actions: (@Composable () -> Unit)? = null,
 ) {
@@ -206,6 +208,7 @@ fun ItemHeader(
                 providerDetails = providerDetails,
                 textAlign = textAlign,
                 modifier = Modifier.padding(top = 8.dp),
+                albumSeriesInfo = albumSeriesInfo,
             )
         }
 

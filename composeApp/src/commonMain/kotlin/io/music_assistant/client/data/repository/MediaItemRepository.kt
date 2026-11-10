@@ -13,6 +13,7 @@ import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.model.client.lyricsOf
 import io.music_assistant.client.data.model.client.transcriptOf
 import io.music_assistant.client.data.model.server.SearchResult
+import io.music_assistant.client.data.model.server.ServerAlbumSeriesInfo
 import io.music_assistant.client.data.model.server.ServerAlbumVersionEnrichment
 import io.music_assistant.client.data.model.server.ServerMediaItem
 import io.music_assistant.client.data.model.server.ServerTranscriptCue
@@ -68,6 +69,12 @@ interface MediaItemRepository {
         itemId: String,
         provider: String,
     ): List<ServerAlbumVersionEnrichment>
+
+    /**
+     * MB series membership for the given release group. Returns null when MusicBrainz is
+     * unavailable, on any network error, or when the release group belongs to no series.
+     */
+    suspend fun fetchReleaseGroupSeriesInfo(releaseGroupId: String): ServerAlbumSeriesInfo?
 
     /** The lyrics the server finds for [track]; `Result.success(null)` when it has none. */
     suspend fun fetchTrackLyrics(track: Track): Result<Lyrics?>
@@ -155,6 +162,15 @@ class ServiceClientMediaItemRepository(
                 .getOrNull()
                 ?.resultAs<List<ServerAlbumVersionEnrichment>>()
                 ?: emptyList()
+        }
+
+    override suspend fun fetchReleaseGroupSeriesInfo(
+        releaseGroupId: String,
+    ): ServerAlbumSeriesInfo? =
+        withContext(workDispatcher) {
+            apiClient.sendRequest(Request.Album.getReleaseGroupSeries(releaseGroupId))
+                .getOrNull()
+                ?.resultAs<ServerAlbumSeriesInfo>()
         }
 
     /** `metadata/get_track_lyrics` answers a `[lyrics, lrc_lyrics]` tuple. */

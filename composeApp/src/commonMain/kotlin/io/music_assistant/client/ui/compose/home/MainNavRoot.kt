@@ -107,6 +107,10 @@ import io.music_assistant.client.ui.compose.library.LibraryCategoriesViewModel
 import io.music_assistant.client.ui.compose.library.LibraryCategory
 import io.music_assistant.client.ui.compose.library.LibraryListScreen
 import io.music_assistant.client.ui.compose.library.LibraryListViewModel
+import io.music_assistant.client.ui.compose.common.DataState
+import io.music_assistant.client.ui.compose.series.MbSeriesAlbumsScreen
+import io.music_assistant.client.ui.compose.series.MbSeriesAlbumsViewModel
+import io.music_assistant.client.ui.compose.series.MbSeriesNavigationState
 import io.music_assistant.client.ui.compose.library.icon
 import io.music_assistant.client.ui.compose.library.stringResource
 import io.music_assistant.client.ui.compose.nav.ConditionalBackNavDisplay
@@ -604,6 +608,7 @@ private fun mainNavEntryProvider(
     // Hoisted here (outlives the per-NavEntry SearchViewModel) to carry an empty-quick-search
     // escalation from the library tab to the Search tab. Set by ItemList, consumed by SearchScreen.
     var pendingSearch by remember { mutableStateOf<GlobalSearchRequest?>(null) }
+    val mbSeriesNavState: MbSeriesNavigationState = koinInject()
     return entryProvider {
         entry<MainNav.Landing> {
             val screenState = rememberPublishedScreenState(homeScreenState) {
@@ -690,6 +695,21 @@ private fun mainNavEntryProvider(
 
                         else -> Unit
                     }
+                },
+                onNavigateToSeries = { seriesId, seriesName ->
+                    val vmState = libraryListViewModel.state.value
+                    val seriesAlbums = (vmState.dataState as? DataState.Data)?.data
+                        ?.filterIsInstance<Album>()
+                        ?.mapNotNull { album ->
+                            val rgId = album.mbReleaseGroupId ?: return@mapNotNull null
+                            val info = vmState.seriesInfoMap[rgId]
+                                ?.takeIf { it.seriesId == seriesId }
+                                ?: return@mapNotNull null
+                            album to info
+                        }
+                        .orEmpty()
+                    mbSeriesNavState.store(seriesId, seriesAlbums)
+                    multiBackStack.add(MainNav.MbSeriesAlbums(seriesId, seriesName))
                 },
             )
         }
@@ -838,6 +858,27 @@ private fun mainNavEntryProvider(
                 onSearchConsumed = { pendingSearch = null },
             )
         }
+
+        entry<MainNav.MbSeriesAlbums> { dest ->
+            val seriesViewModel = koinViewModel<MbSeriesAlbumsViewModel> {
+                parametersOf(dest.seriesId, dest.seriesName)
+            }
+            MbSeriesAlbumsScreen(
+                viewModel = seriesViewModel,
+                actionsViewModel = actionsViewModel,
+                contentPadding = contentPadding,
+                onNavigateClick = { item ->
+                    multiBackStack.add(
+                        MainNav.ItemDetails(
+                            itemId = item.itemId,
+                            mediaType = item.mediaType,
+                            providerId = item.provider,
+                        ),
+                    )
+                },
+                onBack = { multiBackStack.removeLastOrNull() },
+            )
+        }
     }
 }
 
@@ -907,6 +948,10 @@ private sealed interface MainNav : NavKey {
         val itemList: io.music_assistant.client.ui.compose.item.ItemList,
         val clickContext: ClickContext,
     ) : MainNav
+
+    /** Albums belonging to one MusicBrainz series. Albums are passed via [MbSeriesNavigationState]. */
+    @Serializable
+    data class MbSeriesAlbums(val seriesId: String, val seriesName: String) : MainNav
 }
 
 @Composable
@@ -927,6 +972,7 @@ private fun rememberMainNavBackStack(bottom: MainNav) = rememberNavBackStack(
                     )
                     subclass(MainNav.Search::class, MainNav.Search.serializer())
                     subclass(MainNav.ItemList::class, MainNav.ItemList.serializer())
+                    subclass(MainNav.MbSeriesAlbums::class, MainNav.MbSeriesAlbums.serializer())
                 }
             }
         },

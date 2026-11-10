@@ -865,6 +865,13 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             itemId,
             providerInstanceIdOrDomain,
         )
+
+        fun getReleaseGroupSeries(releaseGroupId: String) = Request(
+            command = APICommands.MUSIC_ALBUMS_RELEASE_GROUP_SERIES,
+            args = buildJsonObject {
+                put("release_group_id", JsonPrimitive(releaseGroupId))
+            },
+        )
     }
 
     data object Track {

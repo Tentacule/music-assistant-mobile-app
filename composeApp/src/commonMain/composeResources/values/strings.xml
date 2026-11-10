@@ -198,6 +198,7 @@
   <string name="cd_sort_direction">Sort direction</string>
   <string name="cd_toggle_hide_played_episodes">Hide played episodes</string>
   <string name="cd_toggle_queue">Toggle Queue</string>
+  <string name="cd_toggle_mb_series_grouping">Group by MB series</string>
   <string name="cd_toggle_series_grouping">Group series</string>
   <string name="cd_toggle_view_mode">Toggle view mode</string>
   <string name="cd_transcript">Transcript</string>
@@ -265,6 +266,7 @@
   <string name="filter_reset">Reset filters</string>
   <string name="filter_selected_count">%1$d selected</string>
   <string name="filter_sheet_title">Filters</string>
+  <string name="filter_series_only">Series only</string>
   <string name="filter_sources">Music sources</string>
   <string name="find_in_list_label">Search in list…</string>
   <string name="genre_content_type_music">Music</string>
@@ -289,6 +291,7 @@
   <string name="item_narrated_by">Narrated by %1$s</string>
   <string name="item_no_data">No data available</string>
   <string name="item_publisher">Publisher: %1$s</string>
+  <string name="item_series_part">%1$s #%2$s</string>
   <string name="item_section_about_episode">About this episode</string>
   <string name="item_section_biography">Biography</string>
   <string name="item_section_description">Description</string>
@@ -341,6 +344,8 @@
   <string name="media_playback_stopped_connection_lost">Playback stopped: lost connection to the server</string>
   <string name="media_queue_now_playing">Now playing</string>
   <string name="media_toast_playing_players">You have playing players</string>
+  <string name="mb_series_albums_title">Series albums</string>
+  <string name="mb_series_n_albums">%1$d album(s)</string>
   <string name="media_type_albums">Albums</string>
   <string name="media_type_artists">Artists</string>
   <string name="media_type_audiobooks">Audiobooks</string>
@@ -558,6 +563,7 @@
   <string name="sort_duration">Duration</string>
   <string name="sort_exact_name">Exact name</string>
   <string name="sort_last_played">Last played</string>
+  <string name="sort_series_order">Series order</string>
   <string name="sort_name">Name</string>
   <string name="sort_original">Original</string>
   <string name="sort_play_count">Play count</string>

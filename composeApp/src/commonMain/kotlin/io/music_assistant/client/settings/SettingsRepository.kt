@@ -826,6 +826,16 @@ class SettingsRepository(
         settings.putString(SERIES_GROUPING_KEY, grouping.name)
     }
 
+    // Album-library MB series grouping; the library ViewModel is the only writer.
+    fun getMbAlbumSeriesGrouping(): MbSeriesGrouping =
+        settings.getStringOrNull(MB_ALBUM_SERIES_GROUPING_KEY)
+            ?.let { runCatching { MbSeriesGrouping.valueOf(it) }.getOrNull() }
+            ?: MbSeriesGrouping.FLAT
+
+    fun setMbAlbumSeriesGrouping(grouping: MbSeriesGrouping) {
+        settings.putString(MB_ALBUM_SERIES_GROUPING_KEY, grouping.name)
+    }
+
     // Podcast-episodes display choice, shared by every podcast; the item ViewModel is the only writer.
     fun getPodcastEpisodesPlayedFilter(): PlayedFilter =
         settings.getStringOrNull(PODCAST_EPISODES_PLAYED_FILTER_KEY)
@@ -872,6 +882,7 @@ class SettingsRepository(
         private const val SERVER_ID_PREFIX = "id_"
         private const val CLIENT_CERTIFICATE_ALIAS_KEY = "client_certificate_alias"
         private const val SERIES_GROUPING_KEY = "library_series_grouping"
+        private const val MB_ALBUM_SERIES_GROUPING_KEY = "mb_album_series_grouping"
         private const val PODCAST_EPISODES_PLAYED_FILTER_KEY = "podcast_episodes_played_filter"
         private val SECRET_STRING_KEYS = listOf(
             "host",

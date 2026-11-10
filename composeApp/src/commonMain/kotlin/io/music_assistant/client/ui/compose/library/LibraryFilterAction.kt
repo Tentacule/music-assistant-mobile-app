@@ -33,6 +33,7 @@ import musicassistantclient.composeapp.generated.resources.artist_type_authors
 import musicassistantclient.composeapp.generated.resources.artist_type_narrators
 import musicassistantclient.composeapp.generated.resources.filter_album_artists_only
 import musicassistantclient.composeapp.generated.resources.filter_album_types
+import musicassistantclient.composeapp.generated.resources.filter_series_only
 import musicassistantclient.composeapp.generated.resources.filter_audiobooks_show
 import musicassistantclient.composeapp.generated.resources.filter_favorites
 import musicassistantclient.composeapp.generated.resources.filter_genres
@@ -167,19 +168,27 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typeSpecific(
             }
         }
 
-        MediaType.ALBUM -> item {
-            val w = workingProvider()
-            MultiChoiceChipsRow(
-                label = Res.string.filter_album_types,
-                options = AlbumType.entries,
-                selected = w.albumTypes,
-                optionLabel = { it.stringResource() },
-                onToggle = { type ->
-                    val next =
-                        if (type in w.albumTypes) w.albumTypes - type else w.albumTypes + type
-                    onChange(w.copy(albumTypes = next))
-                },
-            )
+        MediaType.ALBUM -> {
+            item {
+                val w = workingProvider()
+                MultiChoiceChipsRow(
+                    label = Res.string.filter_album_types,
+                    options = AlbumType.entries,
+                    selected = w.albumTypes,
+                    optionLabel = { it.stringResource() },
+                    onToggle = { type ->
+                        val next =
+                            if (type in w.albumTypes) w.albumTypes - type else w.albumTypes + type
+                        onChange(w.copy(albumTypes = next))
+                    },
+                )
+            }
+            item {
+                val w = workingProvider()
+                SwitchRow(Res.string.filter_series_only, w.seriesOnly) {
+                    onChange(w.copy(seriesOnly = it))
+                }
+            }
         }
 
         // The row stays while a type is chosen that the library no longer holds, so the
