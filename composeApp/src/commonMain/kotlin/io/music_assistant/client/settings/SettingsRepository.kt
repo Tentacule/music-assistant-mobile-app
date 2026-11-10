@@ -816,25 +816,20 @@ class SettingsRepository(
 
     private fun librarySortKey(mediaType: MediaType) = "library_sort_${mediaType.name}"
 
-    // Audiobook-library display choice; the library ViewModel is the only writer, like sort.
-    fun getSeriesGrouping(): SeriesGrouping =
-        settings.getStringOrNull(SERIES_GROUPING_KEY)
+    // Audiobook- and album-library display choice, one per media type; the library ViewModel is
+    // the only writer, like sort.
+    fun getSeriesGrouping(mediaType: MediaType): SeriesGrouping =
+        settings.getStringOrNull(seriesGroupingKey(mediaType))
             ?.let { runCatching { SeriesGrouping.valueOf(it) }.getOrNull() }
             ?: SeriesGrouping.FLAT
 
-    fun setSeriesGrouping(grouping: SeriesGrouping) {
-        settings.putString(SERIES_GROUPING_KEY, grouping.name)
+    fun setSeriesGrouping(mediaType: MediaType, grouping: SeriesGrouping) {
+        settings.putString(seriesGroupingKey(mediaType), grouping.name)
     }
 
-    // Album-library MB series grouping; the library ViewModel is the only writer.
-    fun getMbAlbumSeriesGrouping(): MbSeriesGrouping =
-        settings.getStringOrNull(MB_ALBUM_SERIES_GROUPING_KEY)
-            ?.let { runCatching { MbSeriesGrouping.valueOf(it) }.getOrNull() }
-            ?: MbSeriesGrouping.FLAT
-
-    fun setMbAlbumSeriesGrouping(grouping: MbSeriesGrouping) {
-        settings.putString(MB_ALBUM_SERIES_GROUPING_KEY, grouping.name)
-    }
+    // The audiobook key predates the album one, so it keeps its name.
+    private fun seriesGroupingKey(mediaType: MediaType) =
+        if (mediaType == MediaType.ALBUM) ALBUM_SERIES_GROUPING_KEY else SERIES_GROUPING_KEY
 
     // Podcast-episodes display choice, shared by every podcast; the item ViewModel is the only writer.
     fun getPodcastEpisodesPlayedFilter(): PlayedFilter =
@@ -882,7 +877,7 @@ class SettingsRepository(
         private const val SERVER_ID_PREFIX = "id_"
         private const val CLIENT_CERTIFICATE_ALIAS_KEY = "client_certificate_alias"
         private const val SERIES_GROUPING_KEY = "library_series_grouping"
-        private const val MB_ALBUM_SERIES_GROUPING_KEY = "mb_album_series_grouping"
+        private const val ALBUM_SERIES_GROUPING_KEY = "album_series_grouping"
         private const val PODCAST_EPISODES_PLAYED_FILTER_KEY = "podcast_episodes_played_filter"
         private val SECRET_STRING_KEYS = listOf(
             "host",

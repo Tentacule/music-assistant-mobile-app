@@ -37,7 +37,6 @@ import io.music_assistant.client.data.model.server.ServerAlbumGroupInfo
 import io.music_assistant.client.data.play.PlayDispatcher
 import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.data.play.PlayRequest
-import io.music_assistant.client.data.model.server.ServerAlbumSeriesInfo
 import io.music_assistant.client.data.model.server.ServerAlbumVersionEnrichment
 import io.music_assistant.client.data.repository.ItemRefresher
 import io.music_assistant.client.data.repository.MediaItemChange
@@ -115,7 +114,6 @@ class ItemDetailsViewModel(
         /** MusicBrainz enrichment keyed by MB release MBID; empty until loaded alongside versions. */
         val versionEnrichmentsMap: Map<String, ServerAlbumVersionEnrichment> = emptyMap(),
         /** MusicBrainz series membership of this album's release group; null while not loaded or not in a series. */
-        val albumSeriesInfo: ServerAlbumSeriesInfo? = null,
     ) {
         /**
          * The count and the total playing time of the loaded tracks of an album or a playlist, for
@@ -299,7 +297,11 @@ class ItemDetailsViewModel(
             MediaType.PODCAST -> Request.Podcast.get(itemId, providerId)
             MediaType.AUDIOBOOK -> Request.Audiobook.get(itemId, providerId)
             MediaType.GENRE -> Request.Genre.get(itemId, providerId)
-            MediaType.COLLECTION -> Request.Audiobook.getCollection(itemId)
+            MediaType.COLLECTION -> if (MediaCollection.isAlbumSeriesId(itemId)) {
+                Request.Album.getCollection(itemId)
+            } else {
+                Request.Audiobook.getCollection(itemId)
+            }
             MediaType.TRACK -> Request.Track.get(itemId, providerId)
             MediaType.PODCAST_EPISODE -> Request.Podcast.getEpisode(itemId, providerId)
             else -> return null
@@ -326,14 +328,12 @@ class ItemDetailsViewModel(
                         playableItemsSortOption = settingsRepository.getSortOption(SubItemContext.ALBUM_TRACKS),
                         albumVersionsState = DataState.Loading(),
                         versionEnrichmentsMap = emptyMap(),
-                        albumSeriesInfo = null,
                     )
                 }
                 _state.update { it.copy(albumGroupInfo = null) }
                 loadAlbumGroupInfo(item.itemId, item.provider)
                 loadAlbumTracks(item.itemId, item.provider)
                 loadAlbumVersions(item.itemId, item.provider)
-                loadAlbumSeriesInfo(item)
                 loadGenres(item)
             }
 
@@ -389,8 +389,20 @@ class ItemDetailsViewModel(
                 loadGenreOverview(item.itemId, item.provider)
             }
 
-            // get_collection already carries the books, so there is nothing more to load.
-            is MediaCollection -> {
+            // get_collection already carries the books, or the albums of an album series, in the
+            // series order, so there is nothing more to load.
+            is MediaCollection -> if (item.isAlbumSeries) {
+                val sortOption = settingsRepository.getSortOption(SubItemContext.SERIES_ALBUMS)
+                rawAlbums = item.items.filterIsInstance<Album>()
+                _state.update {
+                    it.copy(
+                        playableItemsState = DataState.NoData(),
+                        albumsSortOption = sortOption,
+                        albumsState = DataState.Data(rawAlbums.clientSorted(sortOption, SubItemContext.SERIES_ALBUMS)),
+                        playableItemsSortOption = null,
+                    )
+                }
+            } else {
                 _state.update {
                     it.copy(
                         albumsState = DataState.NoData(),
@@ -475,14 +487,6 @@ class ItemDetailsViewModel(
         viewModelScope.launch {
             val name = providerRepository.shareCandidates()?.firstOrNull { it.userId == ownerId }?.name ?: return@launch
             _state.update { it.copy(playlistOwnerLine = playlist.ownerLine(accessSupported, viewerId, name)) }
-        }
-    }
-
-    private fun loadAlbumSeriesInfo(album: Album) {
-        val releaseGroupId = album.mbReleaseGroupId ?: return
-        viewModelScope.launch {
-            val seriesInfo = mediaItemRepository.fetchReleaseGroupSeriesInfo(releaseGroupId)
-            _state.update { it.copy(albumSeriesInfo = seriesInfo) }
         }
     }
 
@@ -833,6 +837,15 @@ class ItemDetailsViewModel(
 
     fun onPlayableItemsSortChanged(context: SubItemContext, sortOption: SortOption) {
         settingsRepository.setSortOption(context, sortOption)
+        if (context == SubItemContext.SERIES_ALBUMS) {
+            _state.update {
+                it.copy(
+                    albumsSortOption = sortOption,
+                    albumsState = DataState.Data(rawAlbums.clientSorted(sortOption, context)),
+                )
+            }
+            return
+        }
         _state.update { it.copy(playableItemsSortOption = sortOption) }
         publishPlayableItems()
     }
@@ -996,6 +1009,7 @@ private fun ItemDetailsTab.subState(
 ): DataState<List<Any>> = when (this) {
     ItemDetailsTab.GENRE_ALBUMS,
     ItemDetailsTab.TRACK_ALBUMS,
+    ItemDetailsTab.SERIES_ALBUMS,
         -> state.albumsState
 
     ItemDetailsTab.TRACK_VERSIONS -> state.trackVersionsState

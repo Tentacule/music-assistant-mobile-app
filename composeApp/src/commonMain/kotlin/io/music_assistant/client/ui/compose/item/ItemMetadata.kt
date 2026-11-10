@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SuggestionChip
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import io.music_assistant.client.data.model.client.ItemDescription
 import io.music_assistant.client.data.model.client.ItemDescriptionKind
 import io.music_assistant.client.data.model.client.ProviderDetails
+import io.music_assistant.client.data.model.client.SeriesEntry
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.Audiobook
@@ -43,6 +46,7 @@ import io.music_assistant.client.data.model.client.items.PlaylistOwnerLine
 import io.music_assistant.client.data.model.client.items.PodcastEpisode
 import io.music_assistant.client.data.model.client.stringResource
 import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
+import io.music_assistant.client.ui.compose.common.icons.BookshelfIcon
 import io.music_assistant.client.utils.TotalDuration
 import io.music_assistant.client.utils.toTotalDuration
 import musicassistantclient.composeapp.generated.resources.Res
@@ -175,6 +179,30 @@ fun GenreChips(
             SuggestionChip(
                 onClick = { onGenreClick(genre) },
                 label = { Text(genre.name) },
+            )
+        }
+    }
+}
+
+/** The series an album is part of, one chip each ("Series #3"), opening the series page. */
+@Composable
+fun SeriesChips(
+    series: List<SeriesEntry>,
+    onSeriesClick: (SeriesEntry) -> Unit,
+    textAlign: TextAlign,
+    modifier: Modifier = Modifier,
+) {
+    if (series.isEmpty()) return
+    val alignment = if (textAlign == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start
+    FlowRow(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, alignment),
+    ) {
+        series.forEach { entry ->
+            SuggestionChip(
+                onClick = { onSeriesClick(entry) },
+                label = { Text(entry.label) },
+                icon = { Icon(BookshelfIcon, null, Modifier.size(18.dp)) },
             )
         }
     }

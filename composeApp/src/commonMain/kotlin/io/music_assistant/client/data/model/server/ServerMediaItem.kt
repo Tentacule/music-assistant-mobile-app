@@ -109,6 +109,18 @@ data class ServerMetadata(
     // @SerialName("languages") val languages: List<String>? = null,
     @SerialName("chapters") val chapters: List<ServerMediaItemChapter>? = null,
     @SerialName("last_refresh") val lastRefresh: Long? = null,
+    /** The series (collections) the item is part of, with its number in each when known. */
+    @SerialName("collections") val collections: List<ServerMediaItemCollection>? = null,
+)
+
+/**
+ * One series an item is part of (`music_assistant_models.media_items.MediaItemCollection`).
+ * [sequence] is a number or a text on the server, so it stays a raw JSON primitive here.
+ */
+@Serializable
+data class ServerMediaItemCollection(
+    @SerialName("title") val title: String,
+    @SerialName("sequence") val sequence: JsonPrimitive? = null,
 )
 
 /**

@@ -8,6 +8,7 @@ import io.music_assistant.client.data.model.client.ImageInfo
 import io.music_assistant.client.data.model.client.ImageType
 import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.Metadata
+import io.music_assistant.client.data.model.client.SeriesEntry
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.Artist
@@ -27,10 +28,13 @@ import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.model.server.SearchResult
 import io.music_assistant.client.data.model.server.ServerMediaItem
 import io.music_assistant.client.data.model.server.ServerMediaItemChapter
+import io.music_assistant.client.data.model.server.ServerMediaItemCollection
 import io.music_assistant.client.data.model.server.ServerMediaItemImage
 import io.music_assistant.client.data.model.server.ServerMetadata
 import io.music_assistant.client.data.model.server.ServerPlaylistAccess
 import io.music_assistant.client.data.repository.SearchResultData
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 /**
  * Maps server-side [ServerMediaItem] DTOs into typed client [AppMediaItem] subtypes.
@@ -286,7 +290,22 @@ class MediaItemFactory(
             hasTranscript = it.hasTranscript,
             description = it.description,
             review = it.review,
+            collections = it.collections?.map(::createSeriesEntry).orEmpty(),
         )
+    }
+
+    private fun createSeriesEntry(server: ServerMediaItemCollection): SeriesEntry =
+        SeriesEntry(
+            title = server.title,
+            sequence = server.sequence?.let(::seriesSequenceText),
+        )
+
+    /** The number in a series as a text: a whole float loses its ".0", a blank one is no number. */
+    private fun seriesSequenceText(raw: JsonPrimitive): String? {
+        val text = raw.contentOrNull?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (raw.isString) return text
+        val number = text.toDoubleOrNull() ?: return text
+        return if (number % 1.0 == 0.0) number.toLong().toString() else text
     }
 
     private fun createPlaylistAccess(server: ServerPlaylistAccess): PlaylistAccess =

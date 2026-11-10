@@ -76,10 +76,7 @@ import io.music_assistant.client.data.model.client.items.Genre
 import io.music_assistant.client.data.model.client.items.MediaCollection
 import io.music_assistant.client.data.model.client.items.PlaylistOwnerLine
 import io.music_assistant.client.data.model.client.items.PodcastEpisode
-import io.music_assistant.client.data.model.server.ServerAlbumSeriesInfo
 import io.music_assistant.client.data.model.client.items.RefreshItemAction
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material.icons.filled.Album
 import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.imageloader.rememberArtworkRequest
@@ -153,8 +150,6 @@ fun ItemHeader(
     providerDetails: (String) -> ProviderDetails? = { null },
     description: ItemDescription? = null,
     onOpenDescription: () -> Unit = {},
-    albumSeriesInfo: ServerAlbumSeriesInfo? = null,
-    onNavigateToSeries: ((seriesId: String, seriesName: String) -> Unit)? = null,
     // Controls on the row of the play button: the TV has no top bar on this page.
     actions: (@Composable () -> Unit)? = null,
 ) {
@@ -224,20 +219,13 @@ fun ItemHeader(
                 textAlign = textAlign,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            if (albumSeriesInfo != null) {
-                val seriesLabel = albumSeriesInfo.orderNumber
-                    ?.let { "${albumSeriesInfo.seriesName} #$it" }
-                    ?: albumSeriesInfo.seriesName
-                SuggestionChip(
-                    onClick = {
-                        onNavigateToSeries?.invoke(albumSeriesInfo.seriesId, albumSeriesInfo.seriesName)
-                    },
-                    enabled = onNavigateToSeries != null,
-                    label = { Text(seriesLabel) },
-                    icon = {
-                        Icon(Icons.Default.Album, null, Modifier.size(18.dp))
-                    },
-                    modifier = Modifier.padding(top = 4.dp, start = 16.dp),
+            // The series of an album, each opening its series page.
+            (item as? Album)?.series?.takeIf { it.isNotEmpty() }?.let { series ->
+                SeriesChips(
+                    series = series,
+                    onSeriesClick = { entry -> navigateToItem(MediaCollection.albumSeries(entry.title)) },
+                    textAlign = textAlign,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
             description?.let {

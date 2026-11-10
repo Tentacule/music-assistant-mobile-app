@@ -32,6 +32,7 @@ enum class ItemDetailsTab(
     /** The other episodes of the podcast of an episode; the same list and sort as [PODCAST_EPISODES]. */
     OTHER_EPISODES(SubItemContext.PODCAST_EPISODES, MediaType.TRACK),
     COLLECTION_ITEMS(SubItemContext.COLLECTION_ITEMS, MediaType.TRACK),
+    SERIES_ALBUMS(SubItemContext.SERIES_ALBUMS, MediaType.ALBUM),
     AUDIOBOOK_CHAPTERS(null, null),
     GENRE_ARTISTS(null, MediaType.ARTIST),
     GENRE_ALBUMS(null, MediaType.ALBUM),
@@ -47,7 +48,9 @@ fun tabsFor(item: AppMediaItem): List<ItemDetailsTab> = when (item) {
     is Podcast -> listOf(ItemDetailsTab.PODCAST_EPISODES)
     is PodcastEpisode -> listOfNotNull(ItemDetailsTab.OTHER_EPISODES.takeIf { item.podcast != null })
     is Audiobook -> listOf(ItemDetailsTab.AUDIOBOOK_CHAPTERS)
-    is MediaCollection -> listOf(ItemDetailsTab.COLLECTION_ITEMS)
+    is MediaCollection -> listOf(
+        if (item.isAlbumSeries) ItemDetailsTab.SERIES_ALBUMS else ItemDetailsTab.COLLECTION_ITEMS,
+    )
     is Genre -> listOf(ItemDetailsTab.GENRE_ARTISTS, ItemDetailsTab.GENRE_ALBUMS)
     is Track -> listOf(ItemDetailsTab.TRACK_ALBUMS, ItemDetailsTab.TRACK_VERSIONS, ItemDetailsTab.SIMILAR_TRACKS)
     else -> emptyList()

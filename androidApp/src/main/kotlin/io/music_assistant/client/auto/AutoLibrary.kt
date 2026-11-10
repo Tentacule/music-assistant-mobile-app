@@ -481,6 +481,7 @@ class AutoLibrary(
             SubItemContext.ARTIST_LIBRARY_ALBUMS,
             SubItemContext.ARTIST_AUDIOBOOKS,
             SubItemContext.COLLECTION_ITEMS,
+            SubItemContext.SERIES_ALBUMS,
             SubItemContext.RADIO_TRACKS,
             -> return null
         }

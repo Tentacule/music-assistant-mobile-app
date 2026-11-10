@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.music_assistant.client.data.model.client.AlbumSeriesFilter
 import io.music_assistant.client.data.model.client.AlbumType
 import io.music_assistant.client.data.model.client.ArtistType
 import io.music_assistant.client.data.model.client.GenreContentType
@@ -32,8 +33,11 @@ import musicassistantclient.composeapp.generated.resources.Res
 import musicassistantclient.composeapp.generated.resources.artist_type_authors
 import musicassistantclient.composeapp.generated.resources.artist_type_narrators
 import musicassistantclient.composeapp.generated.resources.filter_album_artists_only
+import musicassistantclient.composeapp.generated.resources.filter_album_series_albums
+import musicassistantclient.composeapp.generated.resources.filter_album_series_all
+import musicassistantclient.composeapp.generated.resources.filter_album_series_series
+import musicassistantclient.composeapp.generated.resources.filter_album_series_show
 import musicassistantclient.composeapp.generated.resources.filter_album_types
-import musicassistantclient.composeapp.generated.resources.filter_series_only
 import musicassistantclient.composeapp.generated.resources.filter_audiobooks_show
 import musicassistantclient.composeapp.generated.resources.filter_favorites
 import musicassistantclient.composeapp.generated.resources.filter_genres
@@ -185,9 +189,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typeSpecific(
             }
             item {
                 val w = workingProvider()
-                SwitchRow(Res.string.filter_series_only, w.seriesOnly) {
-                    onChange(w.copy(seriesOnly = it))
-                }
+                SingleChoiceChipsRow(
+                    label = Res.string.filter_album_series_show,
+                    options = AlbumSeriesFilter.entries,
+                    selected = w.seriesFilter,
+                    optionLabel = { it.label() },
+                    onSelect = { onChange(w.copy(seriesFilter = it)) },
+                )
             }
         }
 
@@ -263,6 +271,12 @@ private fun GenreContentType.label(): StringResource = when (this) {
     GenreContentType.MUSIC -> Res.string.genre_content_type_music
     GenreContentType.PODCAST -> Res.string.media_type_podcasts
     GenreContentType.AUDIOBOOK -> Res.string.media_type_audiobooks
+}
+
+private fun AlbumSeriesFilter.label(): StringResource = when (this) {
+    AlbumSeriesFilter.ALL -> Res.string.filter_album_series_all
+    AlbumSeriesFilter.ALBUMS -> Res.string.filter_album_series_albums
+    AlbumSeriesFilter.SERIES -> Res.string.filter_album_series_series
 }
 
 private fun GenreEmptyFilter.label(): StringResource = when (this) {

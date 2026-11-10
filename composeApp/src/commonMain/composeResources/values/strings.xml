@@ -199,7 +199,6 @@
   <string name="cd_sort_direction">Sort direction</string>
   <string name="cd_toggle_hide_played_episodes">Hide played episodes</string>
   <string name="cd_toggle_queue">Toggle Queue</string>
-  <string name="cd_toggle_mb_series_grouping">Group by MB series</string>
   <string name="cd_toggle_series_grouping">Group series</string>
   <string name="cd_toggle_view_mode">Toggle view mode</string>
   <string name="cd_transcript">Transcript</string>
@@ -267,7 +266,6 @@
   <string name="filter_reset">Reset filters</string>
   <string name="filter_selected_count">%1$d selected</string>
   <string name="filter_sheet_title">Filters</string>
-  <string name="filter_series_only">Series only</string>
   <string name="filter_sources">Music sources</string>
   <string name="find_in_list_label">Search in list…</string>
   <string name="genre_content_type_music">Music</string>
@@ -564,7 +562,6 @@
   <string name="sort_duration">Duration</string>
   <string name="sort_exact_name">Exact name</string>
   <string name="sort_last_played">Last played</string>
-  <string name="sort_series_order">Series order</string>
   <string name="sort_name">Name</string>
   <string name="sort_original">Original</string>
   <string name="sort_play_count">Play count</string>
@@ -584,4 +581,8 @@
   <string name="unsupported_install_description">This server is not installed through one of the supported installation methods. Some features may not work as expected, and issues reported from it may be closed without support.</string>
   <string name="unsupported_install_link">Installation methods</string>
   <string name="unsupported_install_title">Unsupported installation</string>
+  <string name="filter_album_series_show">Show</string>
+  <string name="filter_album_series_all">Albums and series</string>
+  <string name="filter_album_series_albums">Albums only</string>
+  <string name="filter_album_series_series">Series only</string>
 </resources>
