@@ -13,6 +13,7 @@ import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.model.client.lyricsOf
 import io.music_assistant.client.data.model.client.transcriptOf
 import io.music_assistant.client.data.model.server.SearchResult
+import io.music_assistant.client.data.model.server.ServerAlbumGroupInfo
 import io.music_assistant.client.data.model.server.ServerAlbumSeriesInfo
 import io.music_assistant.client.data.model.server.ServerAlbumVersionEnrichment
 import io.music_assistant.client.data.model.server.ServerMediaItem
@@ -61,6 +62,12 @@ interface MediaItemRepository {
     suspend fun search(request: Request): Result<SearchResultData>
     suspend fun fetchMediaItem(request: Request): Result<AppMediaItem?>
 
+    /** The release group standing of an album; null on any error, which hides its menu entry. */
+    suspend fun fetchAlbumGroupInfo(itemId: String, provider: String): ServerAlbumGroupInfo? = null
+
+    /** Makes a library album the version the lists show for its release group. */
+    suspend fun setAlbumGroupDefault(itemId: String): Result<Unit> = Result.success(Unit)
+
     /**
      * MB enrichment (catalog number, label, track count) for all versions of an album the user
      * has in their sources. Returns an empty list on any error so the UI degrades gracefully.
@@ -68,13 +75,13 @@ interface MediaItemRepository {
     suspend fun fetchVersionsEnrichment(
         itemId: String,
         provider: String,
-    ): List<ServerAlbumVersionEnrichment>
+    ): List<ServerAlbumVersionEnrichment> = emptyList()
 
     /**
      * MB series membership for the given release group. Returns null when MusicBrainz is
      * unavailable, on any network error, or when the release group belongs to no series.
      */
-    suspend fun fetchReleaseGroupSeriesInfo(releaseGroupId: String): ServerAlbumSeriesInfo?
+    suspend fun fetchReleaseGroupSeriesInfo(releaseGroupId: String): ServerAlbumSeriesInfo? = null
 
     /** The lyrics the server finds for [track]; `Result.success(null)` when it has none. */
     suspend fun fetchTrackLyrics(track: Track): Result<Lyrics?>
@@ -108,6 +115,18 @@ class ServiceClientMediaItemRepository(
      * Failures (RPC error, decode failure, missing payload) surface as a
      * failed [Result] so callers can still log via `result.exceptionOrNull()`.
      */
+    override suspend fun fetchAlbumGroupInfo(itemId: String, provider: String): ServerAlbumGroupInfo? =
+        withContext(workDispatcher) {
+            apiClient.sendRequest(Request.Album.getGroupInfo(itemId, provider))
+                .getOrNull()
+                ?.resultAs<ServerAlbumGroupInfo>()
+        }
+
+    override suspend fun setAlbumGroupDefault(itemId: String): Result<Unit> =
+        withContext(workDispatcher) {
+            apiClient.sendRequest(Request.Album.setGroupDefault(itemId)).map { }
+        }
+
     override suspend fun fetchMediaItems(request: Request): Result<List<AppMediaItem>> =
         withContext(workDispatcher) {
             apiClient.sendRequest(request).mapCatching { answer ->

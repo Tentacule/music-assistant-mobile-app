@@ -202,6 +202,7 @@ fun ItemDetailsScreen(
         onRefreshPlaylist = itemDetailsViewModel::refreshPlaylistTracks,
         refreshAction = refreshAction,
         onRefreshItem = itemDetailsViewModel::refreshItem,
+        onSetDefaultVersion = itemDetailsViewModel::setAlbumGroupDefault,
         providerDetails = providerViewModel::getProviderDetails,
         onNavigateToSeries = onNavigateToSeries,
     )
@@ -237,6 +238,7 @@ fun ItemDetails(
     onRefreshPlaylist: () -> Unit = {},
     refreshAction: RefreshItemAction? = null,
     onRefreshItem: () -> Unit = {},
+    onSetDefaultVersion: () -> Unit = {},
     providerDetails: (String) -> ProviderDetails? = { null },
     onNavigateToSeries: ((String, String) -> Unit)? = null,
 ) {
@@ -336,6 +338,7 @@ fun ItemDetails(
                     onRefreshPlaylist = onRefreshPlaylist,
                     refreshAction = refreshAction,
                     onRefreshItem = onRefreshItem,
+                    onSetDefaultVersion = onSetDefaultVersion,
                     providerDetails = providerDetails,
                     onNavigateToSeries = onNavigateToSeries,
                 )
@@ -387,6 +390,7 @@ private fun ItemContent(
     onRefreshPlaylist: () -> Unit,
     refreshAction: RefreshItemAction?,
     onRefreshItem: () -> Unit,
+    onSetDefaultVersion: () -> Unit,
     providerDetails: (String) -> ProviderDetails?,
     onNavigateToSeries: ((String, String) -> Unit)? = null,
 ) {
@@ -446,6 +450,7 @@ private fun ItemContent(
             refreshAction = refreshAction,
             refreshingItem = state.refreshingItem,
             onRefreshItem = onRefreshItem,
+            onSetDefaultVersion = onSetDefaultVersion.takeIf { state.albumGroupInfo?.canSetDefault == true },
             query = query,
             onQueryChanged = onQueryChanged,
             // Next to the play button in the hero. The search bar replaces the hero.

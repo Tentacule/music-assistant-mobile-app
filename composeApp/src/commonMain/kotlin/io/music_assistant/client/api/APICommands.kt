@@ -73,7 +73,7 @@ object APICommands {
 
     // Artist commands
     const val MUSIC_ARTISTS_LIBRARY_ITEMS = "music/artists/library_items"
-    const val MUSIC_ARTISTS_ARTIST_ALBUMS = "music/artists/artist_albums"
+    const val MUSIC_ALBUM_GROUPS_ARTIST_ALBUMS = "music/album_groups/artist_albums"
     const val MUSIC_ARTISTS_ARTIST_TRACKS = "music/artists/artist_tracks"
     const val MUSIC_ARTISTS_TOP_ALBUMS = "music/artists/top_albums"
     const val MUSIC_ARTISTS_TOP_TRACKS = "music/artists/top_tracks"
@@ -82,9 +82,11 @@ object APICommands {
     const val MUSIC_ARTISTS_ARTIST_AUDIOBOOKS = "music/artists/artist_audiobooks"
 
     // Album commands
-    const val MUSIC_ALBUMS_LIBRARY_ITEMS = "music/albums/library_items"
+    const val MUSIC_ALBUM_GROUPS_LIBRARY_ITEMS = "music/album_groups/library_items"
+    const val MUSIC_ALBUM_GROUPS_INFO = "music/album_groups/info"
+    const val MUSIC_ALBUM_GROUPS_SET_DEFAULT = "music/album_groups/set_default"
     const val MUSIC_ALBUMS_ALBUM_TRACKS = "music/albums/album_tracks"
-    const val MUSIC_ALBUMS_ALBUM_VERSIONS = "music/albums/album_versions"
+    const val MUSIC_ALBUM_GROUPS_VERSIONS = "music/album_groups/versions"
     const val MUSIC_ALBUMS_VERSIONS_ENRICHMENT = "music/albums/versions_enrichment"
     const val MUSIC_ALBUMS_RELEASE_GROUP_SERIES = "music/albums/release_group_series"
 

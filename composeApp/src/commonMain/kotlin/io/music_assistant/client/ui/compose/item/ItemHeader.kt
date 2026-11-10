@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Lyrics
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -122,6 +123,7 @@ import musicassistantclient.composeapp.generated.resources.action_go_to_artist
 import musicassistantclient.composeapp.generated.resources.action_go_to_podcast
 import musicassistantclient.composeapp.generated.resources.action_lyrics
 import musicassistantclient.composeapp.generated.resources.action_refresh_item
+import musicassistantclient.composeapp.generated.resources.action_set_default_version
 import musicassistantclient.composeapp.generated.resources.action_similar_artists
 import musicassistantclient.composeapp.generated.resources.action_transcript
 import musicassistantclient.composeapp.generated.resources.cd_close
@@ -345,6 +347,7 @@ internal fun ItemActions(
     refreshAction: RefreshItemAction? = null,
     refreshingItem: Boolean = false,
     onRefreshItem: () -> Unit = {},
+    onSetDefaultVersion: (() -> Unit)? = null,
     query: String?,
     onQueryChanged: ((String?) -> Unit)?,
     // The fill of the buttons when they sit next to the play button, whose look they share.
@@ -394,6 +397,7 @@ internal fun ItemActions(
             refreshAction = refreshAction,
             refreshingItem = refreshingItem,
             onRefreshItem = onRefreshItem,
+            onSetDefaultVersion = onSetDefaultVersion,
             onRemovedFromLibrary = onBack,
             fill = fill,
         )
@@ -447,6 +451,7 @@ private fun ItemOverflow(
     refreshAction: RefreshItemAction?,
     refreshingItem: Boolean,
     onRefreshItem: () -> Unit,
+    onSetDefaultVersion: (() -> Unit)?,
     // The page shows the removed item, so it closes with the removal, like the web app.
     onRemovedFromLibrary: () -> Unit,
     fill: Color?,
@@ -494,6 +499,16 @@ private fun ItemOverflow(
             )
         },
     )
+    val canEditLibrary = LocalGrantedScopes.current.canEditLibrary
+    val defaultVersion = listOfNotNull(
+        onSetDefaultVersion?.takeIf { canEditLibrary }?.let {
+            OverflowMenuOption(
+                title = stringResource(Res.string.action_set_default_version),
+                icon = Icons.Default.Star,
+                onClick = it,
+            )
+        },
+    )
 
     val canonical = resolveDetailOverflowActions(
         item = item,
@@ -516,7 +531,7 @@ private fun ItemOverflow(
     }
     OverflowMenuButton(
         options = canonical + item.navigationOptions(navigateToItem, containerItem = item) + similarArtists +
-            lyrics + refresh + dynamicColorsMenuOption(),
+            lyrics + defaultVersion + refresh + dynamicColorsMenuOption(),
     ) { onClick ->
         ItemActionButton(onClick = onClick, fill = fill) {
             Icon(

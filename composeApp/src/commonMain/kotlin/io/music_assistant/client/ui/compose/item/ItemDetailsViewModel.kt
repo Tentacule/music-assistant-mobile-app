@@ -33,6 +33,7 @@ import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.model.client.items.hasFiniteTracklist
 import io.music_assistant.client.data.model.client.items.ownerLine
 import io.music_assistant.client.data.model.client.items.refreshItemAction
+import io.music_assistant.client.data.model.server.ServerAlbumGroupInfo
 import io.music_assistant.client.data.play.PlayDispatcher
 import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.data.play.PlayRequest
@@ -103,6 +104,8 @@ class ItemDetailsViewModel(
         val userSelectedTab: ItemDetailsTab? = null,
         /** True while `music/refresh_item` runs for the item, from this page or an earlier one. */
         val refreshingItem: Boolean = false,
+        /** Where the album stands within its release group; null until loaded or for other items. */
+        val albumGroupInfo: ServerAlbumGroupInfo? = null,
         /** The library genres of a library artist or album; empty for every other item. */
         val genres: List<Genre> = emptyList(),
         /** The owner line of a playlist; null for every other item and for a playlist without one. */
@@ -326,6 +329,8 @@ class ItemDetailsViewModel(
                         albumSeriesInfo = null,
                     )
                 }
+                _state.update { it.copy(albumGroupInfo = null) }
+                loadAlbumGroupInfo(item.itemId, item.provider)
                 loadAlbumTracks(item.itemId, item.provider)
                 loadAlbumVersions(item.itemId, item.provider)
                 loadAlbumSeriesInfo(item)
@@ -877,6 +882,23 @@ class ItemDetailsViewModel(
     /** The [ItemRefresher] sends it in the app scope; [ItemRefresher.refreshed] gives the answer. */
     fun refreshItem() {
         _state.value.itemOrNull()?.uri?.let(itemRefresher::refresh)
+    }
+
+    /** Makes the open album the version the lists show for its release group. */
+    fun setAlbumGroupDefault() {
+        val album = _state.value.itemOrNull() as? Album ?: return
+        viewModelScope.launch {
+            mediaItemRepository.setAlbumGroupDefault(album.itemId)
+                .onSuccess { loadAlbumGroupInfo(album.itemId, album.provider) }
+                .onFailure { Logger.e("Failed to set the default album version", it) }
+        }
+    }
+
+    private fun loadAlbumGroupInfo(itemId: String, provider: String) {
+        viewModelScope.launch {
+            val info = mediaItemRepository.fetchAlbumGroupInfo(itemId, provider)
+            _state.update { it.copy(albumGroupInfo = info) }
+        }
     }
 
     fun reload() {

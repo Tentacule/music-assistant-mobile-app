@@ -759,7 +759,7 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             itemId: String,
             providerInstanceIdOrDomain: String,
         ) = Library.subItems(
-            APICommands.MUSIC_ARTISTS_ARTIST_ALBUMS,
+            APICommands.MUSIC_ALBUM_GROUPS_ARTIST_ALBUMS,
             itemId,
             providerInstanceIdOrDomain,
         )
@@ -821,7 +821,7 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             providers: List<String>? = null,
             genres: List<Int>? = null,
         ) = Request(
-            command = APICommands.MUSIC_ALBUMS_LIBRARY_ITEMS,
+            command = APICommands.MUSIC_ALBUM_GROUPS_LIBRARY_ITEMS,
             args = buildJsonObject {
                 favorite?.let { put("favorite", JsonPrimitive(it)) }
                 search?.let { put("search", JsonPrimitive(it)) }
@@ -848,11 +848,25 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             providerInstanceIdOrDomain,
         )
 
+        fun getGroupInfo(
+            itemId: String,
+            providerInstanceIdOrDomain: String,
+        ) = Library.subItems(
+            APICommands.MUSIC_ALBUM_GROUPS_INFO,
+            itemId,
+            providerInstanceIdOrDomain,
+        )
+
+        fun setGroupDefault(itemId: String) = Request(
+            command = APICommands.MUSIC_ALBUM_GROUPS_SET_DEFAULT,
+            args = buildJsonObject { put("item_id", JsonPrimitive(itemId)) },
+        )
+
         fun getVersions(
             itemId: String,
             providerInstanceIdOrDomain: String,
         ) = Library.subItems(
-            APICommands.MUSIC_ALBUMS_ALBUM_VERSIONS,
+            APICommands.MUSIC_ALBUM_GROUPS_VERSIONS,
             itemId,
             providerInstanceIdOrDomain,
         )
