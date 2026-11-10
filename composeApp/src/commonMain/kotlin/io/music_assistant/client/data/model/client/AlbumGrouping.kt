@@ -60,7 +60,9 @@ data class AlbumGrouping(
 
     /** The albums of [items] by group, in display order. An empty group is left out. */
     fun group(items: List<AppMediaItem>): List<Pair<AlbumGroup, List<Album>>> {
-        val byGroup = items.filterIsInstance<Album>().groupBy(::groupOf)
+        val byGroup = items.filterIsInstance<Album>()
+            .deduplicateByReleaseGroup()
+            .groupBy(::groupOf)
         return (order + AlbumGroup.OTHER).distinct().mapNotNull { group -> byGroup[group]?.let { group to it } }
     }
 
@@ -113,4 +115,24 @@ data class AlbumGrouping(
         private const val SHOWN = "1"
         private const val HIDDEN = "0"
     }
+}
+
+/**
+ * Collapses editions of the same release group into one entry — the original (no version string)
+ * or the earliest year. Albums without a release group ID are kept as-is.
+ */
+private fun List<Album>.deduplicateByReleaseGroup(): List<Album> {
+    val (withGroupId, withoutGroupId) = partition { it.mbReleaseGroupId != null }
+    val deduplicated = withGroupId
+        .groupBy { it.mbReleaseGroupId!! }
+        .values
+        .map { editions ->
+            editions.minWithOrNull(
+                compareBy(
+                    { !it.version.isNullOrBlank() },   // originals (no version) first
+                    { it.year ?: Int.MAX_VALUE },        // then earliest year
+                ),
+            ) ?: editions.first()
+        }
+    return deduplicated + withoutGroupId
 }

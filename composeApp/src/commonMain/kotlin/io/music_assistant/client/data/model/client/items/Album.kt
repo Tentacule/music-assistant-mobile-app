@@ -29,6 +29,10 @@ data class Album(
     /** The MusicBrainz release MBID for this album, if the server provided one. */
     val mbAlbumId: String?
         get() = externalIds?.firstOrNull { it.getOrNull(0) == "musicbrainz_albumid" }?.getOrNull(1)
+
+    /** The MusicBrainz release group MBID, shared by all editions of the same album. */
+    val mbReleaseGroupId: String?
+        get() = externalIds?.firstOrNull { it.getOrNull(0) == "musicbrainz_releasegroupid" }?.getOrNull(1)
     override fun withFavorite(favorite: Boolean?) = copy(favorite = favorite)
     override val mediaType: MediaType = MediaType.ALBUM
     override val defaultIcon = AlbumIcon
