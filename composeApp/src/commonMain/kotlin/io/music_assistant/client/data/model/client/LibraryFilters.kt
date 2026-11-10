@@ -32,8 +32,8 @@ data class LibraryFilters(
     val providers: List<String> = emptyList(),
     val genres: List<Int> = emptyList(),
     val audiobookArtistType: ArtistType? = null,
-    // Client-only: show only albums that belong to a MusicBrainz series.
-    val seriesOnly: Boolean = false,
+    // Albums only: every album, the albums in no series, or the albums in a series.
+    val seriesFilter: AlbumSeriesFilter = AlbumSeriesFilter.ALL,
 ) {
     companion object {
         val DEFAULT = LibraryFilters()

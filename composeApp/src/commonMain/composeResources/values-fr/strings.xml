@@ -29,4 +29,8 @@
   <string name="sleep_timer_hours">%1$d heures</string>
   <string name="sleep_timer_minutes">%1$d minutes</string>
   <string name="sleep_timer_stops_in">Arrêt dans %1$s</string>
+  <string name="filter_album_series_show">Afficher</string>
+  <string name="filter_album_series_all">Albums et séries</string>
+  <string name="filter_album_series_albums">Albums seulement</string>
+  <string name="filter_album_series_series">Séries seulement</string>
 </resources>

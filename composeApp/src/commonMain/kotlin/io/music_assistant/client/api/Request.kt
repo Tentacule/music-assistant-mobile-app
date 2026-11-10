@@ -3,6 +3,7 @@ package io.music_assistant.client.api
 import io.music_assistant.client.api.Request.Library.recommendations
 import io.music_assistant.client.data.factory.toLyricsRequestArg
 import io.music_assistant.client.data.factory.toMarkMediaItem
+import io.music_assistant.client.data.model.client.AlbumSeriesFilter
 import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.QueueOption
 import io.music_assistant.client.data.model.client.RepeatMode
@@ -820,6 +821,8 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             albumTypes: List<String>? = null,
             providers: List<String>? = null,
             genres: List<Int>? = null,
+            collapseCollections: Boolean = false,
+            seriesFilter: AlbumSeriesFilter = AlbumSeriesFilter.ALL,
         ) = Request(
             command = APICommands.MUSIC_ALBUM_GROUPS_LIBRARY_ITEMS,
             args = buildJsonObject {
@@ -836,6 +839,19 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
                         )
                     }
                 putListFilters(providers, genres)
+                // Groups the albums of a series into one `collection` row.
+                if (collapseCollections) put("collapse_collections", JsonPrimitive(true))
+                if (seriesFilter != AlbumSeriesFilter.ALL) {
+                    put("series_filter", JsonPrimitive(seriesFilter.serverValue))
+                }
+            },
+        )
+
+        /** An album series with its albums, in the series order. */
+        fun getCollection(itemId: String) = Request(
+            command = APICommands.MUSIC_ALBUMS_GET_COLLECTION,
+            args = buildJsonObject {
+                put("item_id", JsonPrimitive(itemId))
             },
         )
 
@@ -878,13 +894,6 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             APICommands.MUSIC_ALBUMS_VERSIONS_ENRICHMENT,
             itemId,
             providerInstanceIdOrDomain,
-        )
-
-        fun getReleaseGroupSeries(releaseGroupId: String) = Request(
-            command = APICommands.MUSIC_ALBUMS_RELEASE_GROUP_SERIES,
-            args = buildJsonObject {
-                put("release_group_id", JsonPrimitive(releaseGroupId))
-            },
         )
     }
 

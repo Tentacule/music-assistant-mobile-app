@@ -5,6 +5,7 @@ import io.music_assistant.client.data.model.client.ImageInfo
 import io.music_assistant.client.data.model.client.ImageType
 import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.Metadata
+import io.music_assistant.client.data.model.client.SeriesEntry
 import io.music_assistant.client.data.model.server.ProviderMapping
 import io.music_assistant.client.ui.compose.common.icons.AlbumIcon
 
@@ -29,6 +30,10 @@ data class Album(
     /** The MusicBrainz release MBID for this album, if the server provided one. */
     val mbAlbumId: String?
         get() = externalIds?.firstOrNull { it.getOrNull(0) == "musicbrainz_albumid" }?.getOrNull(1)
+
+    /** The series the album is part of, with its number in each when known. */
+    val series: List<SeriesEntry>
+        get() = metadata?.collections.orEmpty()
 
     /** The MusicBrainz release group MBID, shared by all editions of the same album. */
     val mbReleaseGroupId: String?

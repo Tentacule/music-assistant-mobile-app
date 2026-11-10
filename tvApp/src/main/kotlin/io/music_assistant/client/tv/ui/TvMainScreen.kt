@@ -381,7 +381,6 @@ fun TvMainScreen(openSettings: () -> Unit, openAccounts: () -> Unit) {
                                         goToRoot(TvRoute.Search)
                                     },
                                     onNavigateClick = ::navigateToItem,
-                                    onNavigateToSeries = { _, _ -> },
                                 )
                             }
                         }

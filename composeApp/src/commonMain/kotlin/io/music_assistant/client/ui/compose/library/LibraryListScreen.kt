@@ -30,8 +30,6 @@ import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.SortOffer
 import io.music_assistant.client.data.model.client.SortOption
 import io.music_assistant.client.data.model.client.items.AppMediaItem
-import io.music_assistant.client.data.model.client.items.Album
-import io.music_assistant.client.settings.MbSeriesGrouping
 import io.music_assistant.client.settings.SeriesGrouping
 import io.music_assistant.client.settings.ViewMode
 import io.music_assistant.client.ui.compose.common.DataState
@@ -69,7 +67,6 @@ fun LibraryListScreen(
     contentPadding: PaddingValues,
     actionsViewModel: ActionsViewModel,
     onNavigateClick: (AppMediaItem) -> Unit,
-    onNavigateToSeries: (seriesId: String, seriesName: String) -> Unit,
     onGlobalSearch: (query: String) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -100,8 +97,6 @@ fun LibraryListScreen(
                 viewMode = viewMode,
                 seriesGrouping = state.seriesGrouping,
                 onToggleSeriesGrouping = libraryListViewModel::onSeriesGroupingToggled,
-                mbSeriesGrouping = state.mbSeriesGrouping,
-                onToggleMbSeriesGrouping = libraryListViewModel::onMbSeriesGroupingToggled,
                 searchQuery = state.searchQuery,
                 onSearchQueryChanged = libraryListViewModel::onSearchQueryChanged,
                 onSearch = libraryListViewModel::onSearch,
@@ -119,20 +114,8 @@ fun LibraryListScreen(
         },
     ) {
         ItemListContent(
-            data = state.displayItems,
-            onNavigateClick = { item ->
-                if (state.mediaType == MediaType.ALBUM &&
-                    state.mbSeriesGrouping == MbSeriesGrouping.GROUPED &&
-                    item is Album
-                ) {
-                    val seriesInfo = item.mbReleaseGroupId?.let { state.seriesInfoMap[it] }
-                    if (seriesInfo != null) {
-                        onNavigateToSeries(seriesInfo.seriesId, seriesInfo.seriesName)
-                        return@ItemListContent
-                    }
-                }
-                onNavigateClick(item)
-            },
+            data = state.dataState,
+            onNavigateClick = onNavigateClick,
             onPlayClick = libraryListViewModel::onPlayClick,
             onCreatePlaylist = libraryListViewModel::createPlaylist.takeIf {
                 state.mediaType == MediaType.PLAYLIST && LocalGrantedScopes.current.canEditLibrary
@@ -172,8 +155,6 @@ private fun LibraryListTopBar(
     viewMode: ViewMode,
     seriesGrouping: SeriesGrouping,
     onToggleSeriesGrouping: () -> Unit,
-    mbSeriesGrouping: MbSeriesGrouping,
-    onToggleMbSeriesGrouping: () -> Unit,
     searchQuery: String,
     onSearchQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
@@ -273,18 +254,13 @@ private fun LibraryListTopBar(
             onSortChanged = { onSortChanged(it) },
         )
 
-        // Audiobooks: GROUPED sends `collapse_collections` to the server.
-        if (mediaType == MediaType.AUDIOBOOK && filters.audiobookArtistType == null) {
+        // Audiobooks and albums: GROUPED sends `collapse_collections` to the server.
+        if (mediaType == MediaType.ALBUM ||
+            (mediaType == MediaType.AUDIOBOOK && filters.audiobookArtistType == null)
+        ) {
             SeriesGroupingToggle(
                 grouping = seriesGrouping,
                 onToggle = onToggleSeriesGrouping,
-            )
-        }
-        // Albums: client-side MB series grouping.
-        if (mediaType == MediaType.ALBUM) {
-            MbSeriesGroupingToggle(
-                grouping = mbSeriesGrouping,
-                onToggle = onToggleMbSeriesGrouping,
             )
         }
 

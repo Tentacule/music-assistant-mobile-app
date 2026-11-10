@@ -145,6 +145,7 @@ import musicassistantclient.composeapp.generated.resources.item_tab_versions
 import musicassistantclient.composeapp.generated.resources.item_track_count
 import musicassistantclient.composeapp.generated.resources.library_empty
 import musicassistantclient.composeapp.generated.resources.library_error
+import musicassistantclient.composeapp.generated.resources.media_type_albums
 import musicassistantclient.composeapp.generated.resources.media_type_audiobooks
 import musicassistantclient.composeapp.generated.resources.media_type_chapters
 import musicassistantclient.composeapp.generated.resources.media_type_episodes
@@ -165,7 +166,6 @@ fun ItemDetailsScreen(
     onNavigateToItem: (String, MediaType, String) -> Unit,
     onNavigateToList: (String, ItemList, ClickContext) -> Unit,
     contentPadding: PaddingValues,
-    onNavigateToSeries: ((String, String) -> Unit)? = null,
 ) {
     val state by itemDetailsViewModel.state.collectAsStateWithLifecycle()
     val refreshAction by itemDetailsViewModel.refreshAction.collectAsStateWithLifecycle()
@@ -204,7 +204,6 @@ fun ItemDetailsScreen(
         onRefreshItem = itemDetailsViewModel::refreshItem,
         onSetDefaultVersion = itemDetailsViewModel::setAlbumGroupDefault,
         providerDetails = providerViewModel::getProviderDetails,
-        onNavigateToSeries = onNavigateToSeries,
     )
 }
 
@@ -240,7 +239,6 @@ fun ItemDetails(
     onRefreshItem: () -> Unit = {},
     onSetDefaultVersion: () -> Unit = {},
     providerDetails: (String) -> ProviderDetails? = { null },
-    onNavigateToSeries: ((String, String) -> Unit)? = null,
 ) {
     val playlistActions = object : PlaylistActions {
         override suspend fun getEditablePlaylists(): List<Playlist> {
@@ -340,7 +338,6 @@ fun ItemDetails(
                     onRefreshItem = onRefreshItem,
                     onSetDefaultVersion = onSetDefaultVersion,
                     providerDetails = providerDetails,
-                    onNavigateToSeries = onNavigateToSeries,
                 )
             }
 
@@ -355,6 +352,7 @@ private fun ItemDetailsTab.stringResource(): StringResource? = when (this) {
     ItemDetailsTab.PODCAST_EPISODES -> Res.string.media_type_episodes
     ItemDetailsTab.OTHER_EPISODES -> Res.string.item_tab_other_episodes
     ItemDetailsTab.COLLECTION_ITEMS -> Res.string.media_type_audiobooks
+    ItemDetailsTab.SERIES_ALBUMS -> Res.string.media_type_albums
     ItemDetailsTab.TRACK_VERSIONS,
     ItemDetailsTab.RADIO_VERSIONS,
     -> Res.string.item_tab_versions
@@ -392,7 +390,6 @@ private fun ItemContent(
     onRefreshItem: () -> Unit,
     onSetDefaultVersion: () -> Unit,
     providerDetails: (String) -> ProviderDetails?,
-    onNavigateToSeries: ((String, String) -> Unit)? = null,
 ) {
     // Tabs, the loading gate, and the selected tab are all derived in ItemDetailsViewModel.State.
     val tabs = state.tabs
@@ -477,8 +474,6 @@ private fun ItemContent(
                     providerDetails = providerDetails,
                     description = description,
                     onOpenDescription = { showDescription = true },
-                    albumSeriesInfo = state.albumSeriesInfo,
-                    onNavigateToSeries = onNavigateToSeries,
                     actions = actions.takeIf { dpad },
                 )
             }
@@ -637,7 +632,9 @@ private fun TabsBar(
     val currentTab = tabs[selectedIndex]
     val sortCtx = currentTab.sortContext
     val currentSort: SortOption? = when (sortCtx) {
-        SubItemContext.ARTIST_ALBUMS -> albumsSortOption
+        SubItemContext.ARTIST_ALBUMS,
+        SubItemContext.SERIES_ALBUMS,
+        -> albumsSortOption
         SubItemContext.ARTIST_TRACKS,
         SubItemContext.ALBUM_TRACKS,
         SubItemContext.PLAYLIST_ITEMS,
@@ -742,6 +739,7 @@ private fun TabContent(
     when (tab) {
         ItemDetailsTab.GENRE_ALBUMS,
         ItemDetailsTab.TRACK_ALBUMS,
+        ItemDetailsTab.SERIES_ALBUMS,
             -> AlbumsTabContent(
             albumsState = state.albumsState,
             parentItem = item,
