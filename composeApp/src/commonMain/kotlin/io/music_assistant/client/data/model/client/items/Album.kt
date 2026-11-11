@@ -7,6 +7,7 @@ import io.music_assistant.client.data.model.client.MediaType
 import io.music_assistant.client.data.model.client.Metadata
 import io.music_assistant.client.data.model.client.SeriesEntry
 import io.music_assistant.client.data.model.server.ProviderMapping
+import io.music_assistant.client.data.model.server.ServerMediaItem
 import io.music_assistant.client.ui.compose.common.icons.AlbumIcon
 
 data class Album(
@@ -45,4 +46,12 @@ data class Album(
     override val displayName =
         "${name}${version?.trim()?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()}"
     override val subtitle = artists.joinToString(separator = ", ") { it.displayName }
+
+    /**
+     * A discography release that is on no music provider. It has nothing to play, but its page
+     * opens: the server resolves it to the album on a music provider. It can be added to the
+     * library.
+     */
+    val isMusicBrainzRelease: Boolean get() = provider == ServerMediaItem.MUSICBRAINZ_PROVIDER
+    override val isPlayable: Boolean get() = !isMusicBrainzRelease
 }

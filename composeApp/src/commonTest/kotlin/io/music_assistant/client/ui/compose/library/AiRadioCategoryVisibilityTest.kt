@@ -7,8 +7,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * AI Radio is the only category whose visibility depends on the server. These cover the pair of
- * functions that hide it without losing the user's stored preference for it.
+ * AI Radio's visibility depends on the server. These cover the pair of functions that hide it
+ * without losing the user's stored preference for it. Party is kept visible here, so only AI
+ * Radio changes; [PartyCategoryVisibilityTest] covers Party.
  */
 class AiRadioCategoryVisibilityTest {
     private fun pref(category: LibraryCategory, enabled: Boolean = true) =
@@ -18,18 +19,18 @@ class AiRadioCategoryVisibilityTest {
     fun `AI Radio is dropped when unavailable and kept when available`() {
         val reconciled = reconcileLibraryCategories(null)
 
-        val hidden = visibleCategories(reconciled, aiRadioAvailable = false)
+        val hidden = visibleCategories(reconciled, aiRadioAvailable = false, partyAvailable = true)
         assertFalse(hidden.any { it.first == LibraryCategory.AI_RADIO })
         assertEquals(reconciled.size - 1, hidden.size)
 
-        assertEquals(reconciled, visibleCategories(reconciled, aiRadioAvailable = true))
+        assertEquals(reconciled, visibleCategories(reconciled, aiRadioAvailable = true, partyAvailable = true))
     }
 
     @Test
     fun `no other category is affected by availability`() {
         val reconciled = reconcileLibraryCategories(null)
 
-        val hidden = visibleCategories(reconciled, aiRadioAvailable = false).map { it.first }
+        val hidden = visibleCategories(reconciled, aiRadioAvailable = false, partyAvailable = true).map { it.first }
 
         assertEquals(
             libraryCategories.filterNot { it == LibraryCategory.AI_RADIO },
@@ -41,9 +42,9 @@ class AiRadioCategoryVisibilityTest {
     fun `saving while AI Radio is hidden keeps it enabled`() {
         // The plugin list has not arrived yet, so the editor never listed AI Radio.
         val reconciled = reconcileLibraryCategories(null)
-        val visible = visibleCategories(reconciled, aiRadioAvailable = false).map { it.first }
+        val visible = visibleCategories(reconciled, aiRadioAvailable = false, partyAvailable = true).map { it.first }
 
-        val saved = applyEnabledCategories(reconciled, visible.toSet(), visible.map { it.name })
+        val saved = applySidebarEdit(reconciled, visible.toSet(), visible.map { it.name }, visible.map { it.name })
 
         assertEquals(reconciled, saved)
     }
@@ -55,9 +56,9 @@ class AiRadioCategoryVisibilityTest {
             pref(it, enabled = it != LibraryCategory.AI_RADIO)
         }
         val reconciled = reconcileLibraryCategories(stored)
-        val visible = visibleCategories(reconciled, aiRadioAvailable = false).map { it.first }
+        val visible = visibleCategories(reconciled, aiRadioAvailable = false, partyAvailable = true).map { it.first }
 
-        val saved = applyEnabledCategories(reconciled, visible.toSet(), visible.map { it.name })
+        val saved = applySidebarEdit(reconciled, visible.toSet(), visible.map { it.name }, visible.map { it.name })
 
         assertEquals(reconciled, saved)
     }
@@ -69,7 +70,7 @@ class AiRadioCategoryVisibilityTest {
             pref(it, enabled = it != LibraryCategory.AI_RADIO)
         }
         val reconciled = reconcileLibraryCategories(stored)
-        val edited = visibleCategories(reconciled, aiRadioAvailable = false)
+        val edited = visibleCategories(reconciled, aiRadioAvailable = false, partyAvailable = true)
 
         // The editor saves only what it could see; the hidden entry must survive.
         val merged = mergeHiddenCategories(edited, reconciled)
@@ -93,13 +94,47 @@ class AiRadioCategoryVisibilityTest {
     @Test
     fun `saving applies the editor's choice to the visible categories in the stored order`() {
         val reconciled = reconcileLibraryCategories(null)
-        val visible = visibleCategories(reconciled, aiRadioAvailable = true).map { it.first }.toSet()
+        val visible = visibleCategories(
+            reconciled,
+            aiRadioAvailable = true,
+            partyAvailable = true,
+        ).map { it.first }.toSet()
         val enabled = visible.filterNot { it == LibraryCategory.ALBUMS }.map { it.name }
 
-        val saved = applyEnabledCategories(reconciled, visible, enabled)
+        val saved = applySidebarEdit(reconciled, visible, enabled, visible.map { it.name })
 
         assertEquals(reconciled.map { it.first }, saved.map { it.first })
         assertEquals(reconciled.map { it.first != LibraryCategory.ALBUMS }, saved.map { it.second })
+    }
+
+    @Test
+    fun `saving a new order keeps a hidden AI Radio in its slot`() {
+        val reconciled = reconcileLibraryCategories(null)
+        val visible = visibleCategories(reconciled, aiRadioAvailable = false, partyAvailable = true).map { it.first }
+        val reversed = visible.reversed()
+
+        val saved = applySidebarEdit(reconciled, visible.toSet(), visible.map { it.name }, reversed.map { it.name })
+
+        val aiRadioSlot = reconciled.indexOfFirst { it.first == LibraryCategory.AI_RADIO }
+        assertEquals(LibraryCategory.AI_RADIO to true, saved[aiRadioSlot])
+        assertEquals(reversed, saved.map { it.first } - LibraryCategory.AI_RADIO)
+    }
+
+    @Test
+    fun `saving ignores unknown ids and appends the visible categories the editor did not name`() {
+        val reconciled = reconcileLibraryCategories(null)
+        val visible = visibleCategories(reconciled, aiRadioAvailable = true, partyAvailable = true).map { it.first }
+        // The sidebar also sends the ids of Discover, Search and Settings, which are no categories.
+        val ordered = listOf("Discover", LibraryCategory.TRACKS.name, "Search", LibraryCategory.ARTISTS.name)
+
+        val saved = applySidebarEdit(reconciled, visible.toSet(), visible.map { it.name }, ordered)
+
+        assertEquals(
+            listOf(LibraryCategory.TRACKS, LibraryCategory.ARTISTS) +
+                (visible - LibraryCategory.TRACKS - LibraryCategory.ARTISTS),
+            saved.map { it.first },
+        )
+        assertTrue(saved.all { it.second })
     }
 
     @Test

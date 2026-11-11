@@ -20,6 +20,8 @@ import co.touchlab.kermit.Logger
 import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.tv.services.MainMediaPlaybackService
 import io.music_assistant.client.tv.services.TvVolumeProvider
+import io.music_assistant.client.tv.services.isAnyQueueItemPlaying
+import io.music_assistant.client.tv.services.isAnythingPlaying
 import io.music_assistant.client.tv.ui.TvApp
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
 import kotlinx.coroutines.flow.combine
@@ -43,7 +45,7 @@ class TvMainActivity : ComponentActivity() {
 
         // Playback lives in this foreground service and the shared local player, not in the UI,
         // so switching screens (app <-> Now playing) never interrupts the music.
-        dataSource.isAnythingPlaying.asLiveData().observe(this) { playing ->
+        dataSource.isAnyQueueItemPlaying.asLiveData().observe(this) { playing ->
             if (playing) startPlaybackService()
         }
 

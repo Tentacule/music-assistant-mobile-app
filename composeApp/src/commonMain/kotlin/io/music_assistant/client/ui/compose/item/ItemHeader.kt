@@ -675,11 +675,12 @@ private fun Image(
             icon = item.defaultIcon,
         )
 
-        val (shape, badgeAlignment) = if (item is Artist) {
-            CircleShape to Alignment.BottomCenter
+        val shape = if (item is Artist) {
+            CircleShape
         } else {
-            RoundedCornerShape(16.dp) to Alignment.BottomEnd
+            RoundedCornerShape(16.dp)
         }
+
         AsyncImage(
             model = rememberArtworkRequest(item.image(ImageType.THUMB)?.url),
             placeholder = placeholder,
@@ -696,7 +697,6 @@ private fun Image(
             providerIconFetcher,
             badgeSize = 24.dp,
             badgePadding = 8.dp,
-            favoriteOrProviderAlignment = badgeAlignment,
         )
         (item as? PodcastEpisode)?.let {
             ProgressBadge(

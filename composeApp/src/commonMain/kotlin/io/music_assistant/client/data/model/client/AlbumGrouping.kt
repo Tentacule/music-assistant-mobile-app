@@ -121,7 +121,7 @@ data class AlbumGrouping(
  * Collapses editions of the same release group into one entry — the original (no version string)
  * or the earliest year. Albums without a release group ID are kept as-is.
  */
-private fun List<Album>.deduplicateByReleaseGroup(): List<Album> {
+fun List<Album>.deduplicateByReleaseGroup(): List<Album> {
     val (withGroupId, withoutGroupId) = partition { it.mbReleaseGroupId != null }
     val deduplicated = withGroupId
         .groupBy { it.mbReleaseGroupId!! }

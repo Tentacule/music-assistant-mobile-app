@@ -439,6 +439,18 @@ class SettingsRepository(
         _allowLandscapeOnAllDevices.update { enabled }
     }
 
+    // Opt-in, Android only: while the app has window focus, the hardware volume keys change the
+    // volume of the selected remote player instead of the phone volume.
+    private val _volumeKeysControlSelectedPlayer = MutableStateFlow(
+        settings.getBoolean("volume_keys_control_selected_player", false),
+    )
+    val volumeKeysControlSelectedPlayer = _volumeKeysControlSelectedPlayer.asStateFlow()
+
+    fun setVolumeKeysControlSelectedPlayer(enabled: Boolean) {
+        settings.putBoolean("volume_keys_control_selected_player", enabled)
+        _volumeKeysControlSelectedPlayer.update { enabled }
+    }
+
     // One-time Local Network onboarding; dismissed, not "first run", so a user who
     // clears it without connecting is not re-prompted on every launch.
     private val _localNetworkOnboardingShown = MutableStateFlow(
@@ -568,6 +580,18 @@ class SettingsRepository(
     fun setShowBufferVisualization(show: Boolean) {
         settings.putBoolean("show_buffer_visualization", show)
         _showBufferVisualization.update { show }
+    }
+
+    // Whether the expanded player draws the track waveform on the seek bar. Off by default, and
+    // apart from the `show_waveform` preference of the web frontend: a user can want it in one only.
+    private val _showWaveform = MutableStateFlow(
+        settings.getBoolean("show_waveform", false),
+    )
+    val showWaveform = _showWaveform.asStateFlow()
+
+    fun setShowWaveform(show: Boolean) {
+        settings.putBoolean("show_waveform", show)
+        _showWaveform.update { show }
     }
 
     // User-tuned client-side playback delay (ms). LocalPlayerAdapter negates it

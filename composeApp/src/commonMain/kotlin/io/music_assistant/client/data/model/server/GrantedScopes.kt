@@ -9,6 +9,7 @@ object Scope {
     const val CONFIG_PLAYERS_WRITE = "config.players.write"
     const val CONFIG_PROVIDERS_READ = "config.providers.read"
     const val CONFIG_CORE_WRITE = "config.core.write"
+    const val CONFIG_PROVIDERS_WRITE = "config.providers.write"
 
     /** The server's wildcard scope, granted to `admin`. */
     internal const val ALL = "*"

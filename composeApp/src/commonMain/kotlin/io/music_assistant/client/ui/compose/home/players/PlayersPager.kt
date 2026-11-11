@@ -97,6 +97,7 @@ import io.music_assistant.client.data.model.client.chapterSeekSeconds
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.PodcastEpisode
 import io.music_assistant.client.data.model.client.items.Track
+import io.music_assistant.client.data.model.client.waveformKey
 import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.data.repository.QueueOverlayRepository
 import io.music_assistant.client.ui.alphaOn
@@ -122,6 +123,7 @@ import io.music_assistant.client.ui.compose.common.rememberAnimatedPlayerColors
 import io.music_assistant.client.ui.compose.common.rememberDynamicColorsEnabled
 import io.music_assistant.client.ui.compose.common.rememberExtractedColorsSource
 import io.music_assistant.client.ui.compose.common.viewmodel.ActionsViewModel
+import io.music_assistant.client.ui.compose.common.waveformMenuOption
 import io.music_assistant.client.ui.compose.home.CollapsibleQueue
 import io.music_assistant.client.ui.compose.home.HomeScreenViewModel
 import io.music_assistant.client.ui.compose.home.HorizontalPagerIndicator
@@ -206,6 +208,7 @@ fun PlayersPager(
     toastState: ToastState,
     navigateToItem: (AppMediaItem) -> Unit,
     onSelectPlayer: () -> Unit,
+    onGroupPlayer: (String) -> Unit,
 ) {
     LaunchedEffect(actionsViewModel, toastState) {
         actionsViewModel.toasts.collect { toastState.showToast(it) }
@@ -228,6 +231,10 @@ fun PlayersPager(
         // menu entry and the badge stay hidden entirely.
         val sleepTimerSupported by homeScreenViewModel.sleepTimerSupported
             .collectAsStateWithLifecycle()
+        val repeatLocksAutoplay by homeScreenViewModel.repeatLocksAutoplay
+            .collectAsStateWithLifecycle()
+        val showWaveform by homeScreenViewModel.showWaveform.collectAsStateWithLifecycle()
+        val waveformSupported by homeScreenViewModel.waveformSupported.collectAsStateWithLifecycle()
         val announcementAvailability by koinInject<AnnouncementRepository>().availability
             .collectAsStateWithLifecycle()
         // Null while the AI Radio DJ gate is closed, which hides the menu row.
@@ -344,6 +351,14 @@ fun PlayersPager(
                         .collectAsStateWithLifecycle().value.dataOrNull
                 }
                 val lyrics = currentTrack?.lyrics ?: transcript
+                // The waveform of a track loads once its page is expanded and the user turned it on.
+                val waveform = player.queueId?.takeIf { expanded && showWaveform }?.let { queueId ->
+                    currentQueueItem?.waveformKey?.let { key ->
+                        LaunchedEffect(queueId, key) { homeScreenViewModel.loadWaveform(queueId, key) }
+                        remember(queueId, key) { homeScreenViewModel.waveform(queueId, key) }
+                            .collectAsStateWithLifecycle().value.dataOrNull
+                    }
+                }
                 val trackId = currentTrack?.itemId
                 val lyricsItemId = currentQueueItem?.track?.itemId
                 val queueItemId = currentQueueItem?.id
@@ -456,6 +471,7 @@ fun PlayersPager(
                                 colors = colors,
                                 sendspinState = state.sendspinState,
                                 onSelectPlayer = onSelectPlayer,
+                                onGroup = { onGroupPlayer(player.playerId) },
                                 playerAction = playerAction1,
                                 chapterProgressEnabled = chapterProgressEnabled,
                                 livePositionFlow = livePositionFlow,
@@ -465,10 +481,12 @@ fun PlayersPager(
                                 player = player,
                                 colors = colors,
                                 onSelectPlayer = onSelectPlayer,
+                                onGroup = { onGroupPlayer(player.playerId) },
                                 onDspButton = onDspButton.takeIf {
                                     !player.player.isGroup && grantedScopes.canConfigurePlayers
                                 },
                                 onSleepTimerButton = onSleepTimerButton.takeIf { sleepTimerSupported },
+                                repeatLocksAutoplay = repeatLocksAutoplay,
                                 // Voice is never offered for the phone's own player, so it alone can't show the entry.
                                 onAnnounceButton = onAnnounceButton.takeIf {
                                     announcementAvailability.text || (announcementAvailability.voice && !player.isLocal)
@@ -521,6 +539,8 @@ fun PlayersPager(
                                 onPlaybackSpeedClick = onPlaybackSpeedClick,
                                 onChooseArtist = onChooseArtist,
                                 chapterProgressEnabled = chapterProgressEnabled,
+                                waveform = waveform,
+                                waveformToggleAvailable = waveformSupported && currentTrack != null,
                                 queueDjMenu = player.queueId?.let { queueDjState?.menuFor(it) },
                                 onQueueDjSelected = queueDjViewModel::select,
                             )
@@ -589,8 +609,10 @@ private fun ExpandedPlayerPage(
     player: PlayerData,
     colors: PlayerColors,
     onSelectPlayer: () -> Unit,
+    onGroup: () -> Unit,
     onDspButton: (() -> Unit)?,
     onSleepTimerButton: (() -> Unit)?,
+    repeatLocksAutoplay: Boolean,
     onAnnounceButton: (() -> Unit)?,
     onAmbientSoundButton: (() -> Unit)?,
     playerAction: (PlayerData, PlayerAction) -> Unit,
@@ -619,6 +641,9 @@ private fun ExpandedPlayerPage(
     onAudioChainClick: () -> Unit = {},
     onPlaybackSpeedClick: () -> Unit = {},
     chapterProgressEnabled: Boolean = true,
+    waveform: List<Float>? = null,
+    // Whether the overflow menu offers the waveform toggle: a track on a server with waveforms.
+    waveformToggleAvailable: Boolean = false,
     queueDjMenu: QueueDjMenu? = null,
     onQueueDjSelected: (queueId: String, hostId: String?) -> Unit = { _, _ -> },
     // The left edge of the pager in the window. See [pageSplitOrNull].
@@ -704,8 +729,8 @@ private fun ExpandedPlayerPage(
                         player = player,
                         controlTint = colors.controlTint,
                         sendSpinState = sendspinState,
-                        groupBadge = player.groupBadge(),
                         onSelectPlayer = onSelectPlayer,
+                        onGroup = onGroup,
                     )
                 },
                 end = {
@@ -720,6 +745,7 @@ private fun ExpandedPlayerPage(
                         onAnnounce = onAnnounceButton,
                         onAmbientSound = onAmbientSoundButton,
                         onAddToPlaylist = onAddToPlaylist,
+                        showWaveformToggle = waveformToggleAvailable,
                         queueDjMenu = queueDjMenu,
                         onQueueDjSelected = onQueueDjSelected,
                     )
@@ -733,6 +759,7 @@ private fun ExpandedPlayerPage(
                 player = player,
                 tint = colors.controlTint,
                 onSleepTimerClick = onSleepTimerButton,
+                repeatLocksAutoplay = repeatLocksAutoplay,
                 onToggleAutoplay = { current ->
                     playerAction(player, PlayerAction.ToggleDontStopTheMusic(current = current))
                 },
@@ -846,6 +873,7 @@ private fun ExpandedPlayerPage(
                                 livePositionFlow = livePositionFlow,
                                 bufferedAheadSecFlow = bufferedAheadSecFlow,
                                 chapterProgressEnabled = chapterProgressEnabled,
+                                waveform = waveform,
                                 navigateToItem = navigateAndClose,
                                 onChooseArtist = onChooseArtist,
                             )
@@ -865,7 +893,7 @@ private fun ExpandedPlayerPage(
                                 activeTrackColor = controlTint,
                                 inactiveTrackColor = controlTint.inactive(),
                             )
-                            val isGroupBound = player.childrenBinds.any { it.isBound }
+                            val isGroupBound = player.usesGroupVolume
                             val isGroupForGesture by rememberUpdatedState(isGroupBound)
                             Row(
                                 modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
@@ -879,7 +907,7 @@ private fun ExpandedPlayerPage(
                                         .clickable(enabled = player.player.canMute) {
                                             playerAction(
                                                 player,
-                                                if (player.childrenBinds.none { it.isBound }) {
+                                                if (!player.usesGroupVolume) {
                                                     PlayerAction.ToggleMute(player.player.currentMuteState)
                                                 } else {
                                                     PlayerAction.GroupToggleMute(player.player.currentMuteState)
@@ -936,7 +964,7 @@ private fun ExpandedPlayerPage(
                                         onValueChangeFinished = {
                                             playerAction(
                                                 player,
-                                                if (player.childrenBinds.none { it.isBound }) {
+                                                if (!player.usesGroupVolume) {
                                                     PlayerAction.VolumeSet(currentVolume.toDouble())
                                                 } else {
                                                     PlayerAction.GroupVolumeSet(currentVolume.toDouble())
@@ -1040,6 +1068,7 @@ private fun PlayerOverflowMenu(
     onAnnounce: (() -> Unit)?,
     onAmbientSound: (() -> Unit)?,
     onAddToPlaylist: ((AppMediaItem) -> Unit)? = null,
+    showWaveformToggle: Boolean = false,
     queueDjMenu: QueueDjMenu? = null,
     onQueueDjSelected: (queueId: String, hostId: String?) -> Unit = { _, _ -> },
 ) {
@@ -1203,6 +1232,9 @@ private fun PlayerOverflowMenu(
         if (currentPlayer.isLocal) {
             add(bufferIndicatorMenuOption())
         }
+        if (showWaveformToggle) {
+            add(waveformMenuOption())
+        }
     }
     val playerActions = powerOption + queueOptions + queueDjOptions + displayOptions
 
@@ -1255,6 +1287,7 @@ private fun CollapsedPlayerPage(
     colors: PlayerColors,
     sendspinState: PlayerState?,
     onSelectPlayer: () -> Unit,
+    onGroup: () -> Unit,
     playerAction: (PlayerData, PlayerAction) -> Unit,
     // Server preference gate for chapter-based Next enablement and the chapter subtitle.
     chapterProgressEnabled: Boolean = true,
@@ -1272,6 +1305,8 @@ private fun CollapsedPlayerPage(
         chapterProgressEnabled = chapterProgressEnabled,
         livePositionFlow = livePositionFlow,
         transportOnBar = verticalBarArea != null,
+        // The wide row has grouping in its player chip; the vertical bar keeps Play and Next.
+        onGroup = onGroup.takeIf { verticalBarArea == null },
     )
 }
 
@@ -1291,8 +1326,10 @@ fun ExpandedPlayerPagePreview() {
                 MaterialTheme.colorScheme.onSurface,
             ),
             onSelectPlayer = {},
+            onGroup = {},
             onDspButton = null,
             onSleepTimerButton = null,
+            repeatLocksAutoplay = false,
             onAnnounceButton = null,
             onAmbientSoundButton = null,
             playerAction = { _, _ -> },
@@ -1329,8 +1366,10 @@ fun ExpandedPlayerPageMediumScreenPreview() {
                 MaterialTheme.colorScheme.onSurface,
             ),
             onSelectPlayer = {},
+            onGroup = {},
             onDspButton = null,
             onSleepTimerButton = null,
+            repeatLocksAutoplay = false,
             onAnnounceButton = null,
             onAmbientSoundButton = null,
             playerAction = { _, _ -> },
@@ -1367,8 +1406,10 @@ fun ExpandedPlayerPageExpandedScreenPreview() {
                 MaterialTheme.colorScheme.onSurface,
             ),
             onSelectPlayer = {},
+            onGroup = {},
             onDspButton = null,
             onSleepTimerButton = null,
+            repeatLocksAutoplay = false,
             onAnnounceButton = null,
             onAmbientSoundButton = null,
             playerAction = { _, _ -> },
@@ -1409,8 +1450,10 @@ fun ExpandedPlayerPageExpandedScreenPlusPreview() {
                 MaterialTheme.colorScheme.onSurface,
             ),
             onSelectPlayer = {},
+            onGroup = {},
             onDspButton = null,
             onSleepTimerButton = null,
+            repeatLocksAutoplay = false,
             onAnnounceButton = null,
             onAmbientSoundButton = null,
             playerAction = { _, _ -> },
@@ -1448,8 +1491,10 @@ fun ExpandedPlayerPagePhoneLandscapePreview() {
                 MaterialTheme.colorScheme.onSurface,
             ),
             onSelectPlayer = {},
+            onGroup = {},
             onDspButton = null,
             onSleepTimerButton = null,
+            repeatLocksAutoplay = false,
             onAnnounceButton = null,
             onAmbientSoundButton = null,
             playerAction = { _, _ -> },
@@ -1486,8 +1531,10 @@ fun ExpandedPlayerPageLargeScreenPreview() {
                 MaterialTheme.colorScheme.onSurface,
             ),
             onSelectPlayer = {},
+            onGroup = {},
             onDspButton = null,
             onSleepTimerButton = null,
+            repeatLocksAutoplay = false,
             onAnnounceButton = null,
             onAmbientSoundButton = null,
             playerAction = { _, _ -> },

@@ -2,7 +2,7 @@ package io.music_assistant.client.data.model.client
 
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.ui.compose.item.ItemList
-import io.music_assistant.client.ui.compose.item.shownItems
+import io.music_assistant.client.ui.compose.item.select
 import io.music_assistant.client.ui.compose.item.withAlbumGroup
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -102,7 +102,16 @@ class AlbumGroupingTest {
     fun aGroupListShowsTheAlbumsOfItsGroupOnly() {
         val list = ItemList.ArtistLibrary("artist").withAlbumGroup(AlbumGroup.ALBUMS)
 
-        assertEquals(listOf(lp1, lp2), list.shownItems(albums, AlbumGrouping.Default))
-        assertEquals(albums, ItemList.ArtistLibrary("artist").shownItems(albums, AlbumGrouping.Default))
+        assertEquals(listOf(lp1, lp2), list.select(albums, AlbumGrouping.Default))
+        // Without a group, the list keeps its releases: every album but the singles and EPs.
+        assertEquals(listOf(live, lp1, unknown, lp2), ItemList.ArtistLibrary("artist").select(albums))
+    }
+
+    @Test
+    fun aHiddenGroupMovesItsAlbumsToOther() {
+        val grouping = AlbumGrouping.Default.toggled(AlbumGroup.LIVE)
+        val other = ItemList.ArtistLibrary("artist").withAlbumGroup(AlbumGroup.OTHER)
+
+        assertEquals(listOf(live, unknown), other.select(albums, grouping))
     }
 }

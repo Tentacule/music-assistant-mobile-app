@@ -100,7 +100,7 @@ fun ArtistGridItem(
     ) {
         Box {
             ArtistImage(item)
-            Badges(item, providerIconFetcher, favoriteOrProviderAlignment = Alignment.BottomCenter)
+            Badges(item, providerIconFetcher)
         }
         Spacer(Modifier.height(4.dp))
         MediaItemLabels(
@@ -486,9 +486,6 @@ private fun ExplicitBadge(modifier: Modifier) {
  * The corner badges of an artwork: the favorite heart or the provider icon at the bottom end, and
  * the explicit mark at the top end. A grid tile adds [GridTypeBadge] and [ProgressBadge], so the
  * four corners never share a badge.
- *
- * @param favoriteOrProviderAlignment where the favorite heart or the provider icon sits. A corner
- *   of a round artist image is outside the circle, so the artist uses the bottom center.
  */
 @Composable
 fun BoxScope.Badges(
@@ -496,10 +493,9 @@ fun BoxScope.Badges(
     providerIconFetcher: ProviderIconFetcher?,
     badgeSize: Dp = GRID_BADGE_SIZE,
     badgePadding: Dp = GRID_BADGE_PADDING,
-    favoriteOrProviderAlignment: Alignment = Alignment.BottomEnd,
 ) {
     val modifier = Modifier.padding(badgePadding).size(badgeSize)
-    FavoriteOrProviderBadge(item, providerIconFetcher, modifier.align(favoriteOrProviderAlignment))
+    FavoriteOrProviderBadge(item, providerIconFetcher, modifier.align(Alignment.BottomEnd))
     if (item.isExplicit) {
         ExplicitBadge(modifier.align(Alignment.TopEnd))
     }
@@ -557,7 +553,7 @@ private fun RowBadges(
 fun BoxScope.ProgressBadge(
     fullyPlayed: Boolean?,
     resumePositionMs: Long?,
-    badgeSize: Dp = 18.dp,
+    badgeSize: Dp = GRID_BADGE_SIZE,
     badgePadding: Dp = GRID_BADGE_PADDING,
 ) {
     ProgressBadge(

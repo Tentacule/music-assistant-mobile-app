@@ -50,15 +50,24 @@ fun reconcileCarTabs(
  * Drop the categories the server cannot serve right now. [LibraryCategory.AI_RADIO] exists only
  * while the optional `ai_radio` plugin is loaded and the user holds its scope, so it is hidden
  * from the grid, from the tab editor and from both car browse trees when it is not.
+ * [LibraryCategory.PARTY] exists only while the `party` plugin is loaded. The car tabs never
+ * hold it, so their callers leave [partyAvailable] false.
  *
- * Filtering for display only — the stored config keeps its entry, see [applyEnabledCategories]
+ * Filtering for display only — the stored config keeps its entry, see [applySidebarEdit]
  * and [mergeHiddenCategories].
  */
 fun visibleCategories(
     reconciled: List<Pair<LibraryCategory, Boolean>>,
     aiRadioAvailable: Boolean,
+    partyAvailable: Boolean = false,
 ): List<Pair<LibraryCategory, Boolean>> =
-    reconciled.filter { (category, _) -> category != LibraryCategory.AI_RADIO || aiRadioAvailable }
+    reconciled.filter { (category, _) ->
+        when (category) {
+            LibraryCategory.AI_RADIO -> aiRadioAvailable
+            LibraryCategory.PARTY -> partyAvailable
+            else -> true
+        }
+    }
 
 /**
  * Re-append the categories [visibleCategories] hid, keeping their stored enabled flag. For the
@@ -77,15 +86,25 @@ fun mergeHiddenCategories(
 }
 
 /**
- * Apply the enabled set that the sidebar editor saved, in the stored order. The editor lists only
- * the [visible] categories, so a category that [visibleCategories] hid keeps its stored flag: an
- * edit while the `ai_radio` plugin is not reported yet must not store AI Radio as disabled.
+ * Apply the enabled set and the order that the sidebar editor saved. The editor lists only the
+ * [visible] categories, so a category that [visibleCategories] hid keeps its stored flag and its
+ * slot: an edit while the `ai_radio` plugin is not reported yet must not store AI Radio as disabled.
+ * The visible categories fill the other slots in [orderedNames] order. A visible category that
+ * [orderedNames] does not name keeps its relative order after the named ones.
  */
-fun applyEnabledCategories(
+fun applySidebarEdit(
     reconciled: List<Pair<LibraryCategory, Boolean>>,
     visible: Set<LibraryCategory>,
     enabledNames: Collection<String>,
-): List<Pair<LibraryCategory, Boolean>> =
-    reconciled.map { (category, enabled) ->
-        category to if (category in visible) category.name in enabledNames else enabled
+    orderedNames: List<String>,
+): List<Pair<LibraryCategory, Boolean>> {
+    val named = orderedNames.mapNotNull { name -> visible.firstOrNull { it.name == name } }.distinct()
+    val order = (named + reconciled.map { it.first }.filter { it in visible && it !in named }).iterator()
+    return reconciled.map { (category, enabled) ->
+        if (category in visible) {
+            order.next().let { it to (it.name in enabledNames) }
+        } else {
+            category to enabled
+        }
     }
+}

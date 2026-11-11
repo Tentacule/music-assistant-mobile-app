@@ -158,8 +158,8 @@ Columns: Web 2.10, Web 2.11, Phone, AA (Android Auto), CP (CarPlay).
 
 | Feature | Web 2.10 | Web 2.11 | Phone | AA | CP | Class | Note |
 |---|---|---|---|---|---|---|---|
-| Artist page | yes | yes | yes | drill | drill | Parity | App: top tracks with source picker, library albums, all albums, similar artists |
-| Artist appears on, singles, discography | no | yes | no | no | no | Missing | `artist_appears_on`, `discography`. Discography items are provider `musicbrainz`, addable but not playable |
+| Artist page | yes | yes | yes | drill | drill | Parity | App: top tracks, albums, and singles and EPs, each with a source picker, and similar artists |
+| Artist appears on, singles, discography | no | yes | yes | no | no | Adjusted | Issue #1205. Singles and EPs on every server. Appears on and discography from 2.11, library artists only. One discography row with all release types, no type picker |
 | Artist audiobooks row | yes | yes | yes | no | no | Parity | Issue #1201. An author or narrator page shows "In library" and "All audiobooks" rows instead of albums and top tracks |
 | Album page | yes | yes | yes | drill | drill | Parity | Year shown in the header |
 | Album versions, review, more from artist | yes | yes | no | no | no | Missing | `album_versions` |
@@ -213,7 +213,7 @@ Columns: Web 2.10, Web 2.11, Phone, AA (Android Auto), CP (CarPlay).
 | Sleep timer | yes | yes | yes | no | no | Parity | Schema 35 and newer |
 | Lyrics with offset | yes | yes | yes | no | no | Parity | |
 | Podcast transcript in the lyrics panel | no | yes | no | no | no | Missing | Timed cues |
-| Waveform on the seek bar | yes | yes | no | no | no | Missing | `audio_analysis/wave_form` |
+| Waveform on the seek bar | yes | yes | yes | no | no | Parity | `audio_analysis/wave_form`, schema 36. Tracks only. A local setting, off by default |
 | Visualizer | yes | yes | no | n/a | n/a | Not viable | WebGL and Web Audio in the browser |
 | Stream and quality details | yes | yes | yes | no | no | Parity | |
 | "Played from" container | no | yes | yes | no | no | Parity | `QueueItem.origin` |
@@ -248,7 +248,7 @@ Columns: Web 2.10, Web 2.11, Phone, AA (Android Auto), CP (CarPlay).
 | Join and leave members, group volume | yes | yes | yes | no | no | Parity | `set_members`, `ungroup` |
 | Local player playback delay | n/a | n/a | yes | no | no | Parity | App extra |
 | Create a group player | settings | settings | no | no | no | Out of scope | `players/create_group_player` |
-| Group the local player | yes | yes | no | no | no | Decided | See memory on local-player grouping |
+| Group the local player | yes | yes | yes | no | no | Parity | Only while the server lists the phone (not hidden), like the web. |
 
 ### 4.10 Playlists
 
@@ -622,7 +622,7 @@ the app:
 | Track detail screen | `tracks/get_track`, `track_albums`, `track_versions`, `similar_tracks`, `metadata/get_track_lyrics` | Easy | Done (issue #1189). A `Track` case in `ItemDetailsScreen` with tabs for albums, versions and similar tracks |
 | Radio detail screen | `radios/get_radio`, `radio_versions`, `radio_tracks` (2.11) | Easy | Same pattern. Show the tracklist for finite stations on 2.11 |
 | Podcast episode screen with transcript | `podcasts/podcast_episode`, `podcast_episode_transcript` (2.11) | Medium | Done (issue 1204). A `PodcastEpisode` case in `ItemDetailsScreen`; the cues feed `LyricsSheet` as `Lyrics.Synced`. No steppers and no hide-fully-played filter |
-| Artist appears on, singles, discography | `artist_appears_on`, `discography` (2.11) | Medium | Two more artist sections. Discography items carry provider `musicbrainz`. Show them dimmed and offer "Add to library" only |
+| Artist appears on, singles, discography | `artist_appears_on`, `discography` (2.11) | Medium | Done (issue #1205). A `musicbrainz` release is dimmed. Its menu offers "Add to library" only, and a tap opens the album that `music/item` resolves |
 | Artist audiobooks row | `artist_audiobooks` | Easy | Done (issue #1201). The author page rows with the existing provider filter |
 | Album versions, review, more from artist | `album_versions`, `artist_albums` | Easy | Two sections on the album screen |
 | Server-driven sort options | `music/sort_options` (2.11) | Easy | Replace the static table on 2.11. Map `label_key` to local strings |
@@ -635,7 +635,7 @@ the app:
 | Smart playlists | `smart_playlists/*` | Hard | A rule editor is heavy on a phone. Low value. Defer |
 | Refresh item, find on music services | `music/refresh_item` | Easy | Long-press action. Scope `library.write` on 2.11, `library.manage` on 2.10 |
 | Add radio or track by URL | `builtin/add_radio`, `builtin/add_track` | Easy | A text dialog in the Radio and Tracks lists |
-| Multi-select and bulk actions | existing commands | Medium | Compose selection mode on the list screens. Needed for bulk mark played and bulk add to playlist |
+| Multi-select and bulk actions | existing commands | Medium | Partly done (issue #1209). Tracks and podcast episodes on the album, artist, playlist, podcast and episode pages: the queue options, add to playlist, and remove from an editable playlist. Not done: the library lists, other item types and bulk mark played |
 | Search source picker and recent searches | `music/search` with `providers`, preferences `search.sources` and `search.recent` | Easy | Chips above the result list. Keep limits at 40 or lower |
 | Per-row provider filter on home | preference `discover.hiddenProviders.<row>` | Easy | Edit mode already exists |
 | Shortcut add and remove | `auth/user/update` with `sidebar.shortcuts` | Easy | Long-press action. The app already reads the list |
@@ -648,7 +648,7 @@ the app:
 | Join code login | `auth/join_code/exchange` | Easy | One more login tab |
 | PKCE OAuth return to the app | `auth/authorization_url`, `auth/exchange` (2.11) | Medium | Needs Remote Access on the server. Fixes the iOS OAuth return. Keep the current flow for 2.10 |
 | Scope-gated UI | `auth/scopes` | Medium | Cross-cutting. One `Scopes` value object in `MainDataSource` and a check in each action resolver |
-| Waveform on the seek bar | `audio_analysis/wave_form` | Medium | Draw with Compose `Canvas`. Check the payload size first |
+| Waveform on the seek bar | `audio_analysis/wave_form` | Medium | Done (issue 1210). 1800 bins, about 30 kB. `WaveformTrack` in the slider track. The toggle is in the player menu |
 | Cast to dashboard | `dashboard/dashboards`, `sessions`, `show`, `hide`, `get_url` | Easy | A dialog in the player overflow. Scope `users.invite` |
 | Unsupported install banner | `server_info.unsupported_install` (2.11) | Easy | Dismissible card on the home screen |
 | "Played from" container | `QueueItem.origin` (2.11) | Easy | Link in the stream details dialog |

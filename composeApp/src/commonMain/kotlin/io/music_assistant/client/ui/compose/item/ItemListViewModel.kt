@@ -44,7 +44,11 @@ class ItemListViewModel(
         settingsRepository.albumGrouping,
     ) { items, sortOption, query, grouping ->
         State(
-            items = items.map { itemList.shownItems(it, grouping).clientFiltered(query.orEmpty()).clientSorted(sortOption, itemList.sortContext) },
+            items = items.map {
+                itemList.select(it, grouping)
+                    .clientFiltered(query.orEmpty())
+                    .clientSorted(sortOption, itemList.sortContext)
+            },
             sortOption = sortOption,
         )
     }.flowOn(Dispatchers.Default) // filter + sort per keystroke and per list change
