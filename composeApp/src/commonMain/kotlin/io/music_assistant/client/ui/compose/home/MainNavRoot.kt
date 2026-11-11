@@ -106,6 +106,8 @@ import io.music_assistant.client.ui.compose.library.LibraryCategoriesViewModel
 import io.music_assistant.client.ui.compose.library.LibraryCategory
 import io.music_assistant.client.ui.compose.library.LibraryListScreen
 import io.music_assistant.client.ui.compose.library.LibraryListViewModel
+import io.music_assistant.client.ui.compose.library.series.SeriesListScreen
+import io.music_assistant.client.ui.compose.library.series.SeriesListViewModel
 import io.music_assistant.client.ui.compose.library.icon
 import io.music_assistant.client.ui.compose.library.stringResource
 import io.music_assistant.client.ui.compose.nav.ConditionalBackNavDisplay
@@ -372,6 +374,7 @@ fun MainNavigationRoot(
                 val toAdd = when (category) {
                     LibraryCategory.BROWSE -> MainNav.Browse(path = null, title = null)
                     LibraryCategory.AI_RADIO -> MainNav.AiRadio
+                    LibraryCategory.SERIES -> MainNav.Series
                     LibraryCategory.PARTY -> {
                         partySheetOpen = true
                         null
@@ -685,6 +688,24 @@ private fun mainNavEntryProvider(
             )
         }
 
+        entry<MainNav.Series> {
+            SeriesListScreen(
+                viewModel = koinViewModel<SeriesListViewModel>(),
+                actionsViewModel = actionsViewModel,
+                contentPadding = contentPadding,
+                onNavigateClick = { series ->
+                    multiBackStack.add(
+                        MainNav.ItemDetails(
+                            itemId = series.itemId,
+                            mediaType = series.mediaType,
+                            providerId = series.provider,
+                        ),
+                    )
+                },
+                onBack = { multiBackStack.removeLastOrNull() },
+            )
+        }
+
         entry<MainNav.LibraryList> {
             val libraryListViewModel = koinViewModel<LibraryListViewModel> {
                 parametersOf(it.mediaType)
@@ -907,6 +928,10 @@ private sealed interface MainNav : NavKey {
     @Serializable
     data object AiRadio : MainNav
 
+    /** The album series of the library. Not a media type, hence its own route. */
+    @Serializable
+    data object Series : MainNav
+
     /**
      * One level of the folder-style Browse tree. [path] is the server browse path (null = root);
      * [stackingId] keeps stacked levels distinct in the back stack (mirrors [ItemDetails]).
@@ -954,6 +979,7 @@ private fun rememberMainNavBackStack(bottom: MainNav) = rememberNavBackStack(
                     subclass(MainNav.Library::class, MainNav.Library.serializer())
                     subclass(MainNav.LibraryList::class, MainNav.LibraryList.serializer())
                     subclass(MainNav.AiRadio::class, MainNav.AiRadio.serializer())
+                    subclass(MainNav.Series::class, MainNav.Series.serializer())
                     subclass(MainNav.Browse::class, MainNav.Browse.serializer())
                     subclass(
                         MainNav.ItemDetails::class,

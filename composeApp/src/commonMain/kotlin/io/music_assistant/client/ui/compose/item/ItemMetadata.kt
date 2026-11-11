@@ -91,10 +91,12 @@ fun ItemFacts(
     providerDetails: (String) -> ProviderDetails?,
     textAlign: TextAlign,
     modifier: Modifier = Modifier,
+    catalogNumbers: List<String> = emptyList(),
 ) {
     val facts = listOfNotNull(
         (item as? Album)?.albumType?.let { stringResource(it.stringResource()) },
         (item as? Album)?.year?.toString(),
+        catalogNumbers.takeIf { it.isNotEmpty() }?.joinToString(", "),
         playableSummary?.let { pluralStringResource(Res.plurals.item_track_count, it.count, it.count) },
         playableSummary?.totalSeconds?.toTotalDuration()?.localized(),
         (item as? PodcastEpisode)?.duration?.takeIf { it > 0 }?.toTotalDuration()?.localized(),

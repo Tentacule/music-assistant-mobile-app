@@ -2,6 +2,7 @@ package io.music_assistant.client.ui.compose.library
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.SmartToy
@@ -21,10 +22,11 @@ import musicassistantclient.composeapp.generated.resources.ai_radio_title
 import musicassistantclient.composeapp.generated.resources.nav_browse
 import musicassistantclient.composeapp.generated.resources.nav_discover
 import musicassistantclient.composeapp.generated.resources.nav_party
+import musicassistantclient.composeapp.generated.resources.nav_series
 import org.jetbrains.compose.resources.StringResource
 
 enum class LibraryCategory {
-    ARTISTS, ALBUMS, TRACKS, PLAYLISTS, AUDIOBOOKS, PODCASTS, RADIOS, GENRES, BROWSE, AI_RADIO, PARTY, HOME;
+    ARTISTS, ALBUMS, SERIES, TRACKS, PLAYLISTS, AUDIOBOOKS, PODCASTS, RADIOS, GENRES, BROWSE, AI_RADIO, PARTY, HOME;
 
     /**
      * Null for the categories that are not server media types: path-based [BROWSE],
@@ -43,6 +45,7 @@ enum class LibraryCategory {
             RADIOS -> MediaType.RADIO
             GENRES -> MediaType.GENRE
             BROWSE -> null
+            SERIES -> null
             AI_RADIO -> null
             PARTY -> null
             HOME -> null
@@ -72,6 +75,7 @@ fun LibraryCategory.stringResource(): StringResource = when (this) {
     LibraryCategory.BROWSE -> Res.string.nav_browse
     LibraryCategory.AI_RADIO -> Res.string.ai_radio_title
     LibraryCategory.PARTY -> Res.string.nav_party
+    LibraryCategory.SERIES -> Res.string.nav_series
     LibraryCategory.HOME -> Res.string.nav_discover
     // Every remaining category is server-media-type backed, so its label comes from there.
     else -> checkNotNull(mediaType).stringResource()
@@ -80,6 +84,7 @@ fun LibraryCategory.stringResource(): StringResource = when (this) {
 fun LibraryCategory.icon(): ImageVector = when (this) {
     LibraryCategory.ARTISTS -> ArtistIcon
     LibraryCategory.ALBUMS -> AlbumIcon
+    LibraryCategory.SERIES -> Icons.Default.CollectionsBookmark
     LibraryCategory.TRACKS -> TrackIcon
     LibraryCategory.PLAYLISTS -> PlaylistIcon
     LibraryCategory.AUDIOBOOKS -> BookAudioIcon

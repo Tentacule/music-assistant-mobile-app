@@ -3,6 +3,8 @@ package io.music_assistant.client.ui.compose.common.items
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +34,7 @@ import musicassistantclient.composeapp.generated.resources.Res
 import musicassistantclient.composeapp.generated.resources.action_remove
 import musicassistantclient.composeapp.generated.resources.dialog_remove_from_playlist_message
 import musicassistantclient.composeapp.generated.resources.dialog_remove_from_playlist_title
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -211,6 +214,7 @@ fun MediaCollectionWithMenu(
     onNavigateClick: (MediaCollection) -> Unit,
     onPlayOption: PlayHandler<MediaCollection>,
     libraryActions: LibraryActions,
+    extraEntry: ExtraMenuEntry? = null,
 ) {
     BrowsableItemWithMenu(
         modifier = when (viewMode) {
@@ -221,6 +225,7 @@ fun MediaCollectionWithMenu(
         onNavigateClick = onNavigateClick,
         onPlayOption = onPlayOption,
         libraryActions = libraryActions,
+        extraEntry = extraEntry,
     ) { mod, onClick, onLongClick ->
         when (viewMode) {
             ViewMode.LIST -> MediaCollectionRowItem(
@@ -368,6 +373,7 @@ private fun <T : AppMediaItem> BrowsableItemWithMenu(
     onRemoveFromPlaylist: (() -> Unit)? = null,
     libraryActions: LibraryActions,
     progressActions: ProgressActions? = null,
+    extraEntry: ExtraMenuEntry? = null,
     itemComposable: @Composable (
         modifier: Modifier,
         onClick: (T) -> Unit,
@@ -436,6 +442,15 @@ private fun <T : AppMediaItem> BrowsableItemWithMenu(
                 }
             }
             navOptions.forEach { it.MenuItem(onClose = { expandedItemId = null }) }
+            extraEntry?.let { entry ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(entry.label)) },
+                    onClick = {
+                        expandedItemId = null
+                        entry.onClick()
+                    },
+                )
+            }
         }
 
         if (showPlaylistDialog && playlistActions != null) {
@@ -465,3 +480,6 @@ private fun <T : AppMediaItem> BrowsableItemWithMenu(
         }
     }
 }
+
+/** An entry that a screen adds to the end of the menu of an item, for an action of its own. */
+data class ExtraMenuEntry(val label: StringResource, val onClick: () -> Unit)

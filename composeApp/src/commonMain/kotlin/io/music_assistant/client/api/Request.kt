@@ -915,6 +915,25 @@ data class Request @OptIn(ExperimentalUuidApi::class) constructor(
             args = buildJsonObject { put("item_id", JsonPrimitive(itemId)) },
         )
 
+        /** The album series of the library, [hidden] or shown, each with its albums. */
+        fun seriesList(hidden: Boolean, search: String? = null) = Request(
+            command = APICommands.MUSIC_ALBUM_GROUPS_SERIES,
+            args = buildJsonObject {
+                put("hidden", JsonPrimitive(hidden))
+                search?.takeIf { it.isNotBlank() }?.let { put("search", JsonPrimitive(it)) }
+                put("limit", JsonPrimitive(0))
+            },
+        )
+
+        /** Hides an album series from the series list, or shows it again. */
+        fun setSeriesHidden(itemId: String, hidden: Boolean) = Request(
+            command = APICommands.MUSIC_ALBUM_GROUPS_SET_SERIES_HIDDEN,
+            args = buildJsonObject {
+                put("item_id", JsonPrimitive(itemId))
+                put("hidden", JsonPrimitive(hidden))
+            },
+        )
+
         fun getVersions(
             itemId: String,
             providerInstanceIdOrDomain: String,

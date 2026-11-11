@@ -65,6 +65,7 @@ import io.music_assistant.client.ui.compose.library.AiRadioViewModel
 import io.music_assistant.client.ui.compose.library.BrowseViewModel
 import io.music_assistant.client.ui.compose.library.LibraryCategoriesViewModel
 import io.music_assistant.client.ui.compose.library.LibraryListViewModel
+import io.music_assistant.client.ui.compose.library.series.SeriesListViewModel
 import io.music_assistant.client.ui.compose.party.PartyViewModel
 import io.music_assistant.client.ui.compose.provider.ProviderViewModel
 import io.music_assistant.client.ui.compose.search.SearchViewModel
@@ -252,6 +253,7 @@ fun sharedModule(
         factory { CarActionsViewModel(get(), get()) }
         factory { CarDspViewModel(get(), get()) }
         factory { AiRadioViewModel(get(), get(), get()) }
+        factory { SeriesListViewModel(get(), get(), get()) }
         factory { PartyViewModel(get()) }
         factory {
             AuthenticationViewModel(

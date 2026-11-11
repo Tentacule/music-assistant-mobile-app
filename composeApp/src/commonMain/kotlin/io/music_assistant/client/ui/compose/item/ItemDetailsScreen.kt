@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
@@ -54,7 +60,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.music_assistant.client.data.model.client.AlbumGroup
 import io.music_assistant.client.data.model.client.AppMediaItemFixtures
 import io.music_assistant.client.data.model.client.Chapter
-import io.music_assistant.client.data.model.client.title
 import io.music_assistant.client.data.model.client.ClickContext
 import io.music_assistant.client.data.model.client.ImageType
 import io.music_assistant.client.data.model.client.MediaType
@@ -78,6 +83,7 @@ import io.music_assistant.client.data.model.client.items.RefreshItemAction
 import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.model.client.resumeChapter
 import io.music_assistant.client.data.model.client.stringResource
+import io.music_assistant.client.data.model.client.title
 import io.music_assistant.client.data.model.client.toClickContext
 import io.music_assistant.client.data.model.server.ServerAlbumVersionEnrichment
 import io.music_assistant.client.data.model.server.ServerMediaItem
@@ -495,6 +501,11 @@ private fun ItemContent(
                     genres = state.genres,
                     playableSummary = state.playableSummary,
                     ownerLine = state.playlistOwnerLine,
+                    // The TV shows the catalog number of the album in the hero.
+                    catalogNumbers = (item as? Album)?.mbAlbumId
+                        ?.takeIf { dpad }
+                        ?.let { state.versionEnrichmentsMap[it]?.catalogNumbers }
+                        .orEmpty(),
                     providerDetails = providerDetails,
                     description = description,
                     onOpenDescription = { showDescription = true },
@@ -694,11 +705,32 @@ private fun TabsBar(
         null -> null
     }
 
+    // TV: coming down from the hero or up from the list, the focus lands on the open tab, and a
+    // tab opens as soon as it has the focus, so left and right go through the tabs.
+    val dpad = LocalDpadNavigation.current
+    val selectedTabFocus = remember { FocusRequester() }
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(end = 8.dp),
+                .padding(end = 8.dp)
+                .then(
+                    if (dpad) {
+                        Modifier
+                            .focusProperties {
+                                onEnter = {
+                                    if (requestedFocusDirection == FocusDirection.Down ||
+                                        requestedFocusDirection == FocusDirection.Up
+                                    ) {
+                                        if (!selectedTabFocus.requestFocus()) cancelFocusChange()
+                                    }
+                                }
+                            }
+                            .focusGroup()
+                    } else {
+                        Modifier
+                    },
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PrimaryScrollableTabRow(
@@ -722,6 +754,13 @@ private fun TabsBar(
                     Tab(
                         selected = selected,
                         onClick = { onTabSelected(i) },
+                        modifier = if (dpad) {
+                            Modifier
+                                .then(if (selected) Modifier.focusRequester(selectedTabFocus) else Modifier)
+                                .onFocusChanged { if (it.isFocused && !selected) onTabSelected(i) }
+                        } else {
+                            Modifier
+                        },
                         text = {
                             Text(
                                 text = tab.stringResource()?.let { stringResource(it) }.orEmpty(),
