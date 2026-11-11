@@ -25,6 +25,8 @@ data class Metadata(
     val review: String? = null,
     // The series the item is part of, e.g. the album series of an album.
     val collections: List<SeriesEntry> = emptyList(),
+    // Albums: the year of the first release of the album (all editions), when known.
+    val originalYear: Int? = null,
 )
 
 /**

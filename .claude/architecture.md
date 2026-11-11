@@ -189,6 +189,11 @@ actual class PlatformFeature {
   A user with `library.write` hides a series from the menu of its tile, or shows it again
   (`music/album_groups/set_series_hidden`, `ExtraMenuEntry` on `MediaCollectionWithMenu`). The hidden state
   is global, and it changes the series list only: the album list and its series filter keep every series.
+- **Album years**: `Album.year` is the year of the edition, and `metadata.original_year` (a fork field) the
+  first release of the album, from the original date tags or MusicBrainz, shared by the versions of a release
+  group. `Album.displayYear` gives the first one, else the edition. The lists, the artist rows and the year
+  sort use it. The album hero shows both when the edition is later ("edition 2011"), and the versions tab
+  shows the year of each edition.
 - **TV album page**: the hero shows the MusicBrainz catalog number of the album (`versionEnrichmentsMap`
   of its `mbAlbumId`). Down from the hero and Up from the list land on the open tab, and a tab opens when
   it gets the focus (`TabsBar`). The phone is unchanged.

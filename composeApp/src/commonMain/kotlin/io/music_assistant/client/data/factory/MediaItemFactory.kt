@@ -291,6 +291,7 @@ class MediaItemFactory(
             description = it.description,
             review = it.review,
             collections = it.collections?.map(::createSeriesEntry).orEmpty(),
+            originalYear = it.originalYear,
         )
     }
 

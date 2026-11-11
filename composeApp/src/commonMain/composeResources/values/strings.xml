@@ -69,6 +69,7 @@
   <string name="ai_radio_stop">Stop</string>
   <string name="ai_radio_title">AI Radio</string>
   <string name="album_disc_header">Disc %1$d</string>
+  <string name="album_edition_year">edition %1$d</string>
   <string name="album_type_album">Album</string>
   <string name="album_type_compilation">Compilation</string>
   <string name="album_type_ep">EP</string>

@@ -32,6 +32,10 @@ data class Album(
     val mbAlbumId: String?
         get() = externalIds?.firstOrNull { it.getOrNull(0) == "musicbrainz_albumid" }?.getOrNull(1)
 
+    /** The year the album shows: its first release (all editions), else the year of this edition. */
+    val displayYear: Int?
+        get() = metadata?.originalYear ?: year
+
     /** The series the album is part of, with its number in each when known. */
     val series: List<SeriesEntry>
         get() = metadata?.collections.orEmpty()

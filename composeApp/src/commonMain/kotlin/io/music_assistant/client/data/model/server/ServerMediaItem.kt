@@ -109,6 +109,8 @@ data class ServerMetadata(
     @SerialName("preview") val preview: String? = null,
     @SerialName("popularity") val popularity: Int? = null,
     @SerialName("release_date") val releaseDate: String? = null,
+    /** Albums: the year of the first release of the album (all editions), when known. */
+    @SerialName("original_year") val originalYear: Int? = null,
     // @SerialName("languages") val languages: List<String>? = null,
     @SerialName("chapters") val chapters: List<ServerMediaItemChapter>? = null,
     @SerialName("last_refresh") val lastRefresh: Long? = null,
