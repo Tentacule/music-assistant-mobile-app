@@ -189,7 +189,7 @@ fun <T> List<T>.clientSorted(option: SortOption, context: SubItemContext? = null
             ).orEmpty()
         }
         SortField.DURATION -> compareBy { (it as? PlayableItem)?.duration ?: 0.0 }
-        SortField.YEAR -> compareBy { (it as? Album)?.year ?: 0 }
+        SortField.YEAR -> compareBy { (it as? Album)?.displayYear ?: 0 }
         SortField.RELEASE_DATE -> compareBy(String.CASE_INSENSITIVE_ORDER) {
             (it as? PodcastEpisode)?.releaseDate.orEmpty()
         }

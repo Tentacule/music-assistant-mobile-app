@@ -12,6 +12,7 @@ enum class TvMenuEntry(val category: LibraryCategory? = null) {
     SEARCH,
     ARTISTS(LibraryCategory.ARTISTS),
     ALBUMS(LibraryCategory.ALBUMS),
+    SERIES(LibraryCategory.SERIES),
     TRACKS(LibraryCategory.TRACKS),
     QUEUE,
     PLAYLISTS(LibraryCategory.PLAYLISTS),

@@ -67,6 +67,9 @@ interface MediaItemRepository {
     /** Makes a library album the version the lists show for its release group. */
     suspend fun setAlbumGroupDefault(itemId: String): Result<Unit> = Result.success(Unit)
 
+    /** Hides an album series from the series list, or shows it again. */
+    suspend fun setAlbumSeriesHidden(itemId: String, hidden: Boolean): Result<Unit> = Result.success(Unit)
+
     /**
      * MB enrichment (catalog number, label, track count) for all versions of an album the user
      * has in their sources. Returns an empty list on any error so the UI degrades gracefully.
@@ -118,6 +121,11 @@ class ServiceClientMediaItemRepository(
     override suspend fun setAlbumGroupDefault(itemId: String): Result<Unit> =
         withContext(workDispatcher) {
             apiClient.sendRequest(Request.Album.setGroupDefault(itemId)).map { }
+        }
+
+    override suspend fun setAlbumSeriesHidden(itemId: String, hidden: Boolean): Result<Unit> =
+        withContext(workDispatcher) {
+            apiClient.sendRequest(Request.Album.setSeriesHidden(itemId, hidden)).map { }
         }
 
     override suspend fun fetchMediaItems(request: Request): Result<List<AppMediaItem>> =

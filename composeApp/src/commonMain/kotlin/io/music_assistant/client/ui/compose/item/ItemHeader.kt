@@ -147,6 +147,8 @@ fun ItemHeader(
     genres: List<Genre> = emptyList(),
     playableSummary: PlayableSummary? = null,
     ownerLine: PlaylistOwnerLine? = null,
+    // MusicBrainz catalog numbers of the album, shown after its year
+    catalogNumbers: List<String> = emptyList(),
     providerDetails: (String) -> ProviderDetails? = { null },
     description: ItemDescription? = null,
     onOpenDescription: () -> Unit = {},
@@ -208,6 +210,7 @@ fun ItemHeader(
                 providerDetails = providerDetails,
                 textAlign = textAlign,
                 modifier = Modifier.padding(top = 8.dp),
+                catalogNumbers = catalogNumbers,
             )
         }
 

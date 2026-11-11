@@ -50,6 +50,7 @@ import io.music_assistant.client.ui.compose.common.icons.BookshelfIcon
 import io.music_assistant.client.utils.TotalDuration
 import io.music_assistant.client.utils.toTotalDuration
 import musicassistantclient.composeapp.generated.resources.Res
+import musicassistantclient.composeapp.generated.resources.album_edition_year
 import musicassistantclient.composeapp.generated.resources.item_description_more
 import musicassistantclient.composeapp.generated.resources.item_duration_hours
 import musicassistantclient.composeapp.generated.resources.item_duration_hours_minutes
@@ -91,10 +92,15 @@ fun ItemFacts(
     providerDetails: (String) -> ProviderDetails?,
     textAlign: TextAlign,
     modifier: Modifier = Modifier,
+    catalogNumbers: List<String> = emptyList(),
 ) {
     val facts = listOfNotNull(
         (item as? Album)?.albumType?.let { stringResource(it.stringResource()) },
-        (item as? Album)?.year?.toString(),
+        (item as? Album)?.displayYear?.toString(),
+        // a later edition also shows its own year
+        (item as? Album)?.year?.takeIf { it != item.displayYear }
+            ?.let { stringResource(Res.string.album_edition_year, it) },
+        catalogNumbers.takeIf { it.isNotEmpty() }?.joinToString(", "),
         playableSummary?.let { pluralStringResource(Res.plurals.item_track_count, it.count, it.count) },
         playableSummary?.totalSeconds?.toTotalDuration()?.localized(),
         (item as? PodcastEpisode)?.duration?.takeIf { it > 0 }?.toTotalDuration()?.localized(),

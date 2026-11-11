@@ -220,7 +220,7 @@ fun AlbumGridItem(
 @Composable
 private fun Album.subtitleText(subtitle: AlbumSubtitle): String? = when (subtitle) {
     AlbumSubtitle.ARTISTS -> localizedSubtitle()
-    AlbumSubtitle.YEAR -> year?.toString()
+    AlbumSubtitle.YEAR -> displayYear?.toString()
 }
 
 /**

@@ -183,6 +183,20 @@ actual class PlatformFeature {
   MusicBrainz release group (`deduplicateByReleaseGroup`). "View all" of a group is `ItemList.ArtistLibrary` or
   `ArtistAlbums` with `albumGroup`, and `ItemList.select` keeps the albums of the group on the client. An author
   or a narrator is not grouped.
+- **Album series list**: `LibraryCategory.SERIES` (phone sidebar, TV menu `TvMenuEntry.SERIES`) opens
+  `SeriesListScreen` (`ui/compose/library/series/`). It lists the library series with
+  `music/album_groups/series`, a fork command. The top bar switches to the hidden series (`hidden=true`).
+  A user with `library.write` hides a series from the menu of its tile, or shows it again
+  (`music/album_groups/set_series_hidden`, `ExtraMenuEntry` on `MediaCollectionWithMenu`). The hidden state
+  is global, and it changes the series list only: the album list and its series filter keep every series.
+- **Album years**: `Album.year` is the year of the edition, and `metadata.original_year` (a fork field) the
+  first release of the album, from the original date tags or MusicBrainz, shared by the versions of a release
+  group. `Album.displayYear` gives the first one, else the edition. The lists, the artist rows and the year
+  sort use it. The album hero shows both when the edition is later ("edition 2011"), and the versions tab
+  shows the year of each edition.
+- **TV album page**: the hero shows the MusicBrainz catalog number of the album (`versionEnrichmentsMap`
+  of its `mbAlbumId`). Down from the hero and Up from the list land on the open tab, and a tab opens when
+  it gets the focus (`TabsBar`). The phone is unchanged.
 - **Library sort**: get the sort choices of a library list from `LibrarySortRepository.menu(mediaType)`, on the
   phone and in Android Auto. From server 2.11 (`sortWireFor`), the menu holds the fields of `music/sort_options`
   and the request sends `sort_field` and `sort_direction`. An older server gets the static `SortConfig` table and

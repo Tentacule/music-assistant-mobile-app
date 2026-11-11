@@ -87,6 +87,8 @@ object APICommands {
     const val MUSIC_ALBUM_GROUPS_LIBRARY_ITEMS = "music/album_groups/library_items"
     const val MUSIC_ALBUM_GROUPS_INFO = "music/album_groups/info"
     const val MUSIC_ALBUM_GROUPS_SET_DEFAULT = "music/album_groups/set_default"
+    const val MUSIC_ALBUM_GROUPS_SERIES = "music/album_groups/series"
+    const val MUSIC_ALBUM_GROUPS_SET_SERIES_HIDDEN = "music/album_groups/set_series_hidden"
     const val MUSIC_ALBUMS_ALBUM_TRACKS = "music/albums/album_tracks"
     const val MUSIC_ALBUM_GROUPS_VERSIONS = "music/album_groups/versions"
     const val MUSIC_ALBUMS_VERSIONS_ENRICHMENT = "music/albums/versions_enrichment"

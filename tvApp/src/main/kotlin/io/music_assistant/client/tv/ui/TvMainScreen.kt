@@ -27,6 +27,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -36,17 +37,17 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import androidx.compose.ui.platform.LocalContext
 import co.touchlab.kermit.Logger
 import io.music_assistant.client.api.ErrorMessageBus
 import io.music_assistant.client.api.ServiceClient
 import io.music_assistant.client.data.MainDataSource
 import io.music_assistant.client.data.model.client.ClickContext
 import io.music_assistant.client.data.model.client.MediaType
+import io.music_assistant.client.data.model.client.PlayerData
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.RecommendationFolder
-import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.ExitOnBackBehavior
+import io.music_assistant.client.tv.R
 import io.music_assistant.client.tv.TvMenuEntry
 import io.music_assistant.client.tv.TvPreferences
 import io.music_assistant.client.tv.TvUserActivity
@@ -54,7 +55,6 @@ import io.music_assistant.client.tv.accounts.TvAccountManager
 import io.music_assistant.client.ui.compose.common.ProvideDpadFocusMemory
 import io.music_assistant.client.ui.compose.common.ToastDuration
 import io.music_assistant.client.ui.compose.common.ToastHost
-import io.music_assistant.client.data.model.client.PlayerData
 import io.music_assistant.client.ui.compose.common.action.PlayerAction
 import io.music_assistant.client.ui.compose.common.action.QueueAction
 import io.music_assistant.client.ui.compose.common.providers.providerIconFetcher
@@ -77,6 +77,8 @@ import io.music_assistant.client.ui.compose.library.BrowseScreen
 import io.music_assistant.client.ui.compose.library.BrowseViewModel
 import io.music_assistant.client.ui.compose.library.LibraryListScreen
 import io.music_assistant.client.ui.compose.library.LibraryListViewModel
+import io.music_assistant.client.ui.compose.library.series.SeriesListScreen
+import io.music_assistant.client.ui.compose.library.series.SeriesListViewModel
 import io.music_assistant.client.ui.compose.provider.ProviderViewModel
 import io.music_assistant.client.ui.compose.search.GlobalSearchRequest
 import io.music_assistant.client.ui.compose.search.SearchScreen
@@ -96,6 +98,7 @@ private sealed interface TvRoute : NavKey {
     data object Queue : TvRoute
     data class Library(val mediaType: MediaType) : TvRoute
     data object AiRadio : TvRoute
+    data object Series : TvRoute
     data class Browse(val path: String?, val title: String?, val id: Long = nextRouteId()) : TvRoute
     data class ItemDetails(
         val itemId: String,
@@ -277,6 +280,7 @@ fun TvMainScreen(openSettings: () -> Unit, openAccounts: () -> Unit) {
                         TvMenuEntry.QUEUE -> goToRoot(TvRoute.Queue)
                         TvMenuEntry.BROWSE -> goToRoot(TvRoute.Browse(path = null, title = null))
                         TvMenuEntry.AI_RADIO -> goToRoot(TvRoute.AiRadio)
+                        TvMenuEntry.SERIES -> goToRoot(TvRoute.Series)
                         else -> entry.category?.mediaType?.let { goToRoot(TvRoute.Library(it)) }
                     }
                 },
@@ -309,6 +313,7 @@ fun TvMainScreen(openSettings: () -> Unit, openAccounts: () -> Unit) {
         TvRoute.Queue -> TvMenuEntry.QUEUE
         is TvRoute.Library -> TvMenuEntry.entries.firstOrNull { it.category?.mediaType == root.mediaType }
         TvRoute.AiRadio -> TvMenuEntry.AI_RADIO
+        TvRoute.Series -> TvMenuEntry.SERIES
         is TvRoute.Browse -> TvMenuEntry.BROWSE
         else -> null
     }
@@ -397,6 +402,17 @@ fun TvMainScreen(openSettings: () -> Unit, openAccounts: () -> Unit) {
                                 contentPadding = padding,
                                 onBack = onBack,
                             )
+                        }
+                        entry<TvRoute.Series> {
+                            ProvideDpadFocusMemory {
+                                SeriesListScreen(
+                                    viewModel = koinViewModel<SeriesListViewModel>(),
+                                    actionsViewModel = actionsViewModel,
+                                    contentPadding = padding,
+                                    onNavigateClick = ::navigateToItem,
+                                    onBack = onBack,
+                                )
+                            }
                         }
                         entry<TvRoute.Browse> { route ->
                             ProvideDpadFocusMemory {
