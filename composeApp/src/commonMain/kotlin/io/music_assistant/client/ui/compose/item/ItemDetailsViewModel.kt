@@ -1032,6 +1032,9 @@ private fun ItemDetailsTab.subState(
     ItemDetailsTab.GENRE_ARTISTS -> state.artistsState
     ItemDetailsTab.AUDIOBOOK_CHAPTERS ->
         DataState.Data((state.itemOrNull() as? Audiobook)?.chapters.orEmpty())
+
+    ItemDetailsTab.ALBUM_SERIES ->
+        DataState.Data((state.itemOrNull() as? Album)?.series.orEmpty())
 }
 
 private fun DataState<List<*>>.hasItems(): Boolean = when (this) {
