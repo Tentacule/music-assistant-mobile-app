@@ -195,8 +195,12 @@ actual class PlatformFeature {
   sort use it. The album hero shows both when the edition is later ("edition 2011"), and the versions tab
   shows the year of each edition.
 - **TV album page**: the hero shows the MusicBrainz catalog number of the album (`versionEnrichmentsMap`
-  of its `mbAlbumId`). Down from the hero and Up from the list land on the open tab, and a tab opens when
-  it gets the focus (`TabsBar`). The phone is unchanged.
+  of its `mbAlbumId`). The remote moves by block: Up and Down go from one row of the page to the next
+  (play row, genre chips, series chips, text, tabs, list or artist rows), Left and Right move inside a
+  row (`dpadHorizontalBlock`, and `RowWithTitle`, where Up or Down into a row lands on its tiles). Every
+  entry into the tabs lands on the open tab, and a tab opens when it gets the focus (`TabsBar`). The page
+  is one grid for every tab (`tabBody` gives the rows), so a tab change keeps the tabs and their focus.
+  The phone is unchanged.
 - **Library sort**: get the sort choices of a library list from `LibrarySortRepository.menu(mediaType)`, on the
   phone and in Android Auto. From server 2.11 (`sortWireFor`), the menu holds the fields of `music/sort_options`
   and the request sends `sort_field` and `sort_direction`. An older server gets the static `SortConfig` table and

@@ -43,6 +43,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -396,7 +397,27 @@ private fun RowWithTitle(
     upFocus: FocusRequester? = null,
     row: LazyListScope.() -> Unit,
 ) {
-    Column(modifier) {
+    // Under a D-pad, Up or Down into the row lands on its tiles, the one that last had the focus or
+    // the first, never on the controls at the far right of the title line, which Up from a tile reaches.
+    val dpad = LocalDpadNavigation.current
+    val tilesFocus = remember { FocusRequester() }
+    Column(
+        modifier.then(
+            if (dpad) {
+                Modifier.focusProperties {
+                    onEnter = {
+                        if (requestedFocusDirection == FocusDirection.Down ||
+                            requestedFocusDirection == FocusDirection.Up
+                        ) {
+                            tilesFocus.requestFocus()
+                        }
+                    }
+                }
+            } else {
+                Modifier
+            },
+        ),
+    ) {
         Row(
             modifier = Modifier
                 .height(56.dp)
@@ -432,6 +453,7 @@ private fun RowWithTitle(
                         }
                     }
                 }
+                .then(if (dpad) Modifier.focusRequester(tilesFocus).focusRestorer() else Modifier)
                 .focusGroup(),
             contentPadding = PaddingValues(horizontal = 16.dp),
             // A focused tile grows over its neighbors: a TV needs more room between them.
