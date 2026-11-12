@@ -1,6 +1,7 @@
 package io.music_assistant.client.ui.compose.common
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,8 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -91,6 +95,22 @@ internal fun DpadRememberedFocus(rowKey: String, itemKey: Any, content: @Composa
     ) {
         content()
     }
+}
+
+/**
+ * Under [LocalDpadNavigation], makes [this] one horizontal block of a page, the Android TV way: Left
+ * and Right move inside it, Right stops at its last control instead of jumping to whatever is
+ * nearest on screen, and Up or Down back into it returns to the control that last had the focus.
+ * A no-op otherwise.
+ */
+fun Modifier.dpadHorizontalBlock(): Modifier = composed {
+    if (!LocalDpadNavigation.current) return@composed this
+    this
+        .focusProperties {
+            onExit = { if (requestedFocusDirection == FocusDirection.Right) cancelFocusChange() }
+        }
+        .focusRestorer()
+        .focusGroup()
 }
 
 /**

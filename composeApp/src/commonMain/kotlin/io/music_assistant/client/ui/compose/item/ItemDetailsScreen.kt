@@ -460,7 +460,7 @@ private fun ItemContent(
     )
 
     val dpad = LocalDpadNavigation.current
-    // Hoisted so heroSlot can redirect D-pad Down to the tab bar on TV.
+    // The open tab, where the remote enters the tabs from above or below.
     val selectedTabFocus = remember { FocusRequester() }
     val query = state.playableItemsQuery
     val onQueryChanged = onPlayableItemsQueryChanged.takeIf {
@@ -492,33 +492,31 @@ private fun ItemContent(
     }
 
     val heroSlot: @Composable () -> Unit = {
-        Box(modifier = if (dpad) Modifier.focusProperties { down = selectedTabFocus } else Modifier) {
-            AnimatedVisibility(
-                visible = state.playableItemsQuery == null,
-                enter = expandVertically(),
-                exit = shrinkVertically(),
-            ) {
-                ProvideClickActions(ClickContext.DETAIL) {
-                    ItemHeader(
-                        item = item,
-                        colors = colors,
-                        providerIconFetcher = providerIconFetcher,
-                        onPlayClick = onPlayItemClick,
-                        navigateToItem = onNavigateClick,
-                        genres = state.genres,
-                        playableSummary = state.playableSummary,
-                        ownerLine = state.playlistOwnerLine,
-                        // The TV shows the catalog number of the album in the hero.
-                        catalogNumbers = (item as? Album)?.mbAlbumId
-                            ?.takeIf { dpad }
-                            ?.let { state.versionEnrichmentsMap[it]?.catalogNumbers }
-                            .orEmpty(),
-                        providerDetails = providerDetails,
-                        description = description,
-                        onOpenDescription = { showDescription = true },
-                        actions = actions.takeIf { dpad },
-                    )
-                }
+        AnimatedVisibility(
+            visible = state.playableItemsQuery == null,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
+        ) {
+            ProvideClickActions(ClickContext.DETAIL) {
+                ItemHeader(
+                    item = item,
+                    colors = colors,
+                    providerIconFetcher = providerIconFetcher,
+                    onPlayClick = onPlayItemClick,
+                    navigateToItem = onNavigateClick,
+                    genres = state.genres,
+                    playableSummary = state.playableSummary,
+                    ownerLine = state.playlistOwnerLine,
+                    // The TV shows the catalog number of the album in the hero.
+                    catalogNumbers = (item as? Album)?.mbAlbumId
+                        ?.takeIf { dpad }
+                        ?.let { state.versionEnrichmentsMap[it]?.catalogNumbers }
+                        .orEmpty(),
+                    providerDetails = providerDetails,
+                    description = description,
+                    onOpenDescription = { showDescription = true },
+                    actions = actions.takeIf { dpad },
+                )
             }
         }
     }
@@ -584,23 +582,13 @@ private fun ItemContent(
             } else if (tabs.isEmpty()) {
                 heroSlot()
             } else {
-                if (currentTab == null) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        DetailGrid(
-                            contentPadding = contentPadding,
-                            heroSlot = heroSlot,
-                            tabsSlot = null,
-                            gridState = gridState,
-                        ) {
-                            fullSpanItem(DETAIL_LOADING_KEY) { InlineProgress() }
-                        }
-                    }
-                } else {
-                    val safeIndex = tabs.indexOf(currentTab).coerceAtLeast(0)
-                    val tabsSlot: @Composable () -> Unit = {
+                // One grid for the loading state and every tab: a tab change swaps the rows under the
+                // tabs, and the hero and the tabs stay in place, with the focus of the remote on them.
+                val tabsSlot: (@Composable () -> Unit)? = currentTab?.let { tab ->
+                    {
                         TabsBar(
                             tabs = tabs,
-                            selectedIndex = safeIndex,
+                            selectedIndex = tabs.indexOf(tab).coerceAtLeast(0),
                             controlTint = colors.controlTint,
                             onTabSelected = { onTabSelected(tabs[it]) },
                             albumsSortOption = state.albumsSortOption,
@@ -613,29 +601,33 @@ private fun ItemContent(
                             selectedTabFocusRequester = selectedTabFocus,
                         )
                     }
-                    val tabContext = currentTab.sortContext?.toClickContext()
-                    Box(modifier = Modifier.weight(1f)) {
-                        ProvideClickActions(tabContext) {
-                            TabContent(
-                                tab = currentTab,
-                                item = item,
-                                state = state,
-                                viewModeProvider = viewModeProvider,
-                                onNavigateClick = onNavigateClick,
-                                onPlayChildClick = onPlayChildClick,
-                                onChapterClick = onChapterClick,
-                                playlistActions = playlistActions,
-                                progressActions = progressActions,
-                                onRemoveFromPlaylist = onRemoveFromPlaylist,
-                                libraryActions = libraryActions,
-                                providerIconFetcher = providerIconFetcher,
-                                contentPadding = contentPadding,
-                                heroSlot = heroSlot,
-                                tabsSlot = tabsSlot,
-                                gridState = gridState,
-                                controlTint = colors.controlTint,
-                            )
-                        }
+                }
+                val body: LazyGridScope.() -> Unit = currentTab?.let { tab ->
+                    tabBody(
+                        tab = tab,
+                        item = item,
+                        state = state,
+                        viewModeProvider = viewModeProvider,
+                        onNavigateClick = onNavigateClick,
+                        onPlayChildClick = onPlayChildClick,
+                        onChapterClick = onChapterClick,
+                        playlistActions = playlistActions,
+                        progressActions = progressActions,
+                        onRemoveFromPlaylist = onRemoveFromPlaylist,
+                        libraryActions = libraryActions,
+                        providerIconFetcher = providerIconFetcher,
+                        controlTint = colors.controlTint,
+                    )
+                } ?: { fullSpanItem(DETAIL_LOADING_KEY) { InlineProgress() } }
+                Box(modifier = Modifier.weight(1f)) {
+                    ProvideClickActions(currentTab?.sortContext?.toClickContext()) {
+                        DetailGrid(
+                            contentPadding = contentPadding,
+                            heroSlot = heroSlot,
+                            tabsSlot = tabsSlot,
+                            gridState = gridState,
+                            body = body,
+                        )
                     }
                 }
             }
@@ -727,12 +719,11 @@ private fun TabsBar(
                     if (dpad) {
                         Modifier
                             .focusProperties {
-                                onEnter = {
-                                    if (requestedFocusDirection == FocusDirection.Down ||
-                                        requestedFocusDirection == FocusDirection.Up
-                                    ) {
-                                        selectedTabFocusRequester.requestFocus()
-                                    }
+                                // From any side (the side menu too), so entering never opens another tab.
+                                onEnter = { selectedTabFocusRequester.requestFocus() }
+                                // Nothing is to the right of the bar: the search would pick a far element.
+                                onExit = {
+                                    if (requestedFocusDirection == FocusDirection.Right) cancelFocusChange()
                                 }
                             }
                             .focusGroup()
@@ -808,8 +799,9 @@ private fun TabsBar(
     }
 }
 
+/** The rows of [tab], under the hero and the tabs of the page grid. */
 @Composable
-private fun TabContent(
+private fun tabBody(
     tab: ItemDetailsTab,
     item: AppMediaItem,
     state: ItemDetailsViewModel.State,
@@ -822,17 +814,13 @@ private fun TabContent(
     onRemoveFromPlaylist: (String, List<Int>) -> Unit,
     libraryActions: LibraryActions,
     providerIconFetcher: ProviderIconFetcher,
-    contentPadding: PaddingValues,
-    heroSlot: @Composable () -> Unit,
-    tabsSlot: @Composable () -> Unit,
-    gridState: LazyGridState,
     controlTint: Color,
-) {
+): LazyGridScope.() -> Unit =
     when (tab) {
         ItemDetailsTab.GENRE_ALBUMS,
         ItemDetailsTab.TRACK_ALBUMS,
         ItemDetailsTab.SERIES_ALBUMS,
-            -> AlbumsTabContent(
+            -> albumsTabBody(
             albumsState = state.albumsState,
             parentItem = item,
             viewModeProvider = viewModeProvider,
@@ -841,10 +829,6 @@ private fun TabContent(
             playlistActions = playlistActions,
             libraryActions = libraryActions,
             providerIconFetcher = providerIconFetcher,
-            contentPadding = contentPadding,
-            heroSlot = heroSlot,
-            tabsSlot = tabsSlot,
-            gridState = gridState,
         )
 
         ItemDetailsTab.ALBUM_TRACKS,
@@ -853,7 +837,7 @@ private fun TabContent(
         ItemDetailsTab.PODCAST_EPISODES,
         ItemDetailsTab.OTHER_EPISODES,
         ItemDetailsTab.COLLECTION_ITEMS,
-            -> PlayablesTabContent(
+            -> playablesTabBody(
             playableItemsState = state.playableItemsState,
             parentItem = item,
             playableItemsSortOption = state.playableItemsSortOption,
@@ -866,17 +850,13 @@ private fun TabContent(
             onRemoveFromPlaylist = onRemoveFromPlaylist,
             libraryActions = libraryActions,
             providerIconFetcher = providerIconFetcher,
-            contentPadding = contentPadding,
-            heroSlot = heroSlot,
-            tabsSlot = tabsSlot,
-            gridState = gridState,
             controlTint = controlTint,
         )
 
         ItemDetailsTab.TRACK_VERSIONS,
         ItemDetailsTab.SIMILAR_TRACKS,
         ItemDetailsTab.RADIO_VERSIONS,
-            -> PlayablesTabContent(
+            -> playablesTabBody(
             playableItemsState = when (tab) {
                 ItemDetailsTab.TRACK_VERSIONS -> state.trackVersionsState
                 ItemDetailsTab.SIMILAR_TRACKS -> state.similarTracksState
@@ -893,38 +873,30 @@ private fun TabContent(
             onRemoveFromPlaylist = onRemoveFromPlaylist,
             libraryActions = libraryActions,
             providerIconFetcher = providerIconFetcher,
-            contentPadding = contentPadding,
-            heroSlot = heroSlot,
-            tabsSlot = tabsSlot,
-            gridState = gridState,
             controlTint = controlTint,
         )
 
-        ItemDetailsTab.GENRE_ARTISTS -> ArtistsTabContent(
+        ItemDetailsTab.GENRE_ARTISTS -> artistsTabBody(
             artistsState = state.artistsState,
             viewModeProvider = viewModeProvider,
             onNavigateClick = onNavigateClick,
             onPlayChildClick = onPlayChildClick,
             libraryActions = libraryActions,
             providerIconFetcher = providerIconFetcher,
-            contentPadding = contentPadding,
-            heroSlot = heroSlot,
-            tabsSlot = tabsSlot,
-            gridState = gridState,
         )
 
-        ItemDetailsTab.AUDIOBOOK_CHAPTERS -> ChaptersTabContent(
-            chapters = (item as? Audiobook)?.chapters.orEmpty(),
-            resumeChapterPosition = (item as? Audiobook)?.resumeChapter()?.position,
-            onChapterClick = onChapterClick,
-            contentPadding = contentPadding,
-            heroSlot = heroSlot,
-            tabsSlot = tabsSlot,
-            gridState = gridState,
-            controlTint = controlTint,
-        )
+        ItemDetailsTab.AUDIOBOOK_CHAPTERS -> {
+            {
+                chaptersTabBody(
+                    chapters = (item as? Audiobook)?.chapters.orEmpty(),
+                    resumeChapterPosition = (item as? Audiobook)?.resumeChapter()?.position,
+                    onChapterClick = onChapterClick,
+                    controlTint = controlTint,
+                )
+            }
+        }
 
-        ItemDetailsTab.ALBUM_VERSIONS -> AlbumVersionsTabContent(
+        ItemDetailsTab.ALBUM_VERSIONS -> albumVersionsTabBody(
             albumVersionsState = state.albumVersionsState,
             versionEnrichmentsMap = state.versionEnrichmentsMap,
             parentItem = item,
@@ -934,22 +906,17 @@ private fun TabContent(
             playlistActions = playlistActions,
             libraryActions = libraryActions,
             providerIconFetcher = providerIconFetcher,
-            contentPadding = contentPadding,
-            heroSlot = heroSlot,
-            tabsSlot = tabsSlot,
-            gridState = gridState,
         )
 
-        ItemDetailsTab.ALBUM_SERIES -> AlbumSeriesTabContent(
-            series = (item as? Album)?.series.orEmpty(),
-            onSeriesClick = { entry -> onNavigateClick(MediaCollection.albumSeries(entry.title)) },
-            contentPadding = contentPadding,
-            heroSlot = heroSlot,
-            tabsSlot = tabsSlot,
-            gridState = gridState,
-        )
+        ItemDetailsTab.ALBUM_SERIES -> {
+            {
+                albumSeriesTabBody(
+                    series = (item as? Album)?.series.orEmpty(),
+                    onSeriesClick = { entry -> onNavigateClick(MediaCollection.albumSeries(entry.title)) },
+                )
+            }
+        }
     }
-}
 
 /**
  * Emits the shared full-span header rows: the hero (bled out of the grid's [gridPadding] so its
@@ -1042,7 +1009,7 @@ private fun <T> DataState<List<T>>.tabRows(): List<T> = when (this) {
 }
 
 @Composable
-private fun AlbumsTabContent(
+private fun albumsTabBody(
     albumsState: DataState<List<Album>>,
     parentItem: AppMediaItem,
     viewModeProvider: @Composable (MediaType) -> ViewMode,
@@ -1051,16 +1018,12 @@ private fun AlbumsTabContent(
     playlistActions: PlaylistActions,
     libraryActions: LibraryActions,
     providerIconFetcher: ProviderIconFetcher,
-    contentPadding: PaddingValues,
-    heroSlot: @Composable () -> Unit,
-    tabsSlot: @Composable () -> Unit,
-    gridState: LazyGridState,
-) {
+): LazyGridScope.() -> Unit {
     val viewMode = viewModeProvider(MediaType.ALBUM)
     // Built here because the grid content below is not a @Composable scope.
     val albumRows = albumsState.tabRows()
     val albumKeys = remember(albumRows) { albumRows.lazyListOccurrenceKeys() }
-    DetailGrid(contentPadding, heroSlot, tabsSlot, gridState) {
+    return {
         tabListBody(albumsState) { albums ->
             itemsIndexed(
                 items = albums,
@@ -1089,7 +1052,7 @@ private fun AlbumsTabContent(
 }
 
 @Composable
-private fun AlbumVersionsTabContent(
+private fun albumVersionsTabBody(
     albumVersionsState: DataState<List<Album>>,
     versionEnrichmentsMap: Map<String, ServerAlbumVersionEnrichment>,
     parentItem: AppMediaItem,
@@ -1099,15 +1062,11 @@ private fun AlbumVersionsTabContent(
     playlistActions: PlaylistActions,
     libraryActions: LibraryActions,
     providerIconFetcher: ProviderIconFetcher,
-    contentPadding: PaddingValues,
-    heroSlot: @Composable () -> Unit,
-    tabsSlot: @Composable () -> Unit,
-    gridState: LazyGridState,
-) {
+): LazyGridScope.() -> Unit {
     val viewMode = viewModeProvider(MediaType.ALBUM)
     val albumRows = albumVersionsState.tabRows()
     val albumKeys = remember(albumRows) { albumRows.lazyListOccurrenceKeys() }
-    DetailGrid(contentPadding, heroSlot, tabsSlot, gridState) {
+    return {
         tabListBody(albumVersionsState) { albums ->
             itemsIndexed(
                 items = albums,
@@ -1158,22 +1117,18 @@ private fun enrichmentSubtitle(
 }
 
 @Composable
-private fun ArtistsTabContent(
+private fun artistsTabBody(
     artistsState: DataState<List<Artist>>,
     viewModeProvider: @Composable (MediaType) -> ViewMode,
     onNavigateClick: (AppMediaItem) -> Unit,
     onPlayChildClick: PlayHandler<AppMediaItem>,
     libraryActions: LibraryActions,
     providerIconFetcher: ProviderIconFetcher,
-    contentPadding: PaddingValues,
-    heroSlot: @Composable () -> Unit,
-    tabsSlot: @Composable () -> Unit,
-    gridState: LazyGridState,
-) {
+): LazyGridScope.() -> Unit {
     val viewMode = viewModeProvider(MediaType.ARTIST)
     val artistRows = artistsState.tabRows()
     val artistKeys = remember(artistRows) { artistRows.lazyListOccurrenceKeys() }
-    DetailGrid(contentPadding, heroSlot, tabsSlot, gridState) {
+    return {
         tabListBody(artistsState) { artists ->
             itemsIndexed(
                 items = artists,
@@ -1199,7 +1154,7 @@ private fun ArtistsTabContent(
 }
 
 @Composable
-private fun PlayablesTabContent(
+private fun playablesTabBody(
     playableItemsState: DataState<List<PlayableItem>>,
     parentItem: AppMediaItem,
     playableItemsSortOption: SortOption?,
@@ -1212,12 +1167,8 @@ private fun PlayablesTabContent(
     onRemoveFromPlaylist: (String, List<Int>) -> Unit,
     libraryActions: LibraryActions,
     providerIconFetcher: ProviderIconFetcher,
-    contentPadding: PaddingValues,
-    heroSlot: @Composable () -> Unit,
-    tabsSlot: @Composable () -> Unit,
-    gridState: LazyGridState,
     controlTint: Color,
-) {
+): LazyGridScope.() -> Unit {
     val viewMode = viewModeProvider(MediaType.TRACK)
     // Shared row body for both the flat and the disc-sectioned layouts.
     val canEditPlaylist = parentItem is Playlist && parentItem.isEditable
@@ -1297,7 +1248,7 @@ private fun PlayablesTabContent(
                 trackRows.all { it is Track && it.discNumber != null } &&
                 trackRows.mapNotNull { (it as? Track)?.discNumber }.distinct().size > 1
     }
-    DetailGrid(contentPadding, heroSlot, tabsSlot, gridState) {
+    return {
         tabListBody(playableItemsState, emptyText) { tracks ->
             if (sectionByDisc) {
                 tracks.forEachIndexed { index, track ->
@@ -1498,65 +1449,51 @@ private fun <T : AppMediaItem> SectionRow(
     )
 }
 
-@Composable
-private fun AlbumSeriesTabContent(
+private fun LazyGridScope.albumSeriesTabBody(
     series: List<SeriesEntry>,
     onSeriesClick: (SeriesEntry) -> Unit,
-    contentPadding: PaddingValues,
-    heroSlot: @Composable () -> Unit,
-    tabsSlot: @Composable () -> Unit,
-    gridState: LazyGridState,
 ) {
-    DetailGrid(contentPadding, heroSlot, tabsSlot, gridState) {
-        series.forEach { entry ->
-            fullSpanItem("series:${entry.title}") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSeriesClick(entry) }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = BookshelfIcon,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 16.dp).size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = entry.label,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
+    series.forEach { entry ->
+        fullSpanItem("series:${entry.title}") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSeriesClick(entry) }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = BookshelfIcon,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 16.dp).size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = entry.label,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
         }
     }
 }
 
-@Composable
-private fun ChaptersTabContent(
+private fun LazyGridScope.chaptersTabBody(
     chapters: List<Chapter>,
     resumeChapterPosition: Int?,
     onChapterClick: (Int) -> Unit,
-    contentPadding: PaddingValues,
-    heroSlot: @Composable () -> Unit,
-    tabsSlot: @Composable () -> Unit,
-    gridState: LazyGridState,
     controlTint: Color,
 ) {
-    DetailGrid(contentPadding, heroSlot, tabsSlot, gridState) {
-        if (chapters.isEmpty()) {
-            fullSpanItem(DETAIL_EMPTY_KEY) { CenteredText(stringResource(Res.string.library_empty)) }
-        } else {
-            chapters.forEach { chapter ->
-                fullSpanItem(DETAIL_CHAPTER_KEY_PREFIX + chapter.position) {
-                    ChapterRow(
-                        chapter = chapter,
-                        isResumePoint = chapter.position == resumeChapterPosition,
-                        onClick = { onChapterClick(chapter.position) },
-                        controlTint = controlTint,
-                    )
-                }
+    if (chapters.isEmpty()) {
+        fullSpanItem(DETAIL_EMPTY_KEY) { CenteredText(stringResource(Res.string.library_empty)) }
+    } else {
+        chapters.forEach { chapter ->
+            fullSpanItem(DETAIL_CHAPTER_KEY_PREFIX + chapter.position) {
+                ChapterRow(
+                    chapter = chapter,
+                    isResumePoint = chapter.position == resumeChapterPosition,
+                    onClick = { onChapterClick(chapter.position) },
+                    controlTint = controlTint,
+                )
             }
         }
     }

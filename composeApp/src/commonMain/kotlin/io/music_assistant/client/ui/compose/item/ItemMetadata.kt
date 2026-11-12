@@ -46,6 +46,7 @@ import io.music_assistant.client.data.model.client.items.PlaylistOwnerLine
 import io.music_assistant.client.data.model.client.items.PodcastEpisode
 import io.music_assistant.client.data.model.client.stringResource
 import io.music_assistant.client.ui.compose.common.LocalDpadNavigation
+import io.music_assistant.client.ui.compose.common.dpadHorizontalBlock
 import io.music_assistant.client.ui.compose.common.icons.BookshelfIcon
 import io.music_assistant.client.utils.TotalDuration
 import io.music_assistant.client.utils.toTotalDuration
@@ -178,7 +179,7 @@ fun GenreChips(
     if (genres.isEmpty()) return
     val alignment = if (textAlign == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start
     FlowRow(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp).dpadHorizontalBlock(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, alignment),
     ) {
         genres.take(MAX_GENRE_CHIPS).forEach { genre ->
@@ -201,7 +202,7 @@ fun SeriesChips(
     if (series.isEmpty()) return
     val alignment = if (textAlign == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start
     FlowRow(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp).dpadHorizontalBlock(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, alignment),
     ) {
         series.forEach { entry ->
