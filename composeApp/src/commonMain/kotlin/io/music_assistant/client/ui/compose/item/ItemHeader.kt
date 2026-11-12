@@ -22,7 +22,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -80,6 +82,7 @@ import io.music_assistant.client.data.model.client.items.RefreshItemAction
 import io.music_assistant.client.data.model.client.items.Track
 import io.music_assistant.client.data.play.PlayMode
 import io.music_assistant.client.imageloader.rememberArtworkRequest
+import io.music_assistant.client.settings.ViewMode
 import io.music_assistant.client.ui.INACTIVE_ALPHA
 import io.music_assistant.client.ui.bestContrastContent
 import io.music_assistant.client.ui.compose.common.DpadControlSpacing
@@ -127,6 +130,7 @@ import musicassistantclient.composeapp.generated.resources.cd_close
 import musicassistantclient.composeapp.generated.resources.cd_find_in_list
 import musicassistantclient.composeapp.generated.resources.cd_more
 import musicassistantclient.composeapp.generated.resources.cd_refreshing_item
+import musicassistantclient.composeapp.generated.resources.cd_toggle_view_mode
 import musicassistantclient.composeapp.generated.resources.common_back
 import musicassistantclient.composeapp.generated.resources.find_in_list_label
 import musicassistantclient.composeapp.generated.resources.item_narrated_by
@@ -222,8 +226,8 @@ fun ItemHeader(
                 textAlign = textAlign,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            // The series of an album, each opening its series page.
-            (item as? Album)?.series?.takeIf { it.isNotEmpty() }?.let { series ->
+            // The series of an album, each opening its series page. The TV lists them in the Series tab only.
+            (item as? Album)?.series?.takeIf { it.isNotEmpty() && !LocalDpadNavigation.current }?.let { series ->
                 SeriesChips(
                     series = series,
                     onSeriesClick = { entry -> navigateToItem(MediaCollection.albumSeries(entry.title)) },
@@ -343,6 +347,9 @@ internal fun ItemActions(
     onQueryChanged: ((String?) -> Unit)?,
     // The fill of the buttons when they sit next to the play button, whose look they share.
     fill: Color? = null,
+    // The list or grid toggle of the open tab, on the TV, where the tab bar is out of the way.
+    viewMode: ViewMode? = null,
+    onToggleViewMode: () -> Unit = {},
 ) {
     if (refreshingItem) {
         val description = stringResource(Res.string.cd_refreshing_item)
@@ -375,6 +382,18 @@ internal fun ItemActions(
         onQueryChanged?.let { changeQuery ->
             ItemActionButton(onClick = { changeQuery("") }, fill = fill) {
                 Icon(Icons.Default.Search, stringResource(Res.string.cd_find_in_list))
+            }
+        }
+
+        viewMode?.let { mode ->
+            ItemActionButton(onClick = onToggleViewMode, fill = fill) {
+                Icon(
+                    imageVector = when (mode) {
+                        ViewMode.LIST -> Icons.Default.GridView
+                        ViewMode.GRID -> Icons.AutoMirrored.Filled.ViewList
+                    },
+                    contentDescription = stringResource(Res.string.cd_toggle_view_mode),
+                )
             }
         }
 

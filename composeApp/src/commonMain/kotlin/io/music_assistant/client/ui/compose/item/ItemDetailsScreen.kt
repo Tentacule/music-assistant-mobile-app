@@ -468,6 +468,9 @@ private fun ItemContent(
     }
     // A remote is a long way from the close button: Back leaves the search, not the page.
     BackHandler(enabled = dpad && query != null) { onPlayableItemsQueryChanged(null) }
+    // The TV has the list or grid toggle of the open tab on the row of the play button: the
+    // remote cannot reach it at the end of the tab bar.
+    val viewMediaType = state.selectedTab?.viewMediaType?.takeIf { dpad }
     val actions: @Composable () -> Unit = {
         ItemActions(
             item = item,
@@ -488,6 +491,8 @@ private fun ItemContent(
             onQueryChanged = onQueryChanged,
             // Next to the play button in the hero. The search bar replaces the hero.
             fill = colors.controlTint.takeIf { dpad && query == null },
+            viewMode = viewMediaType?.let { viewModeProvider(it) },
+            onToggleViewMode = { viewMediaType?.let(onToggleViewMode) },
         )
     }
 
@@ -789,7 +794,7 @@ private fun TabsBar(
                 )
             }
 
-            currentTab.viewMediaType?.let { viewMediaType ->
+            currentTab.viewMediaType?.takeIf { !dpad }?.let { viewMediaType ->
                 ViewModeToggle(
                     viewMode = viewModeProvider(viewMediaType),
                     onToggleViewMode = { onToggleViewMode(viewMediaType) },
