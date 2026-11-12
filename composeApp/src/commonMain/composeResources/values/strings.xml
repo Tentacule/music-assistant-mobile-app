@@ -326,6 +326,7 @@
   <string name="item_tab_other_episodes">Other episodes</string>
   <string name="item_tab_similar_tracks">Similar tracks</string>
   <string name="item_tab_album_versions">Other versions</string>
+  <string name="item_tab_album_series">Series</string>
   <string name="item_tab_versions">Versions</string>
   <plurals name="item_track_count">
     <item quantity="one">%1$d track</item>

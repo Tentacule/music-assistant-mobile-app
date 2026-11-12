@@ -68,6 +68,7 @@ import io.music_assistant.client.data.model.client.SortField
 import io.music_assistant.client.data.model.client.SortOption
 import io.music_assistant.client.data.model.client.SubItemContext
 import io.music_assistant.client.data.model.client.itemDescription
+import io.music_assistant.client.data.model.client.SeriesEntry
 import io.music_assistant.client.data.model.client.items.Album
 import io.music_assistant.client.data.model.client.items.AppMediaItem
 import io.music_assistant.client.data.model.client.items.Artist
@@ -130,6 +131,7 @@ import io.music_assistant.client.ui.compose.common.rememberDynamicColorsEnabled
 import io.music_assistant.client.ui.compose.common.rememberExtractedColorsSource
 import io.music_assistant.client.ui.compose.common.toDisplayString
 import io.music_assistant.client.ui.compose.common.viewmodel.ActionsViewModel
+import io.music_assistant.client.ui.compose.common.icons.BookshelfIcon
 import io.music_assistant.client.ui.compose.grid.gridItemMinSize
 import io.music_assistant.client.ui.compose.home.players.LyricsSheet
 import io.music_assistant.client.ui.compose.home.players.LyricsSheetKind
@@ -155,6 +157,7 @@ import musicassistantclient.composeapp.generated.resources.cd_in_progress
 import musicassistantclient.composeapp.generated.resources.cd_provider_filter
 import musicassistantclient.composeapp.generated.resources.item_error
 import musicassistantclient.composeapp.generated.resources.item_no_data
+import musicassistantclient.composeapp.generated.resources.item_tab_album_series
 import musicassistantclient.composeapp.generated.resources.item_tab_album_versions
 import musicassistantclient.composeapp.generated.resources.item_tab_other_episodes
 import musicassistantclient.composeapp.generated.resources.item_tab_similar_tracks
@@ -385,6 +388,7 @@ private fun ItemDetailsTab.stringResource(): StringResource? = when (this) {
     ItemDetailsTab.RADIO_VERSIONS,
     -> Res.string.item_tab_versions
     ItemDetailsTab.ALBUM_VERSIONS -> Res.string.item_tab_album_versions
+    ItemDetailsTab.ALBUM_SERIES -> Res.string.item_tab_album_series
     ItemDetailsTab.SIMILAR_TRACKS -> Res.string.item_tab_similar_tracks
     else -> viewMediaType?.stringResource()
 }
@@ -456,6 +460,8 @@ private fun ItemContent(
     )
 
     val dpad = LocalDpadNavigation.current
+    // Hoisted so heroSlot can redirect D-pad Down to the tab bar on TV.
+    val selectedTabFocus = remember { FocusRequester() }
     val query = state.playableItemsQuery
     val onQueryChanged = onPlayableItemsQueryChanged.takeIf {
         item is Album || item is Playlist || item is Podcast
@@ -486,31 +492,33 @@ private fun ItemContent(
     }
 
     val heroSlot: @Composable () -> Unit = {
-        AnimatedVisibility(
-            visible = state.playableItemsQuery == null,
-            enter = expandVertically(),
-            exit = shrinkVertically(),
-        ) {
-            ProvideClickActions(ClickContext.DETAIL) {
-                ItemHeader(
-                    item = item,
-                    colors = colors,
-                    providerIconFetcher = providerIconFetcher,
-                    onPlayClick = onPlayItemClick,
-                    navigateToItem = onNavigateClick,
-                    genres = state.genres,
-                    playableSummary = state.playableSummary,
-                    ownerLine = state.playlistOwnerLine,
-                    // The TV shows the catalog number of the album in the hero.
-                    catalogNumbers = (item as? Album)?.mbAlbumId
-                        ?.takeIf { dpad }
-                        ?.let { state.versionEnrichmentsMap[it]?.catalogNumbers }
-                        .orEmpty(),
-                    providerDetails = providerDetails,
-                    description = description,
-                    onOpenDescription = { showDescription = true },
-                    actions = actions.takeIf { dpad },
-                )
+        Box(modifier = if (dpad) Modifier.focusProperties { down = selectedTabFocus } else Modifier) {
+            AnimatedVisibility(
+                visible = state.playableItemsQuery == null,
+                enter = expandVertically(),
+                exit = shrinkVertically(),
+            ) {
+                ProvideClickActions(ClickContext.DETAIL) {
+                    ItemHeader(
+                        item = item,
+                        colors = colors,
+                        providerIconFetcher = providerIconFetcher,
+                        onPlayClick = onPlayItemClick,
+                        navigateToItem = onNavigateClick,
+                        genres = state.genres,
+                        playableSummary = state.playableSummary,
+                        ownerLine = state.playlistOwnerLine,
+                        // The TV shows the catalog number of the album in the hero.
+                        catalogNumbers = (item as? Album)?.mbAlbumId
+                            ?.takeIf { dpad }
+                            ?.let { state.versionEnrichmentsMap[it]?.catalogNumbers }
+                            .orEmpty(),
+                        providerDetails = providerDetails,
+                        description = description,
+                        onOpenDescription = { showDescription = true },
+                        actions = actions.takeIf { dpad },
+                    )
+                }
             }
         }
     }
@@ -602,6 +610,7 @@ private fun ItemContent(
                             onEpisodesPlayedFilterToggled = onEpisodesPlayedFilterToggled,
                             viewModeProvider = viewModeProvider,
                             onToggleViewMode = onToggleViewMode,
+                            selectedTabFocusRequester = selectedTabFocus,
                         )
                     }
                     val tabContext = currentTab.sortContext?.toClickContext()
@@ -681,6 +690,7 @@ private fun TabsBar(
     onEpisodesPlayedFilterToggled: () -> Unit,
     viewModeProvider: @Composable (MediaType) -> ViewMode,
     onToggleViewMode: (MediaType) -> Unit,
+    selectedTabFocusRequester: FocusRequester = remember { FocusRequester() },
 ) {
     val currentTab = tabs[selectedIndex]
     val sortCtx = currentTab.sortContext
@@ -708,7 +718,6 @@ private fun TabsBar(
     // TV: coming down from the hero or up from the list, the focus lands on the open tab, and a
     // tab opens as soon as it has the focus, so left and right go through the tabs.
     val dpad = LocalDpadNavigation.current
-    val selectedTabFocus = remember { FocusRequester() }
     Column {
         Row(
             modifier = Modifier
@@ -722,7 +731,7 @@ private fun TabsBar(
                                     if (requestedFocusDirection == FocusDirection.Down ||
                                         requestedFocusDirection == FocusDirection.Up
                                     ) {
-                                        if (!selectedTabFocus.requestFocus()) cancelFocusChange()
+                                        selectedTabFocusRequester.requestFocus()
                                     }
                                 }
                             }
@@ -756,7 +765,7 @@ private fun TabsBar(
                         onClick = { onTabSelected(i) },
                         modifier = if (dpad) {
                             Modifier
-                                .then(if (selected) Modifier.focusRequester(selectedTabFocus) else Modifier)
+                                .then(if (selected) Modifier.focusRequester(selectedTabFocusRequester) else Modifier)
                                 .onFocusChanged { if (it.isFocused && !selected) onTabSelected(i) }
                         } else {
                             Modifier
@@ -925,6 +934,15 @@ private fun TabContent(
             playlistActions = playlistActions,
             libraryActions = libraryActions,
             providerIconFetcher = providerIconFetcher,
+            contentPadding = contentPadding,
+            heroSlot = heroSlot,
+            tabsSlot = tabsSlot,
+            gridState = gridState,
+        )
+
+        ItemDetailsTab.ALBUM_SERIES -> AlbumSeriesTabContent(
+            series = (item as? Album)?.series.orEmpty(),
+            onSeriesClick = { entry -> onNavigateClick(MediaCollection.albumSeries(entry.title)) },
             contentPadding = contentPadding,
             heroSlot = heroSlot,
             tabsSlot = tabsSlot,
@@ -1478,6 +1496,41 @@ private fun <T : AppMediaItem> SectionRow(
         providerIconFetcher = providerIconFetcher,
         viewAllColor = viewAllColor,
     )
+}
+
+@Composable
+private fun AlbumSeriesTabContent(
+    series: List<SeriesEntry>,
+    onSeriesClick: (SeriesEntry) -> Unit,
+    contentPadding: PaddingValues,
+    heroSlot: @Composable () -> Unit,
+    tabsSlot: @Composable () -> Unit,
+    gridState: LazyGridState,
+) {
+    DetailGrid(contentPadding, heroSlot, tabsSlot, gridState) {
+        series.forEach { entry ->
+            fullSpanItem("series:${entry.title}") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSeriesClick(entry) }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = BookshelfIcon,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 16.dp).size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = entry.label,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

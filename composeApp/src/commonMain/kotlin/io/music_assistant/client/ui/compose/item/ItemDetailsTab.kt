@@ -24,6 +24,7 @@ enum class ItemDetailsTab(
 ) {
     ALBUM_TRACKS(SubItemContext.ALBUM_TRACKS, MediaType.TRACK),
     ALBUM_VERSIONS(null, MediaType.ALBUM),
+    ALBUM_SERIES(null, null),
     PLAYLIST_ITEMS(SubItemContext.PLAYLIST_ITEMS, MediaType.TRACK),
     RADIO_TRACKS(SubItemContext.RADIO_TRACKS, MediaType.TRACK),
     RADIO_VERSIONS(null, MediaType.RADIO),
@@ -42,7 +43,8 @@ enum class ItemDetailsTab(
 }
 
 fun tabsFor(item: AppMediaItem): List<ItemDetailsTab> = when (item) {
-    is Album -> listOf(ItemDetailsTab.ALBUM_TRACKS, ItemDetailsTab.ALBUM_VERSIONS)
+    is Album -> listOf(ItemDetailsTab.ALBUM_TRACKS, ItemDetailsTab.ALBUM_VERSIONS) +
+        if (item.series.isNotEmpty()) listOf(ItemDetailsTab.ALBUM_SERIES) else emptyList()
     is Playlist -> listOf(ItemDetailsTab.PLAYLIST_ITEMS)
     is RadioStation -> listOf(ItemDetailsTab.RADIO_TRACKS, ItemDetailsTab.RADIO_VERSIONS)
     is Podcast -> listOf(ItemDetailsTab.PODCAST_EPISODES)
