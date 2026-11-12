@@ -1,6 +1,7 @@
 package io.music_assistant.client.tv.ui
 
 import android.app.Activity
+import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.focusGroup
@@ -15,9 +16,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -227,7 +230,20 @@ fun TvMainScreen(openSettings: () -> Unit, openAccounts: () -> Unit) {
     // Idle remote during playback: switch to the Now playing mode by itself, like a screensaver.
     val lastKeyAt by userActivity.lastKeyAt.collectAsStateWithLifecycle()
     val idleDelay by prefs.nowPlayingDelay.collectAsStateWithLifecycle()
-    val isPlaying = activePlayer?.player?.isPlaying == true
+    // Playing means a track is under way on the player: a paused or stopped queue never opens the mode.
+    val isPlaying = activePlayer?.let { it.player.isPlaying && it.queueInfo?.currentItem != null } == true
+    val playingNow by rememberUpdatedState(isPlaying)
+    // Opened by the idle remote, not by the user. Saved so that an activity restarted after a long
+    // idle (stand-by, screensaver) does not come back on a Now playing the user never asked for.
+    var nowPlayingByIdle by rememberSaveable { mutableStateOf(false) }
+    var idleOpenedAt by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        if (nowPlaying && nowPlayingByIdle) {
+            nowPlaying = false
+            nowPlayingByIdle = false
+        }
+    }
+    LaunchedEffect(nowPlaying) { if (!nowPlaying) nowPlayingByIdle = false }
     // Not over an open menu or dialog: those are windows above the app, which then has no window
     // focus. The mode waits until they close.
     val view = LocalView.current
@@ -236,7 +252,22 @@ fun TvMainScreen(openSettings: () -> Unit, openAccounts: () -> Unit) {
         if (!isPlaying || nowPlaying) return@LaunchedEffect
         delay(millis)
         while (!view.hasWindowFocus()) delay(WINDOW_FOCUS_POLL_MS)
+        // Still playing once the window is back: a pause during the wait cancels the switch.
+        if (!playingNow) return@LaunchedEffect
         nowPlaying = true
+        nowPlayingByIdle = true
+        idleOpenedAt = SystemClock.elapsedRealtime()
+    }
+    // A key in the mode makes it the user's own.
+    LaunchedEffect(lastKeyAt) { if (nowPlayingByIdle && lastKeyAt > idleOpenedAt) nowPlayingByIdle = false }
+    // The mode it opened leaves when the playback stops before the remote is touched again, so the
+    // user never comes back to a paused Now playing, where OK would start the playback. The grace
+    // period covers the short stop between two tracks.
+    LaunchedEffect(nowPlayingByIdle, isPlaying) {
+        if (nowPlayingByIdle && !isPlaying) {
+            delay(IDLE_STOP_GRACE_MS)
+            nowPlaying = false
+        }
     }
 
     fun navigateToItem(item: AppMediaItem) {
@@ -612,5 +643,6 @@ private const val ACCOUNT_RAIL_KEY = "account"
 // Once per process: the app starts on this TV, and keeps the player chosen afterwards.
 private var localPlayerSelectedThisLaunch = false
 private const val WINDOW_FOCUS_POLL_MS = 500L
+private const val IDLE_STOP_GRACE_MS = 5_000L
 private const val MAX_ERROR_LENGTH = 150
 private const val FOCUS_RETRY_MS = 150L
